@@ -1,4 +1,4 @@
-module Category exposing (..)
+module Types.Category exposing (..)
 
 {-| このモジュールは、呼吸法に関連する`Category`の型と関数を定義します。
 `Category`にはカテゴリID、タイトルなどが含まれます。

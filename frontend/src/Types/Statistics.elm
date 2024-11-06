@@ -1,4 +1,4 @@
-module Statistics exposing
+module Types.Statistics exposing
     ( Statistics
     , recentDaysThreshold
     , calculateFromSessions, calculateRecentFromSessions
@@ -38,7 +38,7 @@ module Statistics exposing
 
 import Date exposing (format)
 import List.Extra
-import Session exposing (Session)
+import Types.Session exposing (Session)
 import Time exposing (posixToMillis)
 
 

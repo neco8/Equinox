@@ -1,4 +1,4 @@
-module BreathingMethod exposing (..)
+module Types.BreathingMethod exposing (..)
 
 {-| このモジュールは、`Inhale`、`InhaleHold`、`Exhale`、`ExhaleHold`のような異なるフェーズから構成される呼吸法を管理するための型と関数を定義します。
 各フェーズの時間を設定可能な`BreathingMethod`を定義する構造を提供します。
@@ -15,7 +15,7 @@ module BreathingMethod exposing (..)
 
 -}
 
-import Category exposing (CategoryId)
+import Types.Category exposing (CategoryId)
 import Time exposing (Posix)
 import Uuid exposing (Uuid)
 

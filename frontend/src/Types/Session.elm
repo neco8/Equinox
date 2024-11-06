@@ -1,4 +1,4 @@
-module Session exposing (..)
+module Types.Session exposing (..)
 
 {-| このモジュールは、呼吸法セッションを表す型と関連する関数を定義します。
 セッションは、特定の呼吸法 (BreathingMethod) に基づいており、個別のフェーズごとの時間 (Inhale, InhaleHold, Exhale, ExhaleHold) を持つことで、ユーザーの呼吸セッションの進捗を記録します。また、呼吸法IDを持つことで、特定の呼吸法との関連を表現します。
@@ -15,7 +15,7 @@ module Session exposing (..)
 
 -}
 
-import BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name)
+import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name)
 import Time exposing (Posix)
 import Uuid exposing (Uuid)
 
