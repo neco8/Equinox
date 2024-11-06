@@ -15,8 +15,8 @@ module Types.BreathingMethod exposing (..)
 
 -}
 
-import Types.Category exposing (CategoryId)
 import Time exposing (Posix)
+import Types.Category exposing (CategoryId)
 import Uuid exposing (Uuid)
 
 
@@ -65,6 +65,57 @@ type alias ExhaleHoldDuration =
     Int
 
 
+{-| 秒（秒単位）
+-}
+seconds : Int
+seconds =
+    1
+
+
+{-| 分（秒単位）
+-}
+minutes : Int
+minutes =
+    60 * seconds
+
+
+{-| 時間（秒単位）
+-}
+hours : Int
+hours =
+    60 * minutes
+
+
+{-| フェーズの最短時間
+
+フェーズの最短秒数は基本的に1秒
+
+-}
+minPhaseDuration : Int
+minPhaseDuration =
+    1 * seconds
+
+
+{-| フェーズの最短ホールド時間
+
+フェーズの最短ホールド秒数は0秒が許容される
+
+-}
+minHoldPhaseDuration : Int
+minHoldPhaseDuration =
+    0
+
+
+{-| フェーズの最大時間
+
+フェーズの最大時間は10分
+
+-}
+maxPhaseDuration : Int
+maxPhaseDuration =
+    10 * minutes
+
+
 {-| 呼吸法を表します。各呼吸法は特定のカテゴリーに属し、各フェーズごとの時間（秒数）を設定します。
 -}
 type alias BreathingMethod =
@@ -92,3 +143,17 @@ type alias BreathingMethodId =
 -}
 type alias Name =
     String
+
+
+{-| 呼吸法の名前の最小文字数。
+-}
+minNameLength : Int
+minNameLength =
+    1
+
+
+{-| 呼吸法の名前の最大文字数。
+-}
+maxNameLength : Int
+maxNameLength =
+    20
