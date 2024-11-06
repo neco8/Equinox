@@ -1,0 +1,4 @@
+*.code-workspace
+.lsp
+.clj-kondo
+.DS_Store

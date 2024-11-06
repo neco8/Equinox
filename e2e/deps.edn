@@ -1,0 +1,15 @@
+{:paths ["test"]
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        org.clojure/test.check {:mvn/version "1.1.1"}
+        lambdaisland/kaocha {:mvn/version "1.87.1366"}
+        etaoin/etaoin {:mvn/version "1.0.40"}
+        org.slf4j/slf4j-api {:mvn/version "1.7.36"}
+        org.slf4j/slf4j-simple {:mvn/version "1.7.36"}}
+
+ :aliases
+ {:test {:extra-paths ["test"]
+         :main-opts ["-m" "kaocha.runner"]}
+
+  :nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.0.0"}
+                       cider/cider-nrepl {:mvn/version "0.30.0"}}
+          :main-opts ["-m" "nrepl.cmdline" "--middleware" "[cider.nrepl/cider-middleware]"]}}}

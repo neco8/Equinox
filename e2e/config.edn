@@ -1,0 +1,1 @@
+{:lint-as {equinox.test.scenarios/defscreenshottest clojure.test/deftest}}

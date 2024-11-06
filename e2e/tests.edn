@@ -1,0 +1,12 @@
+#kaocha/v1
+ {:tests
+  [{:id :e2e
+    :test-paths ["test"]
+    :ns-patterns [".*test.*$"]}]
+
+  :plugins [:kaocha.plugin/profiling
+            :kaocha.plugin/print-invocations]
+
+  :randomize? true
+  :color? true
+  :kaocha.plugin.capture-output/capture-output? true}
