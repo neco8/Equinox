@@ -69,7 +69,7 @@ type alias ExhaleHoldDuration =
 -}
 type alias BreathingMethod =
     { id : BreathingMethodId
-    , name : String
+    , name : Name
     , categoryId : CategoryId
     , createdAt : Posix
     , inhaleDuration : InhaleDuration
@@ -83,3 +83,12 @@ type alias BreathingMethod =
 -}
 type alias BreathingMethodId =
     Uuid
+
+
+{-| 呼吸法の名前。
+
+  - [ ] TODO: Opaque Typeに変更する。
+
+-}
+type alias Name =
+    String
