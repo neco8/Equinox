@@ -4,6 +4,8 @@ port module JS.Ports exposing
     , saveCategoryValue
     , saveSessionValue
     , subscribeToQueryResults, subscribeToQueryErrors
+    , subscribeToUuid
+    , generateUuidValue
     )
 
 {-| JSへのポートをまとめて定義するモジュールです。portとなっている関数は、Elmの世界にはexposingしません。
@@ -24,12 +26,22 @@ port module JS.Ports exposing
 @docs saveSession, saveSessionValue
 
 
+#### UUID
+
+@docs generateUuid
+
+
 ### Sub
 
 
 #### 送信したクエリの結果を受け取る
 
 @docs receiveQueryResult, receiveQueryError, subscribeToQueryResults, subscribeToQueryErrors
+
+
+#### UUID
+
+@docs receiveUuid, subscribeToUuid
 
 -}
 
@@ -144,3 +156,27 @@ port saveSession : E.Value -> Cmd msg
 saveSessionValue : Session -> Cmd msg
 saveSessionValue session =
     saveSession (encodeSession session)
+
+
+{-| UUID生成のリクエストを送信します。
+-}
+port generateUuid : () -> Cmd msg
+
+
+{-| UUID生成のリクエストを送信するCmdを生成するラッパーです。
+-}
+generateUuidValue : Cmd msg
+generateUuidValue =
+    generateUuid ()
+
+
+{-| UUID生成の結果を受け取るポートです。
+-}
+port receiveUuid : (String -> msg) -> Sub msg
+
+
+{-| UUID生成の結果を受け取るSubを生成するラッパーです。
+-}
+subscribeToUuid : (String -> msg) -> Sub msg
+subscribeToUuid toMsg =
+    receiveUuid toMsg

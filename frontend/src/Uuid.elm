@@ -1,4 +1,4 @@
-port module Uuid exposing
+module Uuid exposing
     ( Uuid, Generator, Effect, Msg
     , initialModel
     , update
@@ -78,11 +78,11 @@ type Effect
 
 {-| EffectからCmdに変換する関数。
 -}
-effectToCmd : Effect -> Cmd msg
-effectToCmd effect =
+effectToCmd : Cmd msg -> Effect -> Cmd msg
+effectToCmd generateUuidValue effect =
     case effect of
         GenerateUuid ->
-            generateUuid ()
+            generateUuidValue
 
         NoEffect ->
             Cmd.none
@@ -151,21 +151,11 @@ update msg model =
                     ( model, NoEffect, Nothing )
 
 
-{-| UUID生成のリクエストを外部に送出するCmd Port。
--}
-port generateUuid : () -> Cmd msg
-
-
-{-| UUID生成の結果を受け取るSub Port。
--}
-port receiveUuid : (String -> msg) -> Sub msg
-
-
 {-| UUID生成の結果を受け取るためのSubscriptions。
 -}
-subscriptions : (Msg msg -> msg) -> Generator msg -> Sub msg
-subscriptions toMsg _ =
-    receiveUuid (toMsg << GotUuid)
+subscriptions : ((String -> msg) -> Sub msg) -> (Msg msg -> msg) -> Sub msg
+subscriptions subscribeToUuid toMsg =
+    subscribeToUuid (toMsg << GotUuid)
 
 
 {-| UUID生成のリクエストのMsgを生成する関数。
