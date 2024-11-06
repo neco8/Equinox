@@ -15,8 +15,8 @@ module Types.Session exposing (..)
 
 -}
 
-import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name)
 import Time exposing (Posix)
+import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name)
 import Uuid exposing (Uuid)
 
 
@@ -33,6 +33,40 @@ type alias SessionId =
 -}
 type alias Duration =
     Int
+
+
+{-| 分（秒単位）。
+-}
+minutes : Int
+minutes =
+    60
+
+
+{-| 時間（秒単位）。
+-}
+hours : Int
+hours =
+    60 * minutes
+
+
+{-| セッションの最短時間（秒単位）。
+
+最短時間は1分となる。
+
+-}
+minSessionDuration : Int
+minSessionDuration =
+    1 * minutes
+
+
+{-| セッションの最長時間（秒単位）。
+
+最長時間は10時間となる。
+
+-}
+maxSessionDuration : Int
+maxSessionDuration =
+    10 * hours
 
 
 {-| 呼吸法のセッションを表す型。各セッションは個別のフェーズごとの期間を設定し、特定の呼吸法に紐づいています。
