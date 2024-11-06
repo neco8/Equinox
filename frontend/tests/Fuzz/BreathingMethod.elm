@@ -1,4 +1,13 @@
-module Fuzz.BreathingMethod exposing (..)
+module Fuzz.BreathingMethod exposing (breathingMethodFuzzer)
+
+{-| 呼吸法についてのFuzzerモジュール
+
+
+### fuzzer
+
+@docs breathingMethodFuzzer
+
+-}
 
 import Fuzz exposing (Fuzzer)
 import Fuzz.Common exposing (charFuzzer)
