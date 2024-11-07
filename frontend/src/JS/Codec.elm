@@ -38,6 +38,7 @@ module JS.Codec exposing
 -}
 
 import Json.Decode as D exposing (Decoder)
+import Json.Decode.Extra as DE
 import Json.Encode as E
 import Time exposing (Posix)
 import Types.BreathingMethod exposing (BreathingMethod)
@@ -241,19 +242,16 @@ JSでの表現は以下のようになります。:
 -}
 sessionDecoder : Decoder Session
 sessionDecoder =
-    D.field "id" Uuid.decoder
-        |> D.andThen
-            (\id ->
-                D.map8 (Session id)
-                    (D.field "inhale" D.int)
-                    (D.field "inhale-hold" D.int)
-                    (D.field "exhale" D.int)
-                    (D.field "exhale-hold" D.int)
-                    (D.field "breathing-method-id" Uuid.decoder)
-                    (D.field "breathing-method-name" D.string)
-                    (D.field "duration" D.int)
-                    (D.field "created-at" posixDecoder)
-            )
+    D.succeed Session
+        |> DE.andMap (D.field "id" Uuid.decoder)
+        |> DE.andMap (D.field "inhale" D.int)
+        |> DE.andMap (D.field "inhale-hold" D.int)
+        |> DE.andMap (D.field "exhale" D.int)
+        |> DE.andMap (D.field "exhale-hold" D.int)
+        |> DE.andMap (D.field "breathing-method-id" Uuid.decoder)
+        |> DE.andMap (D.field "breathing-method-name" D.string)
+        |> DE.andMap (D.field "duration" D.int)
+        |> DE.andMap (D.field "created-at" posixDecoder)
 
 
 {-| セッションのリストをデコードし、Elmの型へ変換します。

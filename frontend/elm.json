@@ -14,11 +14,14 @@
             "elm/parser": "1.1.0",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
+            "elm-community/json-extra": "4.3.0",
             "elm-community/list-extra": "8.7.0",
+            "elm-community/maybe-extra": "5.3.0",
             "justinmimbs/date": "4.1.0"
         },
         "indirect": {
-            "elm/virtual-dom": "1.0.3"
+            "elm/virtual-dom": "1.0.3",
+            "rtfeldman/elm-iso8601-date-strings": "1.1.4"
         }
     },
     "test-dependencies": {
