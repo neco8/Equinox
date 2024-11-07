@@ -39,8 +39,8 @@ RouteというSuffixをつけることで、Pageとの区別を明確にして�
 -}
 type Route
     = HomeRoute
-    | PrepareSessionRoute BreathingMethodId
-    | PrepareCustomSessionRoute
+    | PresetSessionPreparationRoute BreathingMethodId
+    | ManualSessionPreparationRoute
     | StartSessionRoute BreathingMethodId (Maybe Int)
     | StartCustomSessionRoute (Maybe Int) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
     | CompleteSessionRoute BreathingMethodId (Maybe Int)
@@ -65,10 +65,10 @@ parser : Parser (Route -> a) a
 parser =
     Parser.oneOf
         [ Parser.map HomeRoute Parser.top
-        , Parser.map PrepareSessionRoute
-            (Parser.s "breathing-methods" </> Parser.s "session" </> Parser.s "prepare" </> uuidParser)
-        , Parser.map PrepareCustomSessionRoute
-            (Parser.s "breathing-methods" </> Parser.s "session" </> Parser.s "prepare")
+        , Parser.map PresetSessionPreparationRoute
+            (Parser.s "breathing-methods" </> Parser.s "session" </> Parser.s "preparation" </> uuidParser)
+        , Parser.map ManualSessionPreparationRoute
+            (Parser.s "breathing-methods" </> Parser.s "session" </> Parser.s "preparation")
         , Parser.map StartSessionRoute
             (Parser.s "breathing-methods" </> Parser.s "session" </> Parser.s "start" </> uuidParser <?> Query.int "duration")
         , Parser.map StartCustomSessionRoute
@@ -111,11 +111,11 @@ toString route =
         HomeRoute ->
             "/"
 
-        PrepareSessionRoute id ->
-            "/breathing-methods/session/prepare/" ++ Uuid.toString id
+        PresetSessionPreparationRoute id ->
+            "/breathing-methods/session/preparation/" ++ Uuid.toString id
 
-        PrepareCustomSessionRoute ->
-            "/breathing-methods/session/prepare"
+        ManualSessionPreparationRoute ->
+            "/breathing-methods/session/preparation"
 
         StartSessionRoute id duration ->
             "/breathing-methods/session/start/"
