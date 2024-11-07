@@ -48,7 +48,7 @@ type Route
     | StatisticsRoute
     | SettingsRoute
     | SourceSelectionRoute
-    | EditBreathingMethodRoute BreathingMethodId
+    | BreathingMethodEditRoute BreathingMethodId
 
 
 {-| UUIDのURLパーサー
@@ -100,7 +100,7 @@ parser =
             (Parser.s "settings")
         , Parser.map SourceSelectionRoute
             (Parser.s "breathing-methods" </> Parser.s "source-selection")
-        , Parser.map EditBreathingMethodRoute
+        , Parser.map BreathingMethodEditRoute
             (Parser.s "breathing-methods" </> Parser.s "edit" </> uuidParser)
         ]
 
@@ -180,7 +180,7 @@ toString route =
         SourceSelectionRoute ->
             "/breathing-methods/source-selection"
 
-        EditBreathingMethodRoute id ->
+        BreathingMethodEditRoute id ->
             "/breathing-methods/edit/" ++ Uuid.toString id
 
 
