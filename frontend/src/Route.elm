@@ -43,8 +43,8 @@ type Route
     | ManualSessionPreparationRoute
     | PresetSessionRoute BreathingMethodId (Maybe Int)
     | ManualSessionRoute (Maybe Int) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
-    | CompleteSessionRoute BreathingMethodId (Maybe Int)
-    | CompleteCustomSessionRoute (Maybe Int)
+    | PresetSessionCompletionRoute BreathingMethodId (Maybe Int)
+    | ManualSessionCompletionRoute (Maybe Int)
     | StatisticsRoute
     | SettingsRoute
     | SourceSelectionRoute
@@ -81,17 +81,17 @@ parser =
                 <?> Query.int "exhale-duration"
                 <?> Query.int "exhale-hold-duration"
             )
-        , Parser.map CompleteSessionRoute
+        , Parser.map PresetSessionCompletionRoute
             (Parser.s "breathing-methods"
                 </> Parser.s "session"
-                </> Parser.s "complete"
+                </> Parser.s "completion"
                 </> uuidParser
                 <?> Query.int "finished-duration"
             )
-        , Parser.map CompleteCustomSessionRoute
+        , Parser.map ManualSessionCompletionRoute
             (Parser.s "breathing-methods"
                 </> Parser.s "session"
-                </> Parser.s "complete"
+                </> Parser.s "completion"
                 <?> Query.int "finished-duration"
             )
         , Parser.map StatisticsRoute
@@ -154,15 +154,15 @@ toString route =
                         )
                     ]
 
-        CompleteSessionRoute id duration ->
-            "/breathing-methods/session/complete/"
+        PresetSessionCompletionRoute id duration ->
+            "/breathing-methods/session/completion/"
                 ++ Uuid.toString id
                 ++ Url.Builder.toQuery
                     [ Url.Builder.string "finished-duration" <| Maybe.withDefault "" <| Maybe.map String.fromInt duration
                     ]
 
-        CompleteCustomSessionRoute duration ->
-            "/breathing-methods/session/complete"
+        ManualSessionCompletionRoute duration ->
+            "/breathing-methods/session/completion"
                 ++ Url.Builder.toQuery
                     [ Url.Builder.string "finished-duration"
                         (Maybe.withDefault
