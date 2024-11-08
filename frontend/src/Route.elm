@@ -15,11 +15,6 @@ module Route exposing
 
 @docs toString, fromUrl, href
 
-
-### TODO
-
-  - [ ] TODO: ルーティングの名前が適当なので、e2eの名前も含めて変更する
-
 -}
 
 import Html exposing (Attribute)
