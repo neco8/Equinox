@@ -35,6 +35,7 @@ import Html.Attributes exposing (attribute, disabled)
 import Html.Events exposing (onClick, onInput)
 import Route exposing (Route(..))
 import Types.BreathingMethod exposing (BreathingMethod, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
+import Types.Session exposing (Duration, toDuration)
 
 
 {-| Model
@@ -107,7 +108,7 @@ type PracticeStyle
 
 {-| ビュー
 -}
-view : { a | txt : String, practiceStyle : PracticeStyle, route : Int -> Route } -> Model -> Html Msg
+view : { a | txt : String, practiceStyle : PracticeStyle, route : Duration -> Route } -> Model -> Html Msg
 view { txt, practiceStyle, route } { sessionDurationInput } =
     let
         breathingMethodControls =
@@ -154,7 +155,7 @@ view { txt, practiceStyle, route } { sessionDurationInput } =
         , breathingMethodControls
         , button
             [ attribute "aria-label" "start-session"
-            , case String.toInt sessionDurationInput of
+            , case Maybe.andThen toDuration <| String.toInt sessionDurationInput of
                 Just duration ->
                     onClick (PrepareSessionPageNavigateToRoute (route duration))
 

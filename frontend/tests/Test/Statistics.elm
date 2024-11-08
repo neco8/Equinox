@@ -33,7 +33,7 @@ import Test exposing (..)
 import Time
 import Types.BreathingMethod exposing (BreathingMethod)
 import Types.Category exposing (Category)
-import Types.Session exposing (Session)
+import Types.Session exposing (Session, fromDuration)
 import Types.Statistics as Statistics exposing (recentDaysThreshold)
 
 
@@ -225,7 +225,7 @@ suite =
                         Statistics.calculateFromSessions testCase.sessions
 
                     totalDuration =
-                        List.sum (List.map .duration testCase.sessions)
+                        List.sum (List.map (.duration >> fromDuration) testCase.sessions)
 
                     message =
                         "総秒数: "
@@ -289,7 +289,7 @@ suite =
                             testCase.sessions
 
                     actualRecentTotalSeconds =
-                        List.sum (List.map .duration recentSessions)
+                        List.sum (List.map (.duration >> fromDuration) recentSessions)
 
                     message =
                         "直近の総秒数: "
@@ -319,7 +319,7 @@ suite =
                                 testCase.sessions
 
                         actualRecentTotalSeconds =
-                            List.sum (List.map .duration recentSessions)
+                            List.sum (List.map (.duration >> fromDuration) recentSessions)
 
                         message =
                             "直近 "
