@@ -49,7 +49,7 @@ import Html.Events exposing (onClick)
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..))
+import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
 
 
 {-| タイマーを管理するための状態
@@ -99,16 +99,16 @@ calculatePhase elapsedMilliseconds method =
                     m
 
         inhaleDurationMs =
-            inhaleDuration * 1000
+            fromInhaleDuration inhaleDuration * 1000
 
         inhaleHoldDurationMs =
-            inhaleHoldDuration * 1000
+            fromInhaleHoldDuration inhaleHoldDuration * 1000
 
         exhaleDurationMs =
-            exhaleDuration * 1000
+            fromExhaleDuration exhaleDuration * 1000
 
         exhaleHoldDurationMs =
-            exhaleHoldDuration * 1000
+            fromExhaleHoldDuration exhaleHoldDuration * 1000
 
         totalCycleDuration =
             inhaleDurationMs + inhaleHoldDurationMs + exhaleDurationMs + exhaleHoldDurationMs

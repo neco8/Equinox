@@ -13,16 +13,25 @@ import Fuzz exposing (Fuzzer)
 import Fuzz.Common exposing (charFuzzer)
 import Fuzz.Uuid exposing (uuidFuzzer)
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, PhaseType(..), maxNameLength, maxPhaseDuration, minHoldPhaseDuration, minNameLength, minPhaseDuration)
+import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, PhaseType(..), maxNameLength, maxPhaseDuration, minHoldPhaseDuration, minNameLength, minPhaseDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
 import Types.Category exposing (Category, CategoryId)
 
 
 {-| 名前のFuzzer。名前の最小・最大長を満たし、ランダムな文字列を生成。
 -}
-nameFuzzer : Fuzzer String
+nameFuzzer : Fuzzer Name
 nameFuzzer =
     Fuzz.listOfLengthBetween minNameLength maxNameLength charFuzzer
         |> Fuzz.map String.fromList
+        |> Fuzz.andThen
+            (\s ->
+                case toName s of
+                    Just n ->
+                        Fuzz.constant n
+
+                    Nothing ->
+                        nameFuzzer
+            )
 
 
 {-| `BreathingMethod` 型のFuzzer。
@@ -39,21 +48,61 @@ nameFuzzer =
 breathingMethodFuzzer : ( Category, List Category ) -> Time.Posix -> Fuzzer BreathingMethod
 breathingMethodFuzzer categories referenceTime =
     let
-        phaseDurationFuzzer : PhaseType -> Fuzzer Int
-        phaseDurationFuzzer phaseType =
-            let
-                minDuration =
-                    case phaseType of
-                        InhaleHold ->
-                            minHoldPhaseDuration
+        inhaleDurationFuzzer : () -> Fuzzer InhaleDuration
+        inhaleDurationFuzzer _ =
+            Fuzz.intRange minPhaseDuration maxPhaseDuration
+                |> Fuzz.map toInhaleDuration
+                |> Fuzz.andThen
+                    (\id ->
+                        case id of
+                            Just i ->
+                                Fuzz.constant i
 
-                        ExhaleHold ->
-                            minHoldPhaseDuration
+                            Nothing ->
+                                inhaleDurationFuzzer ()
+                    )
 
-                        _ ->
-                            minPhaseDuration
-            in
-            Fuzz.intRange minDuration maxPhaseDuration
+        inhaleHoldDurationFuzzer : () -> Fuzzer InhaleHoldDuration
+        inhaleHoldDurationFuzzer _ =
+            Fuzz.intRange minHoldPhaseDuration maxPhaseDuration
+                |> Fuzz.map toInhaleHoldDuration
+                |> Fuzz.andThen
+                    (\ihd ->
+                        case ihd of
+                            Just ih ->
+                                Fuzz.constant ih
+
+                            Nothing ->
+                                inhaleHoldDurationFuzzer ()
+                    )
+
+        exhaleDurationFuzzer : () -> Fuzzer ExhaleDuration
+        exhaleDurationFuzzer _ =
+            Fuzz.intRange minPhaseDuration maxPhaseDuration
+                |> Fuzz.map toExhaleDuration
+                |> Fuzz.andThen
+                    (\ed ->
+                        case ed of
+                            Just e ->
+                                Fuzz.constant e
+
+                            Nothing ->
+                                exhaleDurationFuzzer ()
+                    )
+
+        exhaleHoldDurationFuzzer : () -> Fuzzer ExhaleHoldDuration
+        exhaleHoldDurationFuzzer _ =
+            Fuzz.intRange minHoldPhaseDuration maxPhaseDuration
+                |> Fuzz.map toExhaleHoldDuration
+                |> Fuzz.andThen
+                    (\ehd ->
+                        case ehd of
+                            Just eh ->
+                                Fuzz.constant eh
+
+                            Nothing ->
+                                exhaleHoldDurationFuzzer ()
+                    )
 
         categoryIdFuzzer : Fuzzer CategoryId
         categoryIdFuzzer =
@@ -84,7 +133,7 @@ breathingMethodFuzzer categories referenceTime =
         nameFuzzer
         categoryIdFuzzer
         createdAtFuzzer
-        (phaseDurationFuzzer Inhale)
-        (phaseDurationFuzzer InhaleHold)
-        (phaseDurationFuzzer Exhale)
-        (phaseDurationFuzzer ExhaleHold)
+        (inhaleDurationFuzzer ())
+        (inhaleHoldDurationFuzzer ())
+        (exhaleDurationFuzzer ())
+        (exhaleHoldDurationFuzzer ())
