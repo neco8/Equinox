@@ -253,16 +253,22 @@ handleStop now paused model =
         finalDuration =
             Time.posixToMillis now
                 - Time.posixToMillis paused.pauseStartTime
-    in
-    ( { model
-        | timerState =
+
+        timerState =
             Completed
                 { startTime = paused.startTime
                 , totalPausedMilliseconds = paused.totalPausedMilliseconds + finalDuration
                 , endTime = now
                 }
+
+        elapsedMilliseconds =
+            getElapsedMilliseconds timerState now
+    in
+    ( { model
+        | timerState =
+            timerState
       }
-    , Cmd.none
+    , handleNavigateToCompleteSession (elapsedMilliseconds // 1000) model
     )
 
 
@@ -271,7 +277,7 @@ handleStop now paused model =
 次の画面に遷移する処理
 
 -}
-handleNavigateToCompleteSession : Int -> Model -> ( Model, Cmd Msg )
+handleNavigateToCompleteSession : Int -> Model -> Cmd Msg
 handleNavigateToCompleteSession duration model =
     let
         route =
@@ -282,11 +288,9 @@ handleNavigateToCompleteSession duration model =
                 Custom _ ->
                     Route.ManualSessionCompletionRoute (Just duration)
     in
-    ( model
-    , Task.perform
+    Task.perform
         (always <| NavigateToRoute route)
         Time.now
-    )
 
 
 {-| アップデート
@@ -334,13 +338,11 @@ update duration key msg model =
             handleStop now paused model
 
         ( Stop _, _ ) ->
-            ( model
-            , Cmd.none
-            )
+            ( model, Cmd.none )
 
         ( TickDisplayTime posix, _ ) ->
             if getElapsedMilliseconds model.timerState posix >= duration * 1000 then
-                handleNavigateToCompleteSession duration model
+                ( model, handleNavigateToCompleteSession duration model )
 
             else
                 ( { model | displayCurrentTime = posix }, Cmd.none )
@@ -517,4 +519,4 @@ subscriptions model =
             Time.every 100 TickDisplayTime
 
         Completed _ ->
-            Sub.none
+            Time.every 100 TickDisplayTime
