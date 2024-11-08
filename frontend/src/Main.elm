@@ -631,7 +631,7 @@ viewBreathingMethodCard breathingMethod =
                 PresetSessionPreparationRoute breathingMethod.id
             )
         ]
-        [ text breathingMethod.name ]
+        [ text <| Types.BreathingMethod.fromName breathingMethod.name ]
 
 
 {-| 呼吸法リストのビュー
@@ -707,10 +707,10 @@ viewManualSessionPreparation model =
 
         route duration =
             ManualSessionRoute (Just duration)
-                (String.toInt model.inhaleDurationInput)
-                (String.toInt model.inhaleHoldDurationInput)
-                (String.toInt model.exhaleDurationInput)
-                (String.toInt model.exhaleHoldDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toInhaleDuration <| String.toInt model.inhaleDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toInhaleHoldDuration <| String.toInt model.inhaleHoldDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toExhaleDuration <| String.toInt model.exhaleDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toExhaleHoldDuration <| String.toInt model.exhaleHoldDurationInput)
     in
     SessionPreparationPage.view
         { txt = txt

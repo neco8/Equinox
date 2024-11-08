@@ -24,7 +24,8 @@ module Route exposing
 
 import Html exposing (Attribute)
 import Html.Attributes
-import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration)
+import Maybe.Extra
+import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
 import Url
 import Url.Builder
 import Url.Parser as Parser exposing ((</>), (<?>), Parser)
@@ -76,10 +77,26 @@ parser =
                 </> Parser.s "session"
                 </> Parser.s "running"
                 <?> Query.int "duration"
-                <?> Query.int "inhale-duration"
-                <?> Query.int "inhale-hold-duration"
-                <?> Query.int "exhale-duration"
-                <?> Query.int "exhale-hold-duration"
+                <?> Query.custom "inhale-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toInhaleDuration
+                        )
+                <?> Query.custom "inhale-hold-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toInhaleHoldDuration
+                        )
+                <?> Query.custom "exhale-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toExhaleDuration
+                        )
+                <?> Query.custom "exhale-hold-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toExhaleHoldDuration
+                        )
             )
         , Parser.map PresetSessionCompletionRoute
             (Parser.s "breathing-methods"
@@ -135,22 +152,22 @@ toString route =
                     , Url.Builder.string "inhale-duration"
                         (Maybe.withDefault
                             ""
-                            (Maybe.map String.fromInt inhale)
+                            (Maybe.map (String.fromInt << fromInhaleDuration) inhale)
                         )
                     , Url.Builder.string "inhale-hold-duration"
                         (Maybe.withDefault
                             ""
-                            (Maybe.map String.fromInt inhaleHold)
+                            (Maybe.map (String.fromInt << fromInhaleHoldDuration) inhaleHold)
                         )
                     , Url.Builder.string "exhale-duration"
                         (Maybe.withDefault
                             ""
-                            (Maybe.map String.fromInt exhale)
+                            (Maybe.map (String.fromInt << fromExhaleDuration) exhale)
                         )
                     , Url.Builder.string "exhale-hold-duration"
                         (Maybe.withDefault
                             ""
-                            (Maybe.map String.fromInt exhaleHold)
+                            (Maybe.map (String.fromInt << fromExhaleHoldDuration) exhaleHold)
                         )
                     ]
 

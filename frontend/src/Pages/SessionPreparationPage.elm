@@ -34,7 +34,7 @@ import Html exposing (Html, button, div, input, text)
 import Html.Attributes exposing (attribute, disabled)
 import Html.Events exposing (onClick, onInput)
 import Route exposing (Route(..))
-import Types.BreathingMethod exposing (BreathingMethod)
+import Types.BreathingMethod exposing (BreathingMethod, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
 
 
 {-| Model
@@ -138,10 +138,10 @@ view { txt, practiceStyle, route } { sessionDurationInput } =
 
                 Preset m ->
                     div []
-                        [ text <| String.fromInt m.inhaleDuration
-                        , text <| String.fromInt m.inhaleHoldDuration
-                        , text <| String.fromInt m.exhaleDuration
-                        , text <| String.fromInt m.exhaleHoldDuration
+                        [ text <| String.fromInt <| fromInhaleDuration m.inhaleDuration
+                        , text <| String.fromInt <| fromInhaleHoldDuration m.inhaleHoldDuration
+                        , text <| String.fromInt <| fromExhaleDuration m.exhaleDuration
+                        , text <| String.fromInt <| fromExhaleHoldDuration m.exhaleHoldDuration
                         ]
     in
     div [ attribute "role" "preparation" ]
