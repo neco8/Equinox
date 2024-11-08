@@ -20,6 +20,7 @@ module Route exposing
 import Html exposing (Attribute)
 import Html.Attributes
 import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
+import Types.Session exposing (Duration, fromDuration, toDuration)
 import Url
 import Url.Builder
 import Url.Parser as Parser exposing ((</>), (<?>), Parser)
@@ -36,10 +37,10 @@ type Route
     = HomeRoute
     | PresetSessionPreparationRoute BreathingMethodId
     | ManualSessionPreparationRoute
-    | PresetSessionRoute BreathingMethodId (Maybe Int)
-    | ManualSessionRoute (Maybe Int) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
-    | PresetSessionCompletionRoute BreathingMethodId (Maybe Int)
-    | ManualSessionCompletionRoute (Maybe Int)
+    | PresetSessionRoute BreathingMethodId (Maybe Duration)
+    | ManualSessionRoute (Maybe Duration) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
+    | PresetSessionCompletionRoute BreathingMethodId (Maybe Duration)
+    | ManualSessionCompletionRoute (Maybe Duration)
     | StatisticsRoute
     | SettingsRoute
     | SourceSelectionRoute
@@ -65,12 +66,25 @@ parser =
         , Parser.map ManualSessionPreparationRoute
             (Parser.s "breathing-methods" </> Parser.s "session" </> Parser.s "preparation")
         , Parser.map PresetSessionRoute
-            (Parser.s "breathing-methods" </> Parser.s "session" </> Parser.s "running" </> uuidParser <?> Query.int "duration")
+            (Parser.s "breathing-methods"
+                </> Parser.s "session"
+                </> Parser.s "running"
+                </> uuidParser
+                <?> Query.custom "duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toDuration
+                        )
+            )
         , Parser.map ManualSessionRoute
             (Parser.s "breathing-methods"
                 </> Parser.s "session"
                 </> Parser.s "running"
-                <?> Query.int "duration"
+                <?> Query.custom "duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toDuration
+                        )
                 <?> Query.custom "inhale-duration"
                         (List.head
                             >> Maybe.andThen String.toInt
@@ -97,13 +111,21 @@ parser =
                 </> Parser.s "session"
                 </> Parser.s "completion"
                 </> uuidParser
-                <?> Query.int "finished-duration"
+                <?> Query.custom "finished-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toDuration
+                        )
             )
         , Parser.map ManualSessionCompletionRoute
             (Parser.s "breathing-methods"
                 </> Parser.s "session"
                 </> Parser.s "completion"
-                <?> Query.int "finished-duration"
+                <?> Query.custom "finished-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toDuration
+                        )
             )
         , Parser.map StatisticsRoute
             (Parser.s "statistics")
@@ -132,7 +154,7 @@ toString route =
             "/breathing-methods/session/running/"
                 ++ Uuid.toString id
                 ++ Url.Builder.toQuery
-                    [ Url.Builder.string "duration" <| Maybe.withDefault "" <| Maybe.map String.fromInt duration
+                    [ Url.Builder.string "duration" <| Maybe.withDefault "" <| Maybe.map (String.fromInt << fromDuration) duration
                     ]
 
         ManualSessionRoute duration inhale inhaleHold exhale exhaleHold ->
@@ -141,7 +163,7 @@ toString route =
                     [ Url.Builder.string "duration"
                         (Maybe.withDefault
                             ""
-                            (Maybe.map String.fromInt duration)
+                            (Maybe.map (String.fromInt << fromDuration) duration)
                         )
                     , Url.Builder.string "inhale-duration"
                         (Maybe.withDefault
@@ -169,7 +191,7 @@ toString route =
             "/breathing-methods/session/completion/"
                 ++ Uuid.toString id
                 ++ Url.Builder.toQuery
-                    [ Url.Builder.string "finished-duration" <| Maybe.withDefault "" <| Maybe.map String.fromInt duration
+                    [ Url.Builder.string "finished-duration" <| Maybe.withDefault "" <| Maybe.map (String.fromInt << fromDuration) duration
                     ]
 
         ManualSessionCompletionRoute duration ->
@@ -178,7 +200,7 @@ toString route =
                     [ Url.Builder.string "finished-duration"
                         (Maybe.withDefault
                             ""
-                            (Maybe.map String.fromInt duration)
+                            (Maybe.map (String.fromInt << fromDuration) duration)
                         )
                     ]
 

@@ -28,6 +28,7 @@ import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (attribute)
 import Html.Events exposing (onClick)
 import Route exposing (Route(..))
+import Types.Session exposing (Duration, fromDuration)
 
 
 {-| メッセージ
@@ -38,11 +39,11 @@ type Msg
 
 {-| ビュー
 -}
-view : { a | duration : Int, txt : String } -> Html Msg
+view : { a | duration : Duration, txt : String } -> Html Msg
 view { duration, txt } =
     div [ attribute "role" "session-completion" ]
         [ text txt
-        , text <| "完了" ++ String.fromInt duration ++ "秒"
+        , text <| "完了" ++ (String.fromInt << fromDuration) duration ++ "秒"
         , button
             [ attribute "aria-label" "next" ]
             [ text "次へ" ]

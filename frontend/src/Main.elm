@@ -720,7 +720,7 @@ viewManualSessionPreparation model =
 
 {-| 既存セッション完了画面のビュー
 -}
-viewPresetSessionCompletion : BreathingMethodId -> Int -> Html Msg
+viewPresetSessionCompletion : BreathingMethodId -> Duration -> Html Msg
 viewPresetSessionCompletion id duration =
     SessionCompletionPage.view
         { txt = "完了画面 - ID: " ++ Uuid.toString id
@@ -731,7 +731,7 @@ viewPresetSessionCompletion id duration =
 
 {-| カスタムセッション完了画面のビュー
 -}
-viewManualSessionCompletion : Int -> Html Msg
+viewManualSessionCompletion : Duration -> Html Msg
 viewManualSessionCompletion duration =
     SessionCompletionPage.view
         { txt = "カスタム完了画面"

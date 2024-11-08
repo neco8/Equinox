@@ -43,7 +43,7 @@ import Json.Encode as E
 import Time exposing (Posix)
 import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
 import Types.Category exposing (Category, Title, fromTitle, toTitle)
-import Types.Session exposing (Session)
+import Types.Session exposing (Duration, Session, fromDuration, toDuration)
 import Uuid
 
 
@@ -143,7 +143,7 @@ encodeSession session =
         , ( "exhale-hold", E.int <| fromExhaleHoldDuration session.exhaleHoldDuration )
         , ( "breathing-method-id", Uuid.encode session.breathingMethodId )
         , ( "breathing-method-name", E.string <| fromName session.breathingMethodName )
-        , ( "duration", E.int session.duration )
+        , ( "duration", E.int <| fromDuration session.duration )
         , ( "created-at", encodePosix session.createdAt )
         ]
 
@@ -320,6 +320,22 @@ breathingMethodsDecoder =
     D.list breathingMethodDecoder
 
 
+{-| セッションの時間をデコードし、Elmの型へ変換します。
+-}
+durationDecoder : Decoder Duration
+durationDecoder =
+    D.int
+        |> D.andThen
+            (\i ->
+                case toDuration i of
+                    Just d ->
+                        D.succeed d
+
+                    Nothing ->
+                        D.fail ("Invalid duration: " ++ String.fromInt i)
+            )
+
+
 {-| セッションをデコードし、Elmの型へ変換します。
 
 JSでの表現は以下のようになります。:
@@ -346,7 +362,7 @@ sessionDecoder =
         |> DE.andMap (D.field "exhale-hold" exhaleHoldDecoder)
         |> DE.andMap (D.field "breathing-method-id" Uuid.decoder)
         |> DE.andMap (D.field "breathing-method-name" nameDecoder)
-        |> DE.andMap (D.field "duration" D.int)
+        |> DE.andMap (D.field "duration" durationDecoder)
         |> DE.andMap (D.field "created-at" posixDecoder)
 
 
