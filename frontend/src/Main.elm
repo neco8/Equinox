@@ -12,10 +12,8 @@ module Main exposing (main)
 
   - [ ] TODO: 初期表示にて、アニメーションローディング画面を追加する
   - [ ] TODO: 数値入力input達について、validationとdisabledを管理する
-  - [ ] TODO: セッション関係のものはSessionPage.elmへと移動する
   - [ ] TODO: ReceiveQueryResultなど、Queryを送る、受け取る関係のものはより愚直な形へリファクタリングする
   - [ ] TODO: duration系統を、すべて秒単位であることがわかりやすいように、claudeの仕様・e2e・frontendをすべて修正する
-  - [ ] TODO: 後で、PrepareSessionPageはページに移動することになる
   - [ ] TODO: Streakを計算する関数を追加する
 
 -}
