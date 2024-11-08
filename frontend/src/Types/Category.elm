@@ -1,4 +1,8 @@
-module Types.Category exposing (..)
+module Types.Category exposing
+    ( CategoryId
+    , Title, toTitle, fromTitle, minTitleLength, maxTitleLength
+    , Category
+    )
 
 {-| このモジュールは、呼吸法に関連する`Category`の型と関数を定義します。
 `Category`にはカテゴリID、タイトルなどが含まれます。
@@ -7,12 +11,9 @@ module Types.Category exposing (..)
 
 ### 型
 
-@docs CategoryId, Title, Category
-
-
-### TODO
-
-  - [ ] TODO: `Title`をOpaque Typeに変更し、直接のアクセスを制限する。
+@docs CategoryId
+@docs Title, toTitle, fromTitle, minTitleLength, maxTitleLength
+@docs Category
 
 -}
 
@@ -27,8 +28,8 @@ type alias CategoryId =
 
 {-| カテゴリのタイトル。
 -}
-type alias Title =
-    String
+type Title
+    = Title String
 
 
 {-| タイトルの最小文字数。
@@ -43,6 +44,24 @@ minTitleLength =
 maxTitleLength : Int
 maxTitleLength =
     20
+
+
+{-| カテゴリのタイトルを作成する
+-}
+toTitle : String -> Maybe Title
+toTitle title =
+    if String.length title >= minTitleLength && String.length title <= maxTitleLength then
+        Just (Title title)
+
+    else
+        Nothing
+
+
+{-| カテゴリのタイトルを取得する
+-}
+fromTitle : Title -> String
+fromTitle (Title title) =
+    title
 
 
 {-| 呼吸法を分類するためのカテゴリの情報を表します。
