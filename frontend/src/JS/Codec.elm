@@ -42,7 +42,7 @@ import Json.Decode.Extra as DE
 import Json.Encode as E
 import Time exposing (Posix)
 import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
-import Types.Category exposing (Category)
+import Types.Category exposing (Category, Title, fromTitle, toTitle)
 import Types.Session exposing (Session)
 import Uuid
 
@@ -70,7 +70,7 @@ encodeCategory : Category -> E.Value
 encodeCategory category =
     E.object
         [ ( "id", Uuid.encode category.id )
-        , ( "title", E.string category.title )
+        , ( "title", E.string <| fromTitle category.title )
         ]
 
 
@@ -166,6 +166,22 @@ posixDecoder =
         |> D.map Time.millisToPosix
 
 
+{-| タイトルをデコードし、Elmの型へ変換します。
+-}
+titleDecoder : Decoder Title
+titleDecoder =
+    D.string
+        |> D.andThen
+            (\s ->
+                case toTitle s of
+                    Just t ->
+                        D.succeed t
+
+                    Nothing ->
+                        D.fail ("Invalid title: " ++ s)
+            )
+
+
 {-| カテゴリーをデコードし、Elmの型へ変換します。
 
 JSでの表現は以下のようになります。:
@@ -179,7 +195,7 @@ categoryDecoder : Decoder Category
 categoryDecoder =
     D.map2 Category
         (D.field "id" Uuid.decoder)
-        (D.field "title" D.string)
+        (D.field "title" titleDecoder)
 
 
 {-| カテゴリーのリストをデコードし、Elmの型へ変換します。

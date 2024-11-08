@@ -12,15 +12,24 @@ module Fuzz.Category exposing (categoryFuzzer)
 import Fuzz exposing (Fuzzer)
 import Fuzz.Common exposing (charFuzzer)
 import Fuzz.Uuid exposing (uuidFuzzer)
-import Types.Category exposing (Category, CategoryId, maxTitleLength, minTitleLength)
+import Types.Category exposing (Category, CategoryId, Title, maxTitleLength, minTitleLength, toTitle)
 
 
 {-| カテゴリのタイトルのFuzzer。
 -}
-titleFuzzer : Fuzzer String
+titleFuzzer : Fuzzer Title
 titleFuzzer =
     Fuzz.listOfLengthBetween minTitleLength maxTitleLength charFuzzer
         |> Fuzz.map String.fromList
+        |> Fuzz.andThen
+            (\s ->
+                case toTitle s of
+                    Just t ->
+                        Fuzz.constant t
+
+                    Nothing ->
+                        titleFuzzer
+            )
 
 
 {-| カテゴリIDのFuzzer。

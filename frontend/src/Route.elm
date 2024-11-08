@@ -19,7 +19,6 @@ module Route exposing
 
 import Html exposing (Attribute)
 import Html.Attributes
-import Maybe.Extra
 import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
 import Url
 import Url.Builder

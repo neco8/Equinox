@@ -36,7 +36,7 @@ import Pages.SessionPreparationPage as SessionPreparationPage exposing (Practice
 import Route exposing (Route(..))
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..))
-import Types.Category exposing (Category)
+import Types.Category exposing (Category, fromTitle)
 import Types.Session exposing (Duration, Session)
 import Types.Statistics exposing (recentDaysThreshold)
 import Url
@@ -639,7 +639,7 @@ viewBreathingMethodList category children =
     ul
         [ attribute "aria-label" <| Uuid.toString category.id ]
     <|
-        span [ attribute "role" "category-title" ] [ text category.title ]
+        span [ attribute "role" "category-title" ] [ text <| fromTitle category.title ]
             :: children
 
 
