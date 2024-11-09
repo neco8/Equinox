@@ -1,5 +1,6 @@
 (ns equinox.pages.completion
-  (:require [etaoin.api :as e]))
+  (:require [etaoin.api :as e]
+            [clojure.string :as str]))
 
 (def selectors
   {:next-button [{:tag "button" :aria-label "next"}]
@@ -14,6 +15,7 @@
   [driver]
   (e/click driver (:finish-button selectors)))
 
+
 (defn get-finish-duration
   [driver]
-  (e/get-element-value driver (:finish-duration selectors)))
+  (Integer/parseInt (e/get-element-value driver (:finish-duration selectors))))
