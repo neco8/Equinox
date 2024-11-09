@@ -77,33 +77,35 @@
            (is (e/visible? driver q) (str "見つからない要素があります → " q)))
          (:screenshot "セッション準備"))
 
-       (testing "⏱️ セッションの準備をして、スタート！"
+       (testing "⏱️ セッションの準備をする"
          (preparation/set-duration driver duration)
-         (is (= (preparation/get-duration-value driver) (str duration)) "時間の設定が反映されていません")
-         (preparation/start-session driver)
-         (e/wait-visible driver {:role "session"})
-         (is (core/current-url? driver :preset-session) "セッション中ページへの移動に失敗しました")
-         (doseq [q (map session/selectors [:timer :instruction :pause-button])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         ;; TODO: セッション中の停止・再開の画面要素が存在することをテスト
-         (:screenshot "セッション中"))
+         (is (= (preparation/get-duration-value driver) (str duration)) "時間の設定が反映されていません"))
 
-       (testing "🎯 セッションを最後まで実行"
-         (with-mock-timer driver
-           #(do
+       (with-mock-timer driver
+         #(do
+            (testing "⏲️ セッションをスタート！"
+              (preparation/start-session driver)
+              (e/wait-visible driver {:role "session"})
+              (is (core/current-url? driver :preset-session) "セッション中ページへの移動に失敗しました")
+              (doseq [q (map session/selectors [:timer :instruction :pause-button])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+               ;; TODO: セッション中の停止・再開の画面要素が存在することをテスト
+              (:screenshot "セッション中"))
+
+            (testing "🎯 セッションを最後まで実行"
               (advance-timer! driver (* (- duration 1) 1000))
-           ;; まだ終了していないことを確認
+               ;; まだ終了していないことを確認
               (is (not (core/current-url? driver :preset-session-completion)) "テスト想定より早くセッションが終わってしまいました")
-              (advance-timer! driver 1000)))
-      ;; 終了したことを確認
-         (session/wait-for-completion driver)
-         (is (core/current-url? driver :preset-session-completion) "セッション完了ページへの移動に失敗しました")
-         (doseq [q (map completion/selectors [:next-button :finish-duration])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         ;; TODO: セッション完了の完了ボタンの表示テスト
-         (:screenshot "セッション完了"))
+              (advance-timer! driver 1000)
+               ;; 終了したことを確認
+              (session/wait-for-completion driver)
+              (is (core/current-url? driver :preset-session-completion) "セッション完了ページへの移動に失敗しました")
+              (doseq [q (map completion/selectors [:next-button :finish-duration])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+               ;; TODO: セッション完了の完了ボタンの表示テスト
+              (:screenshot "セッション完了"))))
 
        (testing "📊 統計を確認してみましょう"
          (completion/proceed-complete-session driver)
@@ -161,7 +163,7 @@
            (is (e/visible? driver q) (str "見つからない要素があります → " q)))
          (:screenshot "カスタムセッション準備"))
 
-       (testing "⏱️ セッションの準備をして、スタート！"
+       (testing "⏱️ セッションの準備をする！"
          (let
           [{:keys [inhale inhale-hold exhale exhale-hold]}
            custom-breathing-method]
@@ -180,29 +182,30 @@
            (is (= (preparation/get-exhale-value driver) (str exhale)) "吐く時間の設定が反映されていません")
            (is (= (preparation/get-exhale-hold-value driver) (str exhale-hold)) "吐いたあと止める時間の設定が反映されていません")
            (is (= (preparation/get-duration-value driver) (str duration)) "セッション時間の設定が反映されていません"))
-         (:screenshot "カスタムセッション準備入力")
+         (:screenshot "カスタムセッション準備入力"))
 
-         (preparation/start-session driver)
-         (e/wait-visible driver {:role "session"})
-         (is (core/current-url? driver :manual-session) "セッション中ページへの移動に失敗しました")
-         (doseq [q (map session/selectors [:timer :instruction :pause-button])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         (:screenshot "カスタムセッション中"))
+       (with-mock-timer driver
+         #(do
+            (testing "⏲️ タイマーをスタート！"
+              (preparation/start-session driver)
+              (e/wait-visible driver {:role "session"})
+              (is (core/current-url? driver :manual-session) "セッション中ページへの移動に失敗しました")
+              (doseq [q (map session/selectors [:timer :instruction :pause-button])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "カスタムセッション中"))
 
-       (testing "🎯 セッションを完了まで実行"
-         (with-mock-timer driver
-           #(do
+            (testing "🎯 セッションを完了まで実行"
               (advance-timer! driver (* (- duration 1) 1000))
               (is (not (core/current-url? driver :manual-session-completion)) "テスト想定より早くセッションが終わってしまいました")
-              (advance-timer! driver 1000)))
+              (advance-timer! driver 1000)
 
-         (session/wait-for-completion driver)
-         (is (core/current-url? driver :manual-session-completion) "セッション完了ページへの移動に失敗しました")
-         (doseq [q (map completion/selectors [:next-button :finish-duration])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         (:screenshot "カスタムセッション完了"))
+              (session/wait-for-completion driver)
+              (is (core/current-url? driver :manual-session-completion) "セッション完了ページへの移動に失敗しました")
+              (doseq [q (map completion/selectors [:next-button :finish-duration])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "カスタムセッション完了"))))
 
        (testing "📊 統計を確認してみましょう"
          (completion/proceed-complete-session driver)
