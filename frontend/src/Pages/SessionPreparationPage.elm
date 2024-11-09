@@ -30,8 +30,8 @@ module Pages.SessionPreparationPage exposing
 -}
 
 import Browser.Navigation as Nav
-import Html exposing (Html, button, div, input, text)
-import Html.Attributes exposing (attribute, disabled)
+import Html exposing (Html, button, div, input, span, text)
+import Html.Attributes exposing (attribute, disabled, style)
 import Html.Events exposing (onClick, onInput)
 import Route exposing (Route(..))
 import Types.BreathingMethod exposing (BreathingMethod, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
@@ -139,16 +139,16 @@ view { txt, practiceStyle, route } { sessionDurationInput } =
 
                 Preset m ->
                     div []
-                        [ text <| String.fromInt <| fromInhaleDuration m.inhaleDuration
-                        , text <| String.fromInt <| fromInhaleHoldDuration m.inhaleHoldDuration
-                        , text <| String.fromInt <| fromExhaleDuration m.exhaleDuration
-                        , text <| String.fromInt <| fromExhaleHoldDuration m.exhaleHoldDuration
+                        [ span [ attribute "aria-label" "inhale" ] [ text <| String.fromInt <| fromInhaleDuration m.inhaleDuration ]
+                        , span [ attribute "aria-label" "inhale-hold" ] [ text <| String.fromInt <| fromInhaleHoldDuration m.inhaleHoldDuration ]
+                        , span [ attribute "aria-label" "exhale" ] [ text <| String.fromInt <| fromExhaleDuration m.exhaleDuration ]
+                        , span [ attribute "aria-label" "exhale-hold" ] [ text <| String.fromInt <| fromExhaleHoldDuration m.exhaleHoldDuration ]
                         ]
     in
     div [ attribute "role" "preparation" ]
         [ text txt
         , input
-            [ attribute "aria-label" "session-duration"
+            [ attribute "aria-label" "session-duration-input"
             , onInput InputSessionDuration
             ]
             []
@@ -163,4 +163,5 @@ view { txt, practiceStyle, route } { sessionDurationInput } =
                     disabled True
             ]
             [ text "セッション開始" ]
+        , div [ attribute "aria-label" "backdrop", style "width" "10px", style "height" "10px", style "background-color" "gray" ] []
         ]

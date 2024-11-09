@@ -413,7 +413,7 @@ viewTimer model =
                 |> String.padLeft 2 '0'
     in
     div
-        [ attribute "role" "session-timer"
+        [ attribute "role" "timer"
         , attribute "aria-label" "session-timer"
         ]
         [ text (minutes ++ ":" ++ seconds) ]
