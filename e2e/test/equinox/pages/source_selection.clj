@@ -5,7 +5,8 @@
   {;; オンラインソース選択
    :online-source-selection-button [{:tag "button" :aria-label "online-source-selection-button"}]
    :online-list [{:tag "ul" :aria-label "online-list"}]
-   :online-item [{:tag "button" :aria-label "online-item"}]})
+   :online-item (fn [{:keys [name id]}]
+                  [{:tag "button" :aria-label name :data-id id}])})
 
 ;; オンラインソース選択ルート
 
@@ -14,5 +15,5 @@
   (e/click driver (:online-source-selection-button selectors)))
 
 (defn click-online-item
-  [driver]
-  (e/click driver (:online-item selectors)))
+  [driver breathing-name id]
+  (e/click driver ((:online-item selectors) {:name breathing-name :id id})))
