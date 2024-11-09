@@ -14,8 +14,14 @@
 (s/def ::title (s/and string?
                       #(<= min-title-length (count %) max-title-length)))
 
+(defn truncate-left [s max-length]
+  (let [length (count s)]
+    (if (<= length max-length)
+      s
+      (subs s (- length max-length)))))
+
 (def gen-title
-  (gen/fmap (fn [s] (str "category-" (apply str (map char s))))
+  (gen/fmap (fn [s] (truncate-left (str "category-" (apply str (map char s))) max-title-length))
             (gen/vector
              common/gen-char
              min-title-length
