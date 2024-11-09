@@ -49,7 +49,8 @@ import Html.Events exposing (onClick)
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..))
+import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
+import Types.Session exposing (Duration, fromDuration, toDuration)
 
 
 {-| タイマーを管理するための状態
@@ -99,16 +100,16 @@ calculatePhase elapsedMilliseconds method =
                     m
 
         inhaleDurationMs =
-            inhaleDuration * 1000
+            fromInhaleDuration inhaleDuration * 1000
 
         inhaleHoldDurationMs =
-            inhaleHoldDuration * 1000
+            fromInhaleHoldDuration inhaleHoldDuration * 1000
 
         exhaleDurationMs =
-            exhaleDuration * 1000
+            fromExhaleDuration exhaleDuration * 1000
 
         exhaleHoldDurationMs =
-            exhaleHoldDuration * 1000
+            fromExhaleHoldDuration exhaleHoldDuration * 1000
 
         totalCycleDuration =
             inhaleDurationMs + inhaleHoldDurationMs + exhaleDurationMs + exhaleHoldDurationMs
@@ -268,7 +269,13 @@ handleStop now paused model =
         | timerState =
             timerState
       }
-    , handleNavigateToCompleteSession (elapsedMilliseconds // 1000) model
+    , case toDuration <| elapsedMilliseconds // 1000 of
+        Just d ->
+            handleNavigateToCompleteSession d model
+
+        Nothing ->
+            -- TODO: セッションより超過するか、短すぎるか。短すぎるときに、時間にならないですよ、というのを追加してあげる。
+            Cmd.none
     )
 
 
@@ -277,7 +284,7 @@ handleStop now paused model =
 次の画面に遷移する処理
 
 -}
-handleNavigateToCompleteSession : Int -> Model -> Cmd Msg
+handleNavigateToCompleteSession : Duration -> Model -> Cmd Msg
 handleNavigateToCompleteSession duration model =
     let
         route =
@@ -295,7 +302,7 @@ handleNavigateToCompleteSession duration model =
 
 {-| アップデート
 -}
-update : Int -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
+update : Duration -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
 update duration key msg model =
     case ( msg, model.timerState ) of
         ( Start now, NotStarted ) ->
@@ -341,7 +348,7 @@ update duration key msg model =
             ( model, Cmd.none )
 
         ( TickDisplayTime posix, _ ) ->
-            if getElapsedMilliseconds model.timerState posix >= duration * 1000 then
+            if getElapsedMilliseconds model.timerState posix >= fromDuration duration * 1000 then
                 ( model, handleNavigateToCompleteSession duration model )
 
             else
@@ -377,7 +384,7 @@ getElapsedMilliseconds timerState displayCurrentTime =
 
 {-| ビュー
 -}
-view : Int -> Model -> Html Msg
+view : Duration -> Model -> Html Msg
 view duration model =
     div
         [ attribute "role" "session"
@@ -385,7 +392,7 @@ view duration model =
         [ viewTimer model
         , viewInstruction model
         , viewControls model
-        , text <| "総時間: " ++ String.fromInt duration ++ "秒"
+        , text <| "総時間: " ++ String.fromInt (fromDuration duration) ++ "秒"
         ]
 
 
@@ -406,7 +413,7 @@ viewTimer model =
                 |> String.padLeft 2 '0'
     in
     div
-        [ attribute "role" "session-timer"
+        [ attribute "role" "timer"
         , attribute "aria-label" "session-timer"
         ]
         [ text (minutes ++ ":" ++ seconds) ]

@@ -12,10 +12,8 @@ module Main exposing (main)
 
   - [ ] TODO: 初期表示にて、アニメーションローディング画面を追加する
   - [ ] TODO: 数値入力input達について、validationとdisabledを管理する
-  - [ ] TODO: セッション関係のものはSessionPage.elmへと移動する
   - [ ] TODO: ReceiveQueryResultなど、Queryを送る、受け取る関係のものはより愚直な形へリファクタリングする
   - [ ] TODO: duration系統を、すべて秒単位であることがわかりやすいように、claudeの仕様・e2e・frontendをすべて修正する
-  - [ ] TODO: 後で、PrepareSessionPageはページに移動することになる
   - [ ] TODO: Streakを計算する関数を追加する
 
 -}
@@ -38,7 +36,7 @@ import Pages.SessionPreparationPage as SessionPreparationPage exposing (Practice
 import Route exposing (Route(..))
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..))
-import Types.Category exposing (Category)
+import Types.Category exposing (Category, fromTitle)
 import Types.Session exposing (Duration, Session)
 import Types.Statistics exposing (recentDaysThreshold)
 import Url
@@ -631,7 +629,7 @@ viewBreathingMethodCard breathingMethod =
                 PresetSessionPreparationRoute breathingMethod.id
             )
         ]
-        [ text breathingMethod.name ]
+        [ text <| Types.BreathingMethod.fromName breathingMethod.name ]
 
 
 {-| 呼吸法リストのビュー
@@ -641,7 +639,7 @@ viewBreathingMethodList category children =
     ul
         [ attribute "aria-label" <| Uuid.toString category.id ]
     <|
-        span [ attribute "role" "category-title" ] [ text category.title ]
+        span [ attribute "role" "category-title" ] [ text <| fromTitle category.title ]
             :: children
 
 
@@ -707,10 +705,10 @@ viewManualSessionPreparation model =
 
         route duration =
             ManualSessionRoute (Just duration)
-                (String.toInt model.inhaleDurationInput)
-                (String.toInt model.inhaleHoldDurationInput)
-                (String.toInt model.exhaleDurationInput)
-                (String.toInt model.exhaleHoldDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toInhaleDuration <| String.toInt model.inhaleDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toInhaleHoldDuration <| String.toInt model.inhaleHoldDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toExhaleDuration <| String.toInt model.exhaleDurationInput)
+                (Maybe.andThen Types.BreathingMethod.toExhaleHoldDuration <| String.toInt model.exhaleHoldDurationInput)
     in
     SessionPreparationPage.view
         { txt = txt
@@ -722,7 +720,7 @@ viewManualSessionPreparation model =
 
 {-| 既存セッション完了画面のビュー
 -}
-viewPresetSessionCompletion : BreathingMethodId -> Int -> Html Msg
+viewPresetSessionCompletion : BreathingMethodId -> Duration -> Html Msg
 viewPresetSessionCompletion id duration =
     SessionCompletionPage.view
         { txt = "完了画面 - ID: " ++ Uuid.toString id
@@ -733,7 +731,7 @@ viewPresetSessionCompletion id duration =
 
 {-| カスタムセッション完了画面のビュー
 -}
-viewManualSessionCompletion : Int -> Html Msg
+viewManualSessionCompletion : Duration -> Html Msg
 viewManualSessionCompletion duration =
     SessionCompletionPage.view
         { txt = "カスタム完了画面"
@@ -753,17 +751,18 @@ viewStatistics =
             , onClick (NavigateToRoute HomeRoute)
             ]
             [ text "ホーム" ]
-        , section [ attribute "role" "recent-7-days" ]
-            [ span [ attribute "role" "recent-sets" ] [ text "10 セット" ]
-            , span [ attribute "role" "recent-minutes" ] [ text "30 分" ]
+        , div [ attribute "aria-label" "streak-display" ] [ text "この中でアニメーションなどが表示されます。" ]
+        , section [ attribute "aria-label" "recent-7-days" ]
+            [ span [ attribute "aria-label" "recent-sets" ] [ text "10 セット" ]
+            , span [ attribute "aria-label" "recent-minutes" ] [ text "30 分" ]
             ]
-        , section [ attribute "role" "total" ]
-            [ span [ attribute "role" "total-sets" ] [ text "100 セット" ]
-            , span [ attribute "role" "total-minutes" ] [ text "300 分" ]
+        , section [ attribute "aria-label" "total" ]
+            [ span [ attribute "aria-label" "total-sets" ] [ text "100 セット" ]
+            , span [ attribute "aria-label" "total-minutes" ] [ text "300 分" ]
             ]
-        , section [ attribute "role" "total-practice-days" ]
+        , section [ attribute "aria-label" "practice-days" ]
             [ span [] []
-            , span [] [ text "30 日" ]
+            , span [ attribute "aria-label" "total-practice-days" ] [ text "30 日" ]
             ]
         ]
 

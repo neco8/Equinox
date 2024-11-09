@@ -41,9 +41,9 @@ import Json.Decode as D exposing (Decoder)
 import Json.Decode.Extra as DE
 import Json.Encode as E
 import Time exposing (Posix)
-import Types.BreathingMethod exposing (BreathingMethod)
-import Types.Category exposing (Category)
-import Types.Session exposing (Session)
+import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
+import Types.Category exposing (Category, Title, fromTitle, toTitle)
+import Types.Session exposing (Duration, Session, fromDuration, toDuration)
 import Uuid
 
 
@@ -70,7 +70,7 @@ encodeCategory : Category -> E.Value
 encodeCategory category =
     E.object
         [ ( "id", Uuid.encode category.id )
-        , ( "title", E.string category.title )
+        , ( "title", E.string <| fromTitle category.title )
         ]
 
 
@@ -100,13 +100,13 @@ encodeBreathingMethod : BreathingMethod -> E.Value
 encodeBreathingMethod breathingMethod =
     E.object
         [ ( "id", Uuid.encode breathingMethod.id )
-        , ( "name", E.string breathingMethod.name )
+        , ( "name", E.string <| fromName breathingMethod.name )
         , ( "category-id", Uuid.encode breathingMethod.categoryId )
         , ( "created-at", encodePosix breathingMethod.createdAt )
-        , ( "inhale", E.int breathingMethod.inhaleDuration )
-        , ( "inhale-hold", E.int breathingMethod.inhaleHoldDuration )
-        , ( "exhale", E.int breathingMethod.exhaleDuration )
-        , ( "exhale-hold", E.int breathingMethod.exhaleHoldDuration )
+        , ( "inhale", E.int <| fromInhaleDuration breathingMethod.inhaleDuration )
+        , ( "inhale-hold", E.int <| fromInhaleHoldDuration breathingMethod.inhaleHoldDuration )
+        , ( "exhale", E.int <| fromExhaleDuration breathingMethod.exhaleDuration )
+        , ( "exhale-hold", E.int <| fromExhaleHoldDuration breathingMethod.exhaleHoldDuration )
         ]
 
 
@@ -137,13 +137,13 @@ encodeSession : Session -> E.Value
 encodeSession session =
     E.object
         [ ( "id", Uuid.encode session.id )
-        , ( "inhale", E.int session.inhaleDuration )
-        , ( "inhale-hold", E.int session.inhaleHoldDuration )
-        , ( "exhale", E.int session.exhaleDuration )
-        , ( "exhale-hold", E.int session.exhaleHoldDuration )
+        , ( "inhale", E.int <| fromInhaleDuration session.inhaleDuration )
+        , ( "inhale-hold", E.int <| fromInhaleHoldDuration session.inhaleHoldDuration )
+        , ( "exhale", E.int <| fromExhaleDuration session.exhaleDuration )
+        , ( "exhale-hold", E.int <| fromExhaleHoldDuration session.exhaleHoldDuration )
         , ( "breathing-method-id", Uuid.encode session.breathingMethodId )
-        , ( "breathing-method-name", E.string session.breathingMethodName )
-        , ( "duration", E.int session.duration )
+        , ( "breathing-method-name", E.string <| fromName session.breathingMethodName )
+        , ( "duration", E.int <| fromDuration session.duration )
         , ( "created-at", encodePosix session.createdAt )
         ]
 
@@ -166,6 +166,22 @@ posixDecoder =
         |> D.map Time.millisToPosix
 
 
+{-| タイトルをデコードし、Elmの型へ変換します。
+-}
+titleDecoder : Decoder Title
+titleDecoder =
+    D.string
+        |> D.andThen
+            (\s ->
+                case toTitle s of
+                    Just t ->
+                        D.succeed t
+
+                    Nothing ->
+                        D.fail ("Invalid title: " ++ s)
+            )
+
+
 {-| カテゴリーをデコードし、Elmの型へ変換します。
 
 JSでの表現は以下のようになります。:
@@ -179,7 +195,7 @@ categoryDecoder : Decoder Category
 categoryDecoder =
     D.map2 Category
         (D.field "id" Uuid.decoder)
-        (D.field "title" D.string)
+        (D.field "title" titleDecoder)
 
 
 {-| カテゴリーのリストをデコードし、Elmの型へ変換します。
@@ -187,6 +203,86 @@ categoryDecoder =
 categoriesDecoder : Decoder (List Category)
 categoriesDecoder =
     D.list categoryDecoder
+
+
+{-| 呼吸法の名前をデコードし、Elmの型へ変換します。
+-}
+nameDecoder : Decoder Name
+nameDecoder =
+    D.string
+        |> D.andThen
+            (\s ->
+                case toName s of
+                    Just n ->
+                        D.succeed n
+
+                    Nothing ->
+                        D.fail ("Invalid name: " ++ s)
+            )
+
+
+{-| 呼吸法の吸気時間をデコードし、Elmの型へ変換します。
+-}
+inhaleDecoder : Decoder InhaleDuration
+inhaleDecoder =
+    D.int
+        |> D.andThen
+            (\i ->
+                case toInhaleDuration i of
+                    Just id ->
+                        D.succeed id
+
+                    Nothing ->
+                        D.fail ("Invalid inhale duration: " ++ String.fromInt i)
+            )
+
+
+{-| 呼吸法の吸気保持時間をデコードし、Elmの型へ変換します。
+-}
+inhaleHoldDecoder : Decoder InhaleHoldDuration
+inhaleHoldDecoder =
+    D.int
+        |> D.andThen
+            (\i ->
+                case toInhaleHoldDuration i of
+                    Just ihd ->
+                        D.succeed ihd
+
+                    Nothing ->
+                        D.fail ("Invalid inhale hold duration: " ++ String.fromInt i)
+            )
+
+
+{-| 呼吸法の呼気時間をデコードし、Elmの型へ変換します。
+-}
+exhaleDecoder : Decoder ExhaleDuration
+exhaleDecoder =
+    D.int
+        |> D.andThen
+            (\i ->
+                case toExhaleDuration i of
+                    Just ed ->
+                        D.succeed ed
+
+                    Nothing ->
+                        D.fail ("Invalid exhale duration: " ++ String.fromInt i)
+            )
+
+
+{-| 呼吸法の呼気保持時間をデコードし、Elmの型へ変換します。
+-}
+exhaleHoldDecoder : Decoder ExhaleHoldDuration
+exhaleHoldDecoder =
+    D.int
+        |> D.andThen
+            (\i ->
+                case toExhaleHoldDuration i of
+                    Just ehd ->
+                        D.succeed ehd
+
+                    Nothing ->
+                        D.fail ("Invalid exhale hold duration: " ++ String.fromInt i)
+            )
 
 
 {-| 呼吸法をデコードし、Elmの型へ変換します。
@@ -208,13 +304,13 @@ breathingMethodDecoder : Decoder BreathingMethod
 breathingMethodDecoder =
     D.map8 BreathingMethod
         (D.field "id" Uuid.decoder)
-        (D.field "name" D.string)
+        (D.field "name" nameDecoder)
         (D.field "category-id" Uuid.decoder)
         (D.field "created-at" posixDecoder)
-        (D.field "inhale" D.int)
-        (D.field "inhale-hold" D.int)
-        (D.field "exhale" D.int)
-        (D.field "exhale-hold" D.int)
+        (D.field "inhale" inhaleDecoder)
+        (D.field "inhale-hold" inhaleHoldDecoder)
+        (D.field "exhale" exhaleDecoder)
+        (D.field "exhale-hold" exhaleHoldDecoder)
 
 
 {-| 呼吸法のリストをデコードし、Elmの型へ変換します。
@@ -222,6 +318,22 @@ breathingMethodDecoder =
 breathingMethodsDecoder : Decoder (List BreathingMethod)
 breathingMethodsDecoder =
     D.list breathingMethodDecoder
+
+
+{-| セッションの時間をデコードし、Elmの型へ変換します。
+-}
+durationDecoder : Decoder Duration
+durationDecoder =
+    D.int
+        |> D.andThen
+            (\i ->
+                case toDuration i of
+                    Just d ->
+                        D.succeed d
+
+                    Nothing ->
+                        D.fail ("Invalid duration: " ++ String.fromInt i)
+            )
 
 
 {-| セッションをデコードし、Elmの型へ変換します。
@@ -244,13 +356,13 @@ sessionDecoder : Decoder Session
 sessionDecoder =
     D.succeed Session
         |> DE.andMap (D.field "id" Uuid.decoder)
-        |> DE.andMap (D.field "inhale" D.int)
-        |> DE.andMap (D.field "inhale-hold" D.int)
-        |> DE.andMap (D.field "exhale" D.int)
-        |> DE.andMap (D.field "exhale-hold" D.int)
+        |> DE.andMap (D.field "inhale" inhaleDecoder)
+        |> DE.andMap (D.field "inhale-hold" inhaleHoldDecoder)
+        |> DE.andMap (D.field "exhale" exhaleDecoder)
+        |> DE.andMap (D.field "exhale-hold" exhaleHoldDecoder)
         |> DE.andMap (D.field "breathing-method-id" Uuid.decoder)
-        |> DE.andMap (D.field "breathing-method-name" D.string)
-        |> DE.andMap (D.field "duration" D.int)
+        |> DE.andMap (D.field "breathing-method-name" nameDecoder)
+        |> DE.andMap (D.field "duration" durationDecoder)
         |> DE.andMap (D.field "created-at" posixDecoder)
 
 

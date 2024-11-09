@@ -38,8 +38,8 @@ module Types.Statistics exposing
 
 import Date exposing (format)
 import List.Extra
-import Types.Session exposing (Session)
 import Time exposing (posixToMillis)
+import Types.Session exposing (Session, fromDuration)
 
 
 {-| `Statistics` 型はセッションに基づいた統計情報を表します。
@@ -72,7 +72,7 @@ calculateFromSessions : List Session -> Statistics
 calculateFromSessions sessions =
     { totalSets = List.length sessions
     , totalSeconds =
-        List.foldr (\session acc -> acc + session.duration)
+        List.foldr (\session acc -> acc + fromDuration session.duration)
             0
             sessions
     , totalPracticeDays =

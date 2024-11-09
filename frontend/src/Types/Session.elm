@@ -1,4 +1,8 @@
-module Types.Session exposing (..)
+module Types.Session exposing
+    ( SessionId
+    , Duration, toDuration, fromDuration, minSessionDuration, maxSessionDuration
+    , Session
+    )
 
 {-| このモジュールは、呼吸法セッションを表す型と関連する関数を定義します。
 セッションは、特定の呼吸法 (BreathingMethod) に基づいており、個別のフェーズごとの時間 (Inhale, InhaleHold, Exhale, ExhaleHold) を持つことで、ユーザーの呼吸セッションの進捗を記録します。また、呼吸法IDを持つことで、特定の呼吸法との関連を表現します。
@@ -6,12 +10,9 @@ module Types.Session exposing (..)
 
 ### 型
 
-@docs SessionId, Duration, Session
-
-
-### TODO
-
-  - [ ] TODO: 必要に応じて、BreathingMethodに紐づかないカスタムセッションの対応を検討し、保存形式の変更を考慮する。
+@docs SessionId
+@docs Duration, toDuration, fromDuration, minSessionDuration, maxSessionDuration
+@docs Session
 
 -}
 
@@ -27,12 +28,9 @@ type alias SessionId =
 
 
 {-| セッション全体の合計時間（秒単位）。計算されます。
-
-  - [ ] TODO: Opaque Typeに変更する。最短時間と最長時間が存在するため。
-
 -}
-type alias Duration =
-    Int
+type Duration
+    = Duration Int
 
 
 {-| 分（秒単位）。
@@ -69,10 +67,28 @@ maxSessionDuration =
     10 * hours
 
 
+{-| Duration型を作成する
+-}
+toDuration : Int -> Maybe Duration
+toDuration duration =
+    if duration >= minSessionDuration && duration <= maxSessionDuration then
+        Just (Duration duration)
+
+    else
+        Nothing
+
+
+{-| Durationを取得する
+-}
+fromDuration : Duration -> Int
+fromDuration (Duration duration) =
+    duration
+
+
 {-| 呼吸法のセッションを表す型。各セッションは個別のフェーズごとの期間を設定し、特定の呼吸法に紐づいています。
 
   - `breathingMethodId` を通じて、特定の `BreathingMethod` と関連付けられますが、カスタムセッションを許容するために、将来的にオプション化も検討されている。
-  - 各フェーズ（吸気、吸気保持、吐気、吐気保持）の期間を保持し、ユーザーのセッションデータとして保存されます。
+  - 各フェーズ（吸気、吸気保持、呼気、呼気保持）の期間を保持し、ユーザーのセッションデータとして保存されます。
 
 -}
 type alias Session =

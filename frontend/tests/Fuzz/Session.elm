@@ -13,7 +13,7 @@ import Fuzz exposing (Fuzzer)
 import Fuzz.Uuid exposing (uuidFuzzer)
 import Time
 import Types.BreathingMethod exposing (BreathingMethod)
-import Types.Session exposing (Session, maxSessionDuration, minSessionDuration)
+import Types.Session exposing (Duration, Session, maxSessionDuration, minSessionDuration, toDuration)
 import Uuid exposing (Uuid)
 
 
@@ -31,11 +31,20 @@ sessionFuzzer breathingMethods deletedBreathingMethod =
                         , ( 5, Fuzz.constant deletedBreathingMethod )
                         ]
 
-        durationFuzzer : Fuzzer Int
-        durationFuzzer =
+        durationFuzzer : () -> Fuzzer Duration
+        durationFuzzer _ =
             Fuzz.intRange minSessionDuration maxSessionDuration
+                |> Fuzz.andThen
+                    (\i ->
+                        case toDuration i of
+                            Just d ->
+                                Fuzz.constant d
 
-        createSession : Uuid -> BreathingMethod -> Int -> Time.Posix -> Session
+                            Nothing ->
+                                durationFuzzer ()
+                    )
+
+        createSession : Uuid -> BreathingMethod -> Duration -> Time.Posix -> Session
         createSession id bm =
             Session
                 id
@@ -50,4 +59,4 @@ sessionFuzzer breathingMethods deletedBreathingMethod =
         createSession
         uuidFuzzer
         associatedBreathingMethodFuzzer
-        durationFuzzer
+        (durationFuzzer ())

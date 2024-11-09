@@ -24,10 +24,11 @@ module Pages.SessionCompletionPage exposing
 -}
 
 import Browser.Navigation as Nav
-import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (attribute)
+import Html exposing (Html, button, div, span, text)
+import Html.Attributes exposing (attribute, value)
 import Html.Events exposing (onClick)
 import Route exposing (Route(..))
+import Types.Session exposing (Duration, fromDuration)
 
 
 {-| メッセージ
@@ -38,11 +39,17 @@ type Msg
 
 {-| ビュー
 -}
-view : { a | duration : Int, txt : String } -> Html Msg
+view : { a | duration : Duration, txt : String } -> Html Msg
 view { duration, txt } =
     div [ attribute "role" "session-completion" ]
         [ text txt
-        , text <| "完了" ++ String.fromInt duration ++ "秒"
+        , text "完了"
+        , span
+            [ attribute "aria-label" "finish-duration"
+            , value (String.fromInt <| fromDuration duration)
+            ]
+            [ text <| (String.fromInt << fromDuration) duration ]
+        , text "秒"
         , button
             [ attribute "aria-label" "next" ]
             [ text "次へ" ]
