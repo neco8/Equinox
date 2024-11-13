@@ -20,6 +20,7 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Nav
+import Config exposing (Config)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
@@ -73,14 +74,41 @@ type Page
     | NotFoundPage
 
 
+{-| フラッグ
+-}
+type alias Flags =
+    { now : Time.Posix
+    , environment : Config.Environment
+    }
+
+
+defaultFlags : Flags
+defaultFlags =
+    { now = Time.millisToPosix 0
+    , environment = Config.defaultEnvironment
+    }
+
+
+flagsDecoder : Decoder Flags
+flagsDecoder =
+    D.succeed Flags
+        |> DE.andMap (D.field "now" posixDecoder)
+        |> DE.andMap (D.field "environment" Config.environmentDecoder)
+
+
 {-| Modelを初期化する
 -}
-init : Int -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
-init now url key =
+init : D.Value -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init flagsValue url key =
     let
+        flags =
+            D.decodeValue flagsDecoder flagsValue
+                |> Result.withDefault defaultFlags
+
         model : Model
         model =
             { key = key
+            , config = Config.config flags.environment
             , currentPage = NotFoundPage
             , uuidGenerator = Uuid.initialModel
             , uuids = []
@@ -92,7 +120,7 @@ init now url key =
         initialQueries =
             [ Query.GetAllBreathingMethods
             , Query.GetAllCategories
-            , Query.GetSessionRecentNDays recentDaysThreshold (Time.millisToPosix now)
+            , Query.GetSessionRecentNDays recentDaysThreshold flags.now
             ]
 
         cmd =
@@ -977,7 +1005,7 @@ subscriptions model =
 
 {-| Entrypoint
 -}
-main : Program Int Model Msg
+main : Program D.Value Model Msg
 main =
     Browser.application
         { init = init
