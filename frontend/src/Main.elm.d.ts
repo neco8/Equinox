@@ -99,8 +99,8 @@ export interface Ports {
   saveSession: Cmd<Session>;
   // [ ] TODO: saveResultについても実装する
   // UUID
-  generateUuid: Cmd<void>;
-  receiveUuid: Sub<string>;
+  generateUuid: Cmd<string>; // callbackを識別するtag
+  receiveUuid: Sub<[string, string]>; // [tag, uuid] tagによって識別されるcallbackにuuidを渡す
 }
 
 // Elm App Interface
