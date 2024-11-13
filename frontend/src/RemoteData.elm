@@ -1,6 +1,6 @@
 module RemoteData exposing
     ( RemoteData(..)
-    , fromResult
+    , fromResult, map
     )
 
 {-|
@@ -18,7 +18,7 @@ module RemoteData exposing
 
 ### ヘルパー
 
-@docs fromResult
+@docs fromResult, map
 
 -}
 
@@ -42,3 +42,21 @@ fromResult result =
 
         Ok a ->
             Success a
+
+
+{-| map関数
+-}
+map : (a -> b) -> RemoteData e a -> RemoteData e b
+map f remoteData =
+    case remoteData of
+        NotAsked ->
+            NotAsked
+
+        Loading ->
+            Loading
+
+        Failure e ->
+            Failure e
+
+        Success a ->
+            Success (f a)
