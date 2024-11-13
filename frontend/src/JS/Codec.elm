@@ -5,6 +5,7 @@ module JS.Codec exposing
     , encodeSession, encodeSessions
     , posixDecoder
     , categoryDecoder, categoriesDecoder
+    , nameDecoder, inhaleDecoder, inhaleHoldDecoder, exhaleDecoder, exhaleHoldDecoder
     , breathingMethodDecoder, breathingMethodsDecoder
     , sessionDecoder, sessionsDecoder
     )
@@ -27,6 +28,7 @@ module JS.Codec exposing
 
 @docs posixDecoder
 @docs categoryDecoder, categoriesDecoder
+@docs nameDecoder, inhaleDecoder, inhaleHoldDecoder, exhaleDecoder, exhaleHoldDecoder
 @docs breathingMethodDecoder, breathingMethodsDecoder
 @docs sessionDecoder, sessionsDecoder
 
