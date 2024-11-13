@@ -3,7 +3,7 @@ module Main exposing (main)
 {-|
 
 
-## Main モジュール
+## Main Module
 
 このモジュールはEntrypointです。複数のページをまとめ、中央のModelの管理も行います。
 

@@ -1,14 +1,28 @@
 module Config exposing (Config, Environment, config, defaultEnvironment, environmentDecoder)
 
-{-| このモジュールは静的な設定についてを扱うモジュール
+{-|
 
-Settingsと明確に違うことを注意したい。Configは、コンパイル時に変更できる設定値である。例えば、開発環境かテスト環境かで変更したいようなものをこちらへ保存しておくことにする。
+
+## Config
+
+このモジュールは静的な設定についてを扱うモジュールです。
+
+Settingsと明確に違うことを注意したい。Configは、コンパイル時に変更できる設定値です。例えば、開発環境かテスト環境かで変更したいようなものをこちらへ保存しておくことができます。
 
 -}
 
 import Json.Decode
 
 
+{-| 環境の型
+
+環境は以下の3つの値を取ります。
+
+  - Production
+  - Development
+  - Test
+
+-}
 type Environment
     = Production
     | Development

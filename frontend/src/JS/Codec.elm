@@ -10,9 +10,15 @@ module JS.Codec exposing
     , sessionDecoder, sessionsDecoder
     )
 
-{-| このモジュールはカテゴリー・呼吸法・セッションのCodecを提供します。
+{-|
 
-このモジュールが目的とすることは、Javascriptとのデータのやり取りを、型安全に行うためです。
+
+## Codec
+
+このモジュールはカテゴリー・呼吸法・セッション等JSとやり取りする必要のある値のCodecを提供します。
+
+このモジュールが目的とすることは、Javascriptとのデータのやり取りを、型安全に行うことです。
+
 ですので、Javascriptに関連する値はこちらに集約されます。
 
 

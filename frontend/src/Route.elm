@@ -3,7 +3,12 @@ module Route exposing
     , toString, fromUrl, href
     )
 
-{-| ルーティングを提供します。
+{-|
+
+
+## Route
+
+このモジュールはルーティングを提供します。
 
 
 ### ルート
@@ -167,6 +172,8 @@ parser =
         ]
 
 
+{-| ルートを文字列に変換する
+-}
 toString : Route -> String
 toString route =
     case route of
@@ -276,11 +283,15 @@ toString route =
                     ]
 
 
+{-| URLからルートを取得する
+-}
 fromUrl : Url.Url -> Maybe Route
 fromUrl url =
     Parser.parse parser url
 
 
+{-| リンクのhref属性を作成する
+-}
 href : Route -> Attribute msg
 href route =
     Html.Attributes.href <| toString route

@@ -3,7 +3,12 @@ module RemoteData exposing
     , fromResult
     )
 
-{-| このモジュールは、APIによって取得するデータを表現する型を提供します。
+{-|
+
+
+## RemoteData
+
+このモジュールは、APIによって取得するデータを表現する型を提供します。
 
 
 ### 型
