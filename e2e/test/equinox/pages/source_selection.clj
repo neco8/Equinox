@@ -5,8 +5,8 @@
   {;; オンラインソース選択
    :online-source-selection-button [{:tag "button" :aria-label "online-source-selection-button"}]
    :online-list [{:tag "ul" :aria-label "online-list"}]
-   :online-item (fn [{:keys [name id]}]
-                  [{:tag "button" :aria-label name :data-id id}])})
+   :online-item (fn [{:keys [id]}]
+                  [{:tag "button" :data-id id}])})
 
 ;; オンラインソース選択ルート
 
