@@ -24,7 +24,8 @@
 
    [equinox.browser :refer [get-driver browser-fixture]]
 
-   [equinox.mock.timer :refer [with-mock-timer advance-timer!] :as timer]))
+   [equinox.mock.timer :refer [with-mock-timer advance-timer!] :as timer]
+   [equinox.mock.api :refer [with-api change-online-methods]]))
 
 (stest/instrument)
 
@@ -211,7 +212,6 @@
 
        (testing "📊 統計を確認してみましょう"
          (completion/proceed-complete-session driver)
-         ;; TODO: ここで、finish-durationが想定のdurationと同じであることを確認する。
          (let [finish-duration (completion/get-finish-duration driver)]
            (is (= finish-duration duration)
                (str "実施時間が想定と異なります。想定: " duration "秒, 実際: " finish-duration "秒")))
@@ -241,31 +241,35 @@
         online-breathing-methods (gen/generate
                                   (gen/vector
                                    (gen/let [bm (sbm/gen-breathing-method categories)]
-                                     (dissoc bm :category-id :created-at))))
+                                     (gen/return (dissoc bm :category-id :created-at)))))
         selected-online-breathing-method (gen/generate
                                           (gen/elements online-breathing-methods))
 
-        ;; 編集するなら存在し、しないならnilとなるような値
-        custom-edit-breathing-method (gen/generate
-                                      (gen/one-of [(sbm/gen-breathing-method categories)
-                                                   (gen/return nil)]))
-        custom-edit-create-category (when custom-edit-breathing-method
-                                      (gen/generate
-                                       (gen/one-of [sca/gen-category
-                                                    (gen/return nil)])))]
+        edit-breathing-method (gen/generate
+                               (gen/let [type (gen/elements #{:edit :not-edit})
+                                         breathing-method (case type
+                                                            :edit (sbm/gen-breathing-method categories)
+                                                            :not-edit (gen/return nil))]
+                                 (gen/return {:type type :breathing-method breathing-method})))
+        edit-category (gen/generate
+                       (gen/let [type (gen/elements #{:add :existing})
+                                 category (case type
+                                            :add sca/gen-category
+                                            :existing (gen/elements categories))]
+                         (gen/return {:type type :category category})))]
     {:categories categories
      :breathing-methods breathing-methods
      :sessions sessions
      :online-breathing-methods online-breathing-methods
      :selected-online-breathing-method selected-online-breathing-method
-     :custom-edit-breathing-method custom-edit-breathing-method
-     :custom-edit-create-category custom-edit-create-category}))
+     :edit-breathing-method edit-breathing-method
+     :edit-category edit-category}))
 
 (defscreenshottest オンラインソースから呼吸法を追加する
   ((use-data-fixture online-source-flow-test-data)
    (fn []
      (let [driver (get-driver)
-           {:keys [online-breathing-methods selected-online-breathing-method custom-edit-breathing-method custom-edit-create-category]} online-source-flow-test-data]
+           {:keys [online-breathing-methods selected-online-breathing-method edit-breathing-method edit-category]} online-source-flow-test-data]
 
        (testing "✨ ホームページが正しく表示されるかURLを確認"
          (home/open driver)
@@ -273,52 +277,68 @@
          (is (core/current-url? driver :home) "ホームページが開けません")
          (:screenshot "ホーム"))
 
-       (testing "➕ 新規呼吸法追加ボタンをクリック"
-         (e/click driver (home/selectors :add-new-button))
-         ;; ソース選択画面への遷移を確認
-         (e/wait-visible driver {:role "source-selection"})
-         (is (core/current-url? driver :source-selection) "ソース選択画面への移動に失敗しました")
-         (doseq [q (map source-selection/selectors [:online-source-selection-button])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         (:screenshot "ソース選択"))
+       (with-api
+         #(do
+            (change-online-methods online-breathing-methods)
 
-       (testing "👆️ オンラインソースを選択"
-         (source-selection/click-online-source-selection-button driver)
-         (doseq [q (flatten [(map source-selection/selectors [:online-list])
-                            ;; オンラインソースがすべて存在することを確認する
-                             (map (fn [bm] ((source-selection/selectors :online-item) {:name (:name bm) :id (:id bm)})) online-breathing-methods)])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         (:screenshot "オンラインソースリスト")
-         (source-selection/click-online-item driver (:name selected-online-breathing-method) (:id selected-online-breathing-method))
+            (testing "➕ 新規呼吸法追加ボタンをクリック"
+              (e/click driver (home/selectors :add-new-button))
+               ;; ソース選択画面への遷移を確認
+              (e/wait-visible driver {:role "source-selection"})
+              (is (core/current-url? driver :source-selection) "ソース選択画面への移動に失敗しました")
+              (doseq [q (map source-selection/selectors [:online-source-selection-button])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "ソース選択"))
 
-         ;; 新規呼吸法追加画面へ遷移する
-         (is (core/current-url? driver :add) "呼吸法新規追加画面への遷移に失敗しました")
-         (:screenshot "呼吸法新規追加"))
+            (testing "👆️ オンラインソースを選択"
+              (source-selection/click-online-source-selection-button driver)
+              (e/wait-visible driver {:role "online-list"})
+              (doseq [q (flatten
+                         [(map source-selection/selectors [:online-list])
+                                  ;; オンラインソースがすべて存在することを確認する
+                          (map (fn [bm]
+                                 ((source-selection/selectors :online-item)
+                                  {:name (:name bm)
+                                   :id (:id bm)}))
+                               online-breathing-methods)])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "オンラインソースリスト")
+              (source-selection/click-online-item driver (:name selected-online-breathing-method) (:id selected-online-breathing-method))
+
+               ;; 新規呼吸法追加画面へ遷移する
+              (is (core/current-url? driver :add) "呼吸法新規追加画面への遷移に失敗しました")
+              (:screenshot "呼吸法新規追加"))))
 
        (letfn [(add-breathing-method
                  []
+                 (case (:type edit-category)
+                   :add (breathing-method-add/create-category driver
+                                                              (:title (:category edit-category)))
+                   :existing (breathing-method-add/select-category driver
+                                                                   (:id (:category edit-category))))
+
                  (breathing-method-add/submit-breathing-method driver)
-
-                 (e/wait-visible driver {:role "home"})
+                 (e/wait-visible driver {:role "home"} {:timeout 10})
                  (is (core/current-url? driver :home) "ホームページへの遷移に失敗しました"))]
-         (if custom-edit-breathing-method
-           (testing "呼吸法を編集した後、追加する"
-             (breathing-method-add/set-custom-breathing-parameters driver custom-edit-breathing-method)
-             (breathing-method-add/set-breathing-name driver (:name custom-edit-breathing-method))
-             (breathing-method-add/select-category driver (:category-id custom-edit-breathing-method))
-             (when custom-edit-create-category
-               (breathing-method-add/create-category driver (:title custom-edit-create-category)))
-             (:screenshot "呼吸法編集")
-             (add-breathing-method))
+         (:screenshot (str (e/get-url driver)))
+          ;; TODO: 前の画面から受け取った値が最初から表示されているか確認する
+         (case (:type edit-breathing-method)
+           :edit (testing "➕️ 呼吸法を編集した後、追加する"
+                   (breathing-method-add/set-custom-breathing-parameters driver (:breathing-method edit-breathing-method))
+                   (breathing-method-add/set-breathing-name driver (:name (:breathing-method edit-breathing-method)))
+                   (:screenshot "呼吸法編集")
+                   (add-breathing-method))
 
-           (testing "呼吸法を編集せず、追加する"
-             (:screenshot "呼吸法未編集")
-             (add-breathing-method))))
+           :not-edit (testing "➡️ 呼吸法を編集せず、カテゴリーのみ追加して追加する"
+                       (:screenshot "呼吸法未編集")
+                       (add-breathing-method))))
 
-       (testing "ホームページで呼吸法が正しく追加されていることを確認"
-         ;; この部分のテスト、呼吸法は名前しか知らずIDは自動生成となるため、Homeのselectorsを拡充する必要がある。現在は生のqueryを記述する。
-         (when custom-edit-create-category
-           (e/visible? driver {:tag "ul" :aria-label (:title custom-edit-create-category)}))
-         (e/visible? driver {:tag "article" :aria-label (:name custom-edit-breathing-method)}))))))
+       (testing "🌟 ホームページで呼吸法が正しく追加されていることを確認"
+         ;; カテゴリー、呼吸法を追加できているかどうかを確認。
+         (e/visible? driver {:tag "ul" :aria-label (:title (:category edit-category))})
+         (e/visible? driver {:tag "article"
+                             :aria-label (:name (case (:type edit-breathing-method)
+                                                  :edit (:breathing-method edit-breathing-method)
+                                                  :not-edit selected-online-breathing-method))}))))))
