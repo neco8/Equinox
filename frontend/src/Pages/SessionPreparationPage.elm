@@ -1,6 +1,6 @@
 module Pages.SessionPreparationPage exposing
     ( Model, init
-    , Msg(..)
+    , Msg
     , update
     , PracticeStyle(..), view
     )
@@ -30,6 +30,7 @@ module Pages.SessionPreparationPage exposing
 -}
 
 import Browser.Navigation as Nav
+import BreathingMethodDurationInput
 import Html exposing (Html, button, div, input, span, text)
 import Html.Attributes exposing (attribute, disabled, style)
 import Html.Events exposing (onClick, onInput)
@@ -109,33 +110,19 @@ type PracticeStyle
 {-| ビュー
 -}
 view : { a | txt : String, practiceStyle : PracticeStyle, route : Duration -> Route } -> Model -> Html Msg
-view { txt, practiceStyle, route } { sessionDurationInput } =
+view { txt, practiceStyle, route } model =
     let
         breathingMethodControls =
             case practiceStyle of
                 Manual ->
-                    div []
-                        [ input
-                            [ attribute "aria-label" "inhale-duration-input"
-                            , onInput InputInhaleDuration
-                            ]
-                            []
-                        , input
-                            [ attribute "aria-label" "inhale-hold-duration-input"
-                            , onInput InputInhaleHoldDuration
-                            ]
-                            []
-                        , input
-                            [ attribute "aria-label" "exhale-duration-input"
-                            , onInput InputExhaleDuration
-                            ]
-                            []
-                        , input
-                            [ attribute "aria-label" "exhale-hold-duration-input"
-                            , onInput InputExhaleHoldDuration
-                            ]
-                            []
-                        ]
+                    BreathingMethodDurationInput.view
+                        (BreathingMethodDurationInput.Config
+                            InputInhaleDuration
+                            InputInhaleHoldDuration
+                            InputExhaleDuration
+                            InputExhaleHoldDuration
+                        )
+                        model
 
                 Preset m ->
                     div []
@@ -155,7 +142,7 @@ view { txt, practiceStyle, route } { sessionDurationInput } =
         , breathingMethodControls
         , button
             [ attribute "aria-label" "start-session"
-            , case Maybe.andThen toDuration <| String.toInt sessionDurationInput of
+            , case Maybe.andThen toDuration <| String.toInt model.sessionDurationInput of
                 Just duration ->
                     onClick (PrepareSessionPageNavigateToRoute (route duration))
 

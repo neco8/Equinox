@@ -52,7 +52,10 @@ class WebTestStorage implements Storage {
     }
   }
 
-  async save(key: StorageKey, value: unknown): Promise<SaveResult> {
+  async save(
+    key: StorageKey,
+    value: Record<string, unknown>
+  ): Promise<SaveResult> {
     localStorage.setItem(key, JSON.stringify(value));
     return {
       type: "success",

@@ -73,6 +73,11 @@ export type SaveResult =
   | { type: "success" }
   | { type: "error"; message: string };
 
+type Flags = {
+  now: number;
+  environment: "development" | "production" | "test";
+};
+
 // Command and Subscription Types
 export type Cmd<T> = {
   subscribe: (fn: (value: T) => void) => void;
@@ -94,8 +99,8 @@ export interface Ports {
   saveSession: Cmd<Session>;
   // [ ] TODO: saveResultについても実装する
   // UUID
-  generateUuid: Cmd<void>;
-  receiveUuid: Sub<string>;
+  generateUuid: Cmd<string>; // callbackを識別するtag
+  receiveUuid: Sub<[string, string]>; // [tag, uuid] tagによって識別されるcallbackにuuidを渡す
 }
 
 // Elm App Interface
@@ -106,7 +111,7 @@ export namespace Elm {
     }
     export function init(param: {
       node: HTMLElement;
-      flags: number /** 現在時刻 */;
+      flags: Flags;
     }): Elm.Main.App;
   }
 }
