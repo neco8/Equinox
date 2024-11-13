@@ -1,6 +1,5 @@
 (ns equinox.pages.completion
-  (:require [etaoin.api :as e]
-            [clojure.string :as str]))
+  (:require [etaoin.api :as e]))
 
 (def selectors
   {:next-button [{:tag "button" :aria-label "next"}]

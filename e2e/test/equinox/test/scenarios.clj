@@ -15,6 +15,8 @@
    [equinox.pages.session :as session]
    [equinox.pages.completion :as completion]
    [equinox.pages.statistics :as statistics]
+   [equinox.pages.source-selection :as source-selection]
+   [equinox.pages.breathing-method-add :as breathing-method-add]
 
    [equinox.specs.breathing-method :as sbm]
    [equinox.specs.session :as sse]
@@ -22,7 +24,8 @@
 
    [equinox.browser :refer [get-driver browser-fixture]]
 
-   [equinox.mock.timer :refer [with-mock-timer advance-timer!] :as timer]))
+   [equinox.mock.timer :refer [with-mock-timer advance-timer!] :as timer]
+   [equinox.mock.api :refer [with-api change-online-methods]]))
 
 (stest/instrument)
 
@@ -77,33 +80,35 @@
            (is (e/visible? driver q) (str "見つからない要素があります → " q)))
          (:screenshot "セッション準備"))
 
-       (testing "⏱️ セッションの準備をして、スタート！"
+       (testing "⏱️ セッションの準備をする"
          (preparation/set-duration driver duration)
-         (is (= (preparation/get-duration-value driver) (str duration)) "時間の設定が反映されていません")
-         (preparation/start-session driver)
-         (e/wait-visible driver {:role "session"})
-         (is (core/current-url? driver :preset-session) "セッション中ページへの移動に失敗しました")
-         (doseq [q (map session/selectors [:timer :instruction :pause-button])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         ;; TODO: セッション中の停止・再開の画面要素が存在することをテスト
-         (:screenshot "セッション中"))
+         (is (= (preparation/get-duration-value driver) (str duration)) "時間の設定が反映されていません"))
 
-       (testing "🎯 セッションを最後まで実行"
-         (with-mock-timer driver
-           #(do
+       (with-mock-timer driver
+         #(do
+            (testing "⏲️ セッションをスタート！"
+              (preparation/start-session driver)
+              (e/wait-visible driver {:role "session"})
+              (is (core/current-url? driver :preset-session) "セッション中ページへの移動に失敗しました")
+              (doseq [q (map session/selectors [:timer :instruction :pause-button])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+               ;; TODO: セッション中の停止・再開の画面要素が存在することをテスト
+              (:screenshot "セッション中"))
+
+            (testing "🎯 セッションを最後まで実行"
               (advance-timer! driver (* (- duration 1) 1000))
-           ;; まだ終了していないことを確認
+               ;; まだ終了していないことを確認
               (is (not (core/current-url? driver :preset-session-completion)) "テスト想定より早くセッションが終わってしまいました")
-              (advance-timer! driver 1000)))
-      ;; 終了したことを確認
-         (session/wait-for-completion driver)
-         (is (core/current-url? driver :preset-session-completion) "セッション完了ページへの移動に失敗しました")
-         (doseq [q (map completion/selectors [:next-button :finish-duration])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         ;; TODO: セッション完了の完了ボタンの表示テスト
-         (:screenshot "セッション完了"))
+              (advance-timer! driver 1000)
+               ;; 終了したことを確認
+              (session/wait-for-completion driver)
+              (is (core/current-url? driver :preset-session-completion) "セッション完了ページへの移動に失敗しました")
+              (doseq [q (map completion/selectors [:next-button :finish-duration])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+               ;; TODO: セッション完了の完了ボタンの表示テスト
+              (:screenshot "セッション完了"))))
 
        (testing "📊 統計を確認してみましょう"
          (completion/proceed-complete-session driver)
@@ -161,7 +166,7 @@
            (is (e/visible? driver q) (str "見つからない要素があります → " q)))
          (:screenshot "カスタムセッション準備"))
 
-       (testing "⏱️ セッションの準備をして、スタート！"
+       (testing "⏱️ セッションの準備をする！"
          (let
           [{:keys [inhale inhale-hold exhale exhale-hold]}
            custom-breathing-method]
@@ -180,33 +185,33 @@
            (is (= (preparation/get-exhale-value driver) (str exhale)) "吐く時間の設定が反映されていません")
            (is (= (preparation/get-exhale-hold-value driver) (str exhale-hold)) "吐いたあと止める時間の設定が反映されていません")
            (is (= (preparation/get-duration-value driver) (str duration)) "セッション時間の設定が反映されていません"))
-         (:screenshot "カスタムセッション準備入力")
+         (:screenshot "カスタムセッション準備入力"))
 
-         (preparation/start-session driver)
-         (e/wait-visible driver {:role "session"})
-         (is (core/current-url? driver :manual-session) "セッション中ページへの移動に失敗しました")
-         (doseq [q (map session/selectors [:timer :instruction :pause-button])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         (:screenshot "カスタムセッション中"))
+       (with-mock-timer driver
+         #(do
+            (testing "⏲️ タイマーをスタート！"
+              (preparation/start-session driver)
+              (e/wait-visible driver {:role "session"})
+              (is (core/current-url? driver :manual-session) "セッション中ページへの移動に失敗しました")
+              (doseq [q (map session/selectors [:timer :instruction :pause-button])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "カスタムセッション中"))
 
-       (testing "🎯 セッションを完了まで実行"
-         (with-mock-timer driver
-           #(do
+            (testing "🎯 セッションを完了まで実行"
               (advance-timer! driver (* (- duration 1) 1000))
               (is (not (core/current-url? driver :manual-session-completion)) "テスト想定より早くセッションが終わってしまいました")
-              (advance-timer! driver 1000)))
+              (advance-timer! driver 1000)
 
-         (session/wait-for-completion driver)
-         (is (core/current-url? driver :manual-session-completion) "セッション完了ページへの移動に失敗しました")
-         (doseq [q (map completion/selectors [:next-button :finish-duration])]
-           (e/wait-visible driver q {:timeout 10})
-           (is (e/visible? driver q) (str "見つからない要素があります → " q)))
-         (:screenshot "カスタムセッション完了"))
+              (session/wait-for-completion driver)
+              (is (core/current-url? driver :manual-session-completion) "セッション完了ページへの移動に失敗しました")
+              (doseq [q (map completion/selectors [:next-button :finish-duration])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "カスタムセッション完了"))))
 
        (testing "📊 統計を確認してみましょう"
          (completion/proceed-complete-session driver)
-         ;; TODO: ここで、finish-durationが想定のdurationと同じであることを確認する。
          (let [finish-duration (completion/get-finish-duration driver)]
            (is (= finish-duration duration)
                (str "実施時間が想定と異なります。想定: " duration "秒, 実際: " finish-duration "秒")))
@@ -223,3 +228,117 @@
 
 
 ;; TODO: セッション中断フローの際、finish-durationが適切になっているかを確認する
+
+(def online-source-flow-test-data
+  (let [categories (gen/generate
+                    (gen/vector sca/gen-category 1 10))
+        breathing-methods (gen/generate
+                           (gen/vector (sbm/gen-breathing-method categories) 1 10))
+        sessions (gen/generate
+                  (gen/vector (sse/gen-session breathing-methods) 1 10))
+
+        ;; online breeathing methodsには category-id、created-atがつかないのでdissocする
+        online-breathing-methods (gen/generate
+                                  (gen/vector
+                                   (gen/let [bm (sbm/gen-breathing-method categories)]
+                                     (gen/return (dissoc bm :category-id :created-at)))))
+        selected-online-breathing-method (gen/generate
+                                          (gen/elements online-breathing-methods))
+
+        edit-breathing-method (gen/generate
+                               (gen/let [type (gen/elements #{:edit :not-edit})
+                                         breathing-method (case type
+                                                            :edit (sbm/gen-breathing-method categories)
+                                                            :not-edit (gen/return nil))]
+                                 (gen/return {:type type :breathing-method breathing-method})))
+        edit-category (gen/generate
+                       (gen/let [type (gen/elements #{:add :existing})
+                                 category (case type
+                                            :add sca/gen-category
+                                            :existing (gen/elements categories))]
+                         (gen/return {:type type :category category})))]
+    {:categories categories
+     :breathing-methods breathing-methods
+     :sessions sessions
+     :online-breathing-methods online-breathing-methods
+     :selected-online-breathing-method selected-online-breathing-method
+     :edit-breathing-method edit-breathing-method
+     :edit-category edit-category}))
+
+(defscreenshottest オンラインソースから呼吸法を追加する
+  ((use-data-fixture online-source-flow-test-data)
+   (fn []
+     (let [driver (get-driver)
+           {:keys [online-breathing-methods selected-online-breathing-method edit-breathing-method edit-category]} online-source-flow-test-data]
+
+       (testing "✨ ホームページが正しく表示されるかURLを確認"
+         (home/open driver)
+         (e/wait-visible driver {:role "home"})
+         (is (core/current-url? driver :home) "ホームページが開けません")
+         (:screenshot "ホーム"))
+
+       (with-api
+         #(do
+            (change-online-methods online-breathing-methods)
+
+            (testing "➕ 新規呼吸法追加ボタンをクリック"
+              (e/click driver (home/selectors :add-new-button))
+               ;; ソース選択画面への遷移を確認
+              (e/wait-visible driver {:role "source-selection"})
+              (is (core/current-url? driver :source-selection) "ソース選択画面への移動に失敗しました")
+              (doseq [q (map source-selection/selectors [:online-source-selection-button])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "ソース選択"))
+
+            (testing "👆️ オンラインソースを選択"
+              (source-selection/click-online-source-selection-button driver)
+              (e/wait-visible driver {:role "online-list"})
+              (doseq [q (flatten
+                         [(map source-selection/selectors [:online-list])
+                                  ;; オンラインソースがすべて存在することを確認する
+                          (map (fn [bm]
+                                 ((source-selection/selectors :online-item)
+                                  {:name (:name bm)
+                                   :id (:id bm)}))
+                               online-breathing-methods)])]
+                (e/wait-visible driver q {:timeout 10})
+                (is (e/visible? driver q) (str "見つからない要素があります → " q)))
+              (:screenshot "オンラインソースリスト")
+              (source-selection/click-online-item driver (:name selected-online-breathing-method) (:id selected-online-breathing-method))
+
+               ;; 新規呼吸法追加画面へ遷移する
+              (is (core/current-url? driver :add) "呼吸法新規追加画面への遷移に失敗しました")
+              (:screenshot "呼吸法新規追加"))))
+
+       (letfn [(add-breathing-method
+                 []
+                 (case (:type edit-category)
+                   :add (breathing-method-add/create-category driver
+                                                              (:title (:category edit-category)))
+                   :existing (breathing-method-add/select-category driver
+                                                                   (:id (:category edit-category))))
+
+                 (breathing-method-add/submit-breathing-method driver)
+                 (e/wait-visible driver {:role "home"} {:timeout 10})
+                 (is (core/current-url? driver :home) "ホームページへの遷移に失敗しました"))]
+         (:screenshot (str (e/get-url driver)))
+          ;; TODO: 前の画面から受け取った値が最初から表示されているか確認する
+         (case (:type edit-breathing-method)
+           :edit (testing "➕️ 呼吸法を編集した後、追加する"
+                   (breathing-method-add/set-custom-breathing-parameters driver (:breathing-method edit-breathing-method))
+                   (breathing-method-add/set-breathing-name driver (:name (:breathing-method edit-breathing-method)))
+                   (:screenshot "呼吸法編集")
+                   (add-breathing-method))
+
+           :not-edit (testing "➡️ 呼吸法を編集せず、カテゴリーのみ追加して追加する"
+                       (:screenshot "呼吸法未編集")
+                       (add-breathing-method))))
+
+       (testing "🌟 ホームページで呼吸法が正しく追加されていることを確認"
+         ;; カテゴリー、呼吸法を追加できているかどうかを確認。
+         (e/visible? driver {:tag "ul" :aria-label (:title (:category edit-category))})
+         (e/visible? driver {:tag "article"
+                             :aria-label (:name (case (:type edit-breathing-method)
+                                                  :edit (:breathing-method edit-breathing-method)
+                                                  :not-edit selected-online-breathing-method))}))))))
