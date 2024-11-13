@@ -3,7 +3,13 @@ module JS.Storage.QueryResult exposing
     , decodeQueryResult
     )
 
-{-| `Storage.QueryResult` モジュールは、クエリ結果のデータ構造とデコード機能を提供します。
+{-|
+
+
+## Query Result
+
+このモジュールは、クエリ結果のデータ構造とデコード機能を提供します。
+
 クエリの結果として返されるデータを各エンティティ（カテゴリ、呼吸法、セッション）に変換するための型とデコーダーが含まれています。
 
 

@@ -14,7 +14,8 @@
    :statistics "/statistics"
    :settings "/settings"
    :source-selection "/breathing-methods/source-selection"
-   :edit "/breathing-methods/edit/:id"})
+   :edit "/breathing-methods/edit/:id"
+   :add "/breathing-methods/edit"})
 
 (defn ->url [path]
   (str "http://localhost:3000" path))

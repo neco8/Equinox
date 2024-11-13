@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "vite --port 3000",
-    "test": "elm-test"
+    "test": "elm-test",
+    "review": "elm-review"
   },
   "keywords": [],
   "author": "",

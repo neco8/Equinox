@@ -1,8 +1,14 @@
 module BreathingMethodDurationInput exposing (Config, view)
 
-{-| このモジュールは、呼吸法の秒数をセットするためのコンポーネントです。
+{-|
+
+
+## Breathing Method Duration Input
+
+このモジュールは、呼吸法の秒数をセットするためのコンポーネントです。
 
 ManualSessionPreparationPageとBreathingMethodAddPageの間で共通化を図ります。
+
 -}
 
 import Html exposing (Html, div, input)

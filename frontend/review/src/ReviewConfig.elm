@@ -12,8 +12,10 @@ when inside the directory containing this file.
 -}
 
 import Review.Rule exposing (Rule)
+import DocumentationRule
 
 
 config : List Rule
 config =
-    []
+    [ DocumentationRule.rule
+    ]

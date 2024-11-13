@@ -4,7 +4,12 @@ module Pages.SessionCompletionPage exposing
     , update
     )
 
-{-| このモジュールはセッション完了ページに関するものです。
+{-|
+
+
+## Session Completion Page
+
+このモジュールはセッション完了ページに関するものです。
 
 
 ### メッセージ

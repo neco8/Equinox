@@ -4,7 +4,12 @@
         lambdaisland/kaocha {:mvn/version "1.87.1366"}
         etaoin/etaoin {:mvn/version "1.0.40"}
         org.slf4j/slf4j-api {:mvn/version "1.7.36"}
-        org.slf4j/slf4j-simple {:mvn/version "1.7.36"}}
+        org.slf4j/slf4j-simple {:mvn/version "1.7.36"}
+        compojure/compojure {:mvn/version "1.7.1"}
+        ring/ring {:mvn/version "1.13.0"}
+        ring/ring-json {:mvn/version "0.5.1"}
+        ring/ring-jetty-adapter {:mvn/version "1.13.0"}
+        ring-cors/ring-cors {:mvn/version "0.1.13"}}
 
  :aliases
  {:test {:extra-paths ["test"]

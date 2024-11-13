@@ -8,7 +8,12 @@ port module JS.Ports exposing
     , generateUuidValue
     )
 
-{-| JSへのポートをまとめて定義するモジュールです。portとなっている関数は、Elmの世界にはexposingしません。
+{-|
+
+
+## Ports
+
+このモジュールはJSへのポートをまとめて定義するモジュールです。portとなっている関数は、Elmの世界にはexposeしない。
 
 
 ### Cmd
