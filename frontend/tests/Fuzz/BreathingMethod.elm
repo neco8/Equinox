@@ -1,9 +1,18 @@
 module Fuzz.BreathingMethod exposing (breathingMethodFuzzer)
 
-{-| 呼吸法についてのFuzzerモジュール
+{-|
+
+
+## BreathingMethod Fuzzer
+
+このモジュールは、呼吸法のFuzzerを提供します。呼吸法はカテゴリーに紐づいています。
 
 
 ### fuzzer
+
+基準時刻に基づいて、1年以内の過去の日時に紐づいた呼吸法を生成します。
+
+呼吸法の作成日時をカスタマイズすることには対応していません。
 
 @docs breathingMethodFuzzer
 
@@ -39,7 +48,7 @@ nameFuzzer =
 
     受け取るパラメータ:
     - `(Category, List Category)`: 一つ以上のカテゴリー情報。リストの先頭要素とその他の要素に分かれる。
-    - `Time.Posix`: 現在の基準時刻。
+    - `Time.Posix`: 基準時刻。
 
     返却:
     - `Fuzzer BreathingMethod`: ランダムに生成される `BreathingMethod` のFuzzer。

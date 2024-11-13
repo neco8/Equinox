@@ -3,7 +3,12 @@ module API.OnlineBreathingMethod exposing
     , checkDuplicate, errorToString, getOnlineBreathingMethods
     )
 
-{-| このモジュールは、オンラインの呼吸法を取得するためのAPIを提供します。
+{-|
+
+
+## Online Breathing Method API
+
+このモジュールは、オンラインの呼吸法を取得するためのAPIを提供します。
 
 オンラインの呼吸法には、カテゴリと作成日時が存在しません。
 

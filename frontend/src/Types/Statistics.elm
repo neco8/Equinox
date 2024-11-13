@@ -4,7 +4,12 @@ module Types.Statistics exposing
     , calculateFromSessions, calculateRecentFromSessions
     )
 
-{-| このモジュールは、セッションのリストから統計情報を生成するための型および関数を提供します。
+{-|
+
+
+## Statistics
+
+このモジュールは、セッションのリストから統計情報を生成するための型および関数を提供します。
 
 このモジュールは、特に以下の機能を提供します：
 

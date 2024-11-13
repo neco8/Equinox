@@ -5,7 +5,12 @@ module Pages.SessionPreparationPage exposing
     , PracticeStyle(..), view
     )
 
-{-| このモジュールはセッション準備ページに関係するものです。
+{-|
+
+
+## Session Preparation Page
+
+このモジュールはセッション準備ページに関係するものです。
 
 
 ### モデル
@@ -29,8 +34,8 @@ module Pages.SessionPreparationPage exposing
 
 -}
 
-import Browser.Navigation as Nav
 import BreathingMethodDurationInput
+import Browser.Navigation as Nav
 import Html exposing (Html, button, div, input, span, text)
 import Html.Attributes exposing (attribute, disabled, style)
 import Html.Events exposing (onClick, onInput)

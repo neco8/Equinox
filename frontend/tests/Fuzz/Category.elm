@@ -1,6 +1,13 @@
 module Fuzz.Category exposing (categoryFuzzer)
 
-{-| カテゴリのFuzzer
+{-|
+
+
+## Category Fuzzer
+
+このモジュールは、カテゴリのFuzzerを提供します。
+
+カテゴリは共通のFuzzerである`charFuzzer`を利用しています。ですので、多様な文字列を利用したカテゴリがテストできます。
 
 
 ### fuzzer

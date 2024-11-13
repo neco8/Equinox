@@ -6,7 +6,12 @@ module Pages.SessionPage exposing
     , subscriptions
     )
 
-{-| このモジュールはセッションページに関するものです。
+{-|
+
+
+## Session Page
+
+このモジュールはセッションページに関するものです。
 
 
 ### モデル

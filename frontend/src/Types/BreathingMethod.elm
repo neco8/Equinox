@@ -1,15 +1,23 @@
 module Types.BreathingMethod exposing
     ( PhaseType(..)
+    , minPhaseDuration, minHoldPhaseDuration, maxPhaseDuration
     , InhaleDuration, toInhaleDuration, fromInhaleDuration
     , InhaleHoldDuration, toInhaleHoldDuration, fromInhaleHoldDuration
     , ExhaleDuration, toExhaleDuration, fromExhaleDuration
     , ExhaleHoldDuration, toExhaleHoldDuration, fromExhaleHoldDuration
     , BreathingMethodId
-    , Name
-    , BreathingMethod, toName, fromName, minPhaseDuration, minHoldPhaseDuration, maxPhaseDuration, minNameLength, maxNameLength
+    , minNameLength, maxNameLength
+    , Name, toName, fromName
+    , BreathingMethod
     )
 
-{-| このモジュールは、`Inhale`、`InhaleHold`、`Exhale`、`ExhaleHold`のような異なるフェーズから構成される呼吸法を管理するための型と関数を定義します。
+{-|
+
+
+## BreathingMethod
+
+このモジュールは、`Inhale`、`InhaleHold`、`Exhale`、`ExhaleHold`のような異なるフェーズから構成される呼吸法を管理するための型と関数を定義します。
+
 各フェーズの時間を設定可能な`BreathingMethod`を定義する構造を提供します。
 
 
@@ -23,8 +31,11 @@ module Types.BreathingMethod exposing
 @docs minPhaseDuration, minHoldPhaseDuration, maxPhaseDuration
 
 @docs InhaleDuration, toInhaleDuration, fromInhaleDuration
+
 @docs InhaleHoldDuration, toInhaleHoldDuration, fromInhaleHoldDuration
+
 @docs ExhaleDuration, toExhaleDuration, fromExhaleDuration
+
 @docs ExhaleHoldDuration, toExhaleHoldDuration, fromExhaleHoldDuration
 
 

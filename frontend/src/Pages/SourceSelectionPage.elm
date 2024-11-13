@@ -4,7 +4,12 @@ module Pages.SourceSelectionPage exposing
     , init
     )
 
-{-| このモジュールは、ソース選択ページのビューと更新ロジックを提供します。
+{-|
+
+
+## Source Selection Page
+
+このモジュールは、ソース選択ページのビューと更新ロジックを提供します。
 
 
 ### ビュー

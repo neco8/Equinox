@@ -8,7 +8,7 @@ module Pages.BreathingMethodPage exposing
 {-|
 
 
-## 呼吸法編集ページ
+## Breathing Method Page
 
 このモジュールは、呼吸法を編集するためのページを提供します。
 
