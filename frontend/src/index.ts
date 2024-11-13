@@ -30,8 +30,7 @@ if (elem) {
     })
   );
 
-  // ストレージクエリの処理
-  app.ports.queryStorage.subscribe(async (query: StorageQuerySDL) => {
+  const queryStorage = async (query: StorageQuerySDL) => {
     try {
       // ここでqueryAllしか使ってない。だけど、大きな前進だ。
       const result: QueryResult = await storage.queryAll(
@@ -41,10 +40,7 @@ if (elem) {
 
       app.ports.receiveQueryResult.send(result);
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        app.ports.receiveQueryError.send({ type: "NotFound" });
-        return;
-      } else if (error instanceof QueryError) {
+      if (error instanceof QueryError) {
         app.ports.receiveQueryError.send({
           type: "QueryError",
           message: error.message,
@@ -56,18 +52,106 @@ if (elem) {
         });
       }
     }
+  };
+
+  // ストレージクエリの処理
+  app.ports.queryStorage.subscribe(async (query: StorageQuerySDL) => {
+    queryStorage(query);
   });
 
   // Save操作のポートハンドラー設定
-  app.ports.saveBreathingMethod.subscribe(async (data: BreathingMethod) => {
-    await storage.save("EQUINOX_breathing-methods", data);
+  app.ports.saveBreathingMethod.subscribe(async (datum: BreathingMethod) => {
+    try {
+      const data = await storage.queryAll("EQUINOX_breathing-methods", {
+        storageKey: "EQUINOX_breathing-methods",
+        conditions: [],
+      });
+      switch (data.type) {
+        case "breathing-method-list":
+          await storage.save(
+            "EQUINOX_breathing-methods",
+            Object.fromEntries(
+              ([...data.data, datum] as BreathingMethod[]).map((d) => [d.id, d])
+            )
+          );
+          break;
+        default:
+          throw new Error("Unexpected error");
+      }
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        await storage.save("EQUINOX_breathing-methods", { [datum.id]: datum });
+      }
+    }
+
+    queryStorage({
+      storageKey: "EQUINOX_breathing-methods",
+      conditions: [],
+    });
   });
 
-  app.ports.saveCategory.subscribe(async (data: Category) => {
-    await storage.save("EQUINOX_categories", data);
+  app.ports.saveCategory.subscribe(async (datum: Category) => {
+    try {
+      const data = await storage.queryAll("EQUINOX_categories", {
+        storageKey: "EQUINOX_categories",
+        conditions: [],
+      });
+      switch (data.type) {
+        case "category-list":
+          console.log(
+            Object.fromEntries(
+              ([...data.data, datum] as Category[]).map((d) => [d.id, d])
+            )
+          );
+          await storage.save(
+            "EQUINOX_categories",
+            Object.fromEntries(
+              ([...data.data, datum] as Category[]).map((d) => [d.id, d])
+            )
+          );
+          break;
+        default:
+          throw new Error("Unexpected error");
+      }
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        await storage.save("EQUINOX_categories", { [datum.id]: datum });
+      }
+    }
+
+    queryStorage({
+      storageKey: "EQUINOX_categories",
+      conditions: [],
+    });
   });
 
-  app.ports.saveSession.subscribe(async (data: Session) => {
-    await storage.save("EQUINOX_sessions", data);
+  app.ports.saveSession.subscribe(async (datum: Session) => {
+    try {
+      const data = await storage.queryAll("EQUINOX_sessions", {
+        storageKey: "EQUINOX_sessions",
+        conditions: [],
+      });
+      switch (data.type) {
+        case "session-list":
+          await storage.save(
+            "EQUINOX_sessions",
+            Object.fromEntries(
+              ([...data.data, datum] as Session[]).map((d) => [d.id, d])
+            )
+          );
+          break;
+        default:
+          throw new Error("Unexpected error");
+      }
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        await storage.save("EQUINOX_sessions", { [datum.id]: datum });
+      }
+    }
+
+    queryStorage({
+      storageKey: "EQUINOX_sessions",
+      conditions: [],
+    });
   });
 }

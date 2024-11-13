@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2017", // or higher
+    "target": "ES2023", // or higher
     "module": "commonjs",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

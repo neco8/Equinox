@@ -25,15 +25,21 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Icon
+import JS.Codec exposing (posixDecoder)
 import JS.Ports as Ports
 import JS.Storage.QueryError exposing (QueryError)
 import JS.Storage.QueryResult as QueryResult exposing (QueryResult)
 import JS.Storage.StorageQueryDSL as Query
+import Json.Decode as D exposing (Decoder)
+import Json.Decode.Extra as DE
 import List.Extra
 import Maybe.Extra
+import Pages.BreathingMethodPage as BreathingMethodPage
 import Pages.SessionCompletionPage as SessionCompletionPage
 import Pages.SessionPage as SessionPage exposing (subscriptions, view)
 import Pages.SessionPreparationPage as SessionPreparationPage exposing (PracticeStyle(..))
+import Pages.SourceSelectionPage as SourceSelectionPage
+import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..))
@@ -48,8 +54,9 @@ import Uuid
 -}
 type alias Model =
     { key : Nav.Key
+    , config : Config
     , currentPage : Page
-    , uuidGenerator : Uuid.Generator Msg
+    , uuidRegistry : Uuid.Registry Msg
     , uuids : List Uuid.Uuid
     , breathingMethods : List BreathingMethod
     , categories : List Category
@@ -69,8 +76,9 @@ type Page
     | ManualSessionCompletionPage Duration
     | StatisticsPage
     | SettingsPage
-    | SourceSelectionPage
-    | BreathingMethodEditPage BreathingMethodId
+    | SourceSelectionPage SourceSelectionPage.Model
+    | BreathingMethodEditPage BreathingMethodPage.Model
+    | BreathingMethodAddPage BreathingMethodPage.Model
     | NotFoundPage
 
 
@@ -82,6 +90,8 @@ type alias Flags =
     }
 
 
+{-| フラッグの初期値
+-}
 defaultFlags : Flags
 defaultFlags =
     { now = Time.millisToPosix 0
@@ -89,6 +99,8 @@ defaultFlags =
     }
 
 
+{-| フラッグのデコーダー
+-}
 flagsDecoder : Decoder Flags
 flagsDecoder =
     D.succeed Flags
@@ -110,7 +122,7 @@ init flagsValue url key =
             { key = key
             , config = Config.config flags.environment
             , currentPage = NotFoundPage
-            , uuidGenerator = Uuid.initialModel
+            , uuidRegistry = Uuid.initialRegistry
             , uuids = []
             , breathingMethods = []
             , categories = []
@@ -265,10 +277,25 @@ initializePage model route =
             ( { model | currentPage = SettingsPage }, Cmd.none )
 
         SourceSelectionRoute ->
-            ( { model | currentPage = SourceSelectionPage }, Cmd.none )
+            let
+                ( newModel, cmd ) =
+                    SourceSelectionPage.init ()
+            in
+            ( { model | currentPage = SourceSelectionPage newModel }, Cmd.map SourceSelectionPageMsg cmd )
 
         BreathingMethodEditRoute id ->
-            ( { model | currentPage = BreathingMethodEditPage id }, Cmd.none )
+            let
+                ( newModel, cmd ) =
+                    BreathingMethodPage.init model.breathingMethods (BreathingMethodPage.Edit id)
+            in
+            ( { model | currentPage = BreathingMethodEditPage newModel }, Cmd.map BreathingMethodEditPageMsg cmd )
+
+        BreathingMethodAddRoute name inhale inhaleHold exhale exhaleHold ->
+            let
+                ( newModel, cmd ) =
+                    BreathingMethodPage.init model.breathingMethods (BreathingMethodPage.Add name inhale inhaleHold exhale exhaleHold)
+            in
+            ( { model | currentPage = BreathingMethodAddPage newModel }, Cmd.map BreathingMethodAddPageMsg cmd )
 
 
 {-| メッセージ
@@ -284,6 +311,9 @@ type Msg
     | ManualSessionPreparationPageMsg SessionPreparationPage.Msg
     | PresetSessionCompletionPageMsg SessionCompletionPage.Msg
     | ManualSessionCompletionPageMsg SessionCompletionPage.Msg
+    | SourceSelectionPageMsg SourceSelectionPage.Msg
+    | BreathingMethodEditPageMsg BreathingMethodPage.Msg
+    | BreathingMethodAddPageMsg BreathingMethodPage.Msg
       -- Add these messages
     | ReceiveQueryResult (Result QueryError QueryResult)
     | ReceiveQueryError QueryError
@@ -430,6 +460,66 @@ handleManualSessionCompletionPageMsg msg model =
             ( model, Cmd.none )
 
 
+{-| ソース選択画面のメッセージを処理する
+-}
+handleSourceSelectionPageMsg : SourceSelectionPage.Msg -> Model -> ( Model, Cmd Msg )
+handleSourceSelectionPageMsg msg model =
+    case model.currentPage of
+        SourceSelectionPage sourceSelectionModel ->
+            let
+                ( newSourceSelectionModel, cmd ) =
+                    SourceSelectionPage.update model.config model.key msg sourceSelectionModel
+            in
+            ( { model | currentPage = SourceSelectionPage newSourceSelectionModel }
+            , Cmd.map SourceSelectionPageMsg cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+{-| 呼吸法編集画面のメッセージを処理する
+-}
+handleBreathingMethodEditPageMsg : BreathingMethodPage.Msg -> Model -> ( Model, Cmd Msg )
+handleBreathingMethodEditPageMsg msg model =
+    case model.currentPage of
+        BreathingMethodEditPage editModel ->
+            let
+                ( newEditModel, cmd, newRegistry ) =
+                    BreathingMethodPage.update model.key model.uuidRegistry BreathingMethodEditPageMsg msg editModel
+            in
+            ( { model
+                | currentPage = BreathingMethodEditPage newEditModel
+                , uuidRegistry = newRegistry
+              }
+            , cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+{-| 呼吸法追加画面のメッセージを処理する
+-}
+handleBreathingMethodAddPageMsg : BreathingMethodPage.Msg -> Model -> ( Model, Cmd Msg )
+handleBreathingMethodAddPageMsg msg model =
+    case model.currentPage of
+        BreathingMethodAddPage addModel ->
+            let
+                ( newAddModel, cmd, newRegistry ) =
+                    BreathingMethodPage.update model.key model.uuidRegistry BreathingMethodAddPageMsg msg addModel
+            in
+            ( { model
+                | currentPage = BreathingMethodAddPage newAddModel
+                , uuidRegistry = newRegistry
+              }
+            , cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
 {-| Queryの結果を処理する
 -}
 handleReceiveOkQueryResult : QueryResult -> Model -> ( Model, Cmd Msg )
@@ -472,14 +562,14 @@ handleReceiveQueryResult result model =
 handleUuidMsg : Uuid.Msg Msg -> Model -> ( Model, Cmd Msg )
 handleUuidMsg msg model =
     let
-        ( newUuidGenerator, effect, maybeMsg ) =
-            Uuid.update msg model.uuidGenerator
+        ( newUuidRegistry, effect, maybeMsg ) =
+            Uuid.update msg model.uuidRegistry
 
         cmd =
             Uuid.effectToCmd Ports.generateUuidValue effect
 
         newModel =
-            { model | uuidGenerator = newUuidGenerator }
+            { model | uuidRegistry = newUuidRegistry }
     in
     case maybeMsg of
         Just m ->
@@ -521,6 +611,15 @@ update msg model =
         ManualSessionCompletionPageMsg subMsg ->
             handleManualSessionCompletionPageMsg subMsg model
 
+        SourceSelectionPageMsg subMsg ->
+            handleSourceSelectionPageMsg subMsg model
+
+        BreathingMethodEditPageMsg subMsg ->
+            handleBreathingMethodEditPageMsg subMsg model
+
+        BreathingMethodAddPageMsg subMsg ->
+            handleBreathingMethodAddPageMsg subMsg model
+
         ReceiveQueryResult result ->
             handleReceiveQueryResult result model
 
@@ -546,7 +645,7 @@ view model =
     { title = pageTitle model.currentPage
     , body =
         [ viewPage model
-        , Html.map UuidMsg <| button [ onClick (Uuid.uuidGenerate GotUuid) ] [ text "Generate UUID" ]
+        , Html.map UuidMsg <| button [ onClick (Uuid.uuidGenerate "main" GotUuid) ] [ text "Generate UUID" ]
         , ul [] <| List.map (\uuid -> li [] [ text <| Uuid.toString uuid ]) model.uuids
         ]
     }
@@ -584,11 +683,14 @@ pageTitle page =
         SettingsPage ->
             "設定"
 
-        SourceSelectionPage ->
+        SourceSelectionPage _ ->
             "ソース選択"
 
         BreathingMethodEditPage _ ->
             "呼吸法編集"
+
+        BreathingMethodAddPage _ ->
+            "呼吸法追加"
 
         NotFoundPage ->
             "ページが見つかりません"
@@ -605,6 +707,8 @@ viewPage model =
         ]
 
 
+{-| ストリークのビュー
+-}
 viewStreak : Int -> Html msg
 viewStreak streak =
     div []
@@ -694,7 +798,11 @@ viewHome model =
                             model.breathingMethods
                 )
                 model.categories
-        , button [ attribute "aria-label" "add-new-breathing-method" ] [ text "新しい呼吸法を追加" ]
+        , button
+            [ attribute "aria-label" "add-new-breathing-method"
+            , onClick (NavigateToRoute SourceSelectionRoute)
+            ]
+            [ text "新しい呼吸法を追加" ]
         ]
 
 
@@ -804,16 +912,26 @@ viewSettings =
 
 {-| ソース選択画面のビュー
 -}
-viewSourceSelection : Html Msg
-viewSourceSelection =
-    div [ attribute "role" "source-selection" ] [ text "ソース選択画面" ]
+viewSourceSelection : SourceSelectionPage.Model -> Html Msg
+viewSourceSelection model =
+    SourceSelectionPage.view model
+        |> Html.map SourceSelectionPageMsg
 
 
 {-| 呼吸法編集画面のビュー
 -}
-viewEditingBreathingMethod : BreathingMethodId -> Html Msg
-viewEditingBreathingMethod id =
-    div [ attribute "role" "edit" ] [ text ("呼吸法編集 - ID: " ++ Uuid.toString id) ]
+viewBreathingMethodEdit : List Category -> BreathingMethodPage.Model -> Html Msg
+viewBreathingMethodEdit categories model =
+    BreathingMethodPage.view categories model
+        |> Html.map BreathingMethodEditPageMsg
+
+
+{-| 呼吸法追加画面のビュー
+-}
+viewBreathingMethodAdd : List Category -> BreathingMethodPage.Model -> Html Msg
+viewBreathingMethodAdd categories model =
+    BreathingMethodPage.view categories model
+        |> Html.map BreathingMethodAddPageMsg
 
 
 {-| ページが見つからなかった場合のビュー
@@ -860,11 +978,14 @@ viewContent model =
         SettingsPage ->
             viewSettings
 
-        SourceSelectionPage ->
-            viewSourceSelection
+        SourceSelectionPage sourceSelectionModel ->
+            viewSourceSelection sourceSelectionModel
 
-        BreathingMethodEditPage id ->
-            viewEditingBreathingMethod id
+        BreathingMethodEditPage editModel ->
+            viewBreathingMethodEdit model.categories editModel
+
+        BreathingMethodAddPage addModel ->
+            viewBreathingMethodAdd model.categories addModel
 
         NotFoundPage ->
             viewNotFound
@@ -949,6 +1070,13 @@ breathingMethodEditSubscriptions =
     Sub.none
 
 
+{-| 呼吸法追加画面のサブスクリプション
+-}
+breathingMethodAddSubscriptions : Sub Msg
+breathingMethodAddSubscriptions =
+    Sub.none
+
+
 {-| ページに応じたサブスクリプションを返す関数。
 -}
 pageSubscriptions : Page -> Sub Msg
@@ -981,11 +1109,14 @@ pageSubscriptions page =
         SettingsPage ->
             settingsSubscriptions
 
-        SourceSelectionPage ->
+        SourceSelectionPage _ ->
             sourceSelectionSubscriptions
 
         BreathingMethodEditPage _ ->
             breathingMethodEditSubscriptions
+
+        BreathingMethodAddPage _ ->
+            breathingMethodAddSubscriptions
 
         NotFoundPage ->
             Sub.none

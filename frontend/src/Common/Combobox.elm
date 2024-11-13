@@ -47,7 +47,7 @@ module Common.Combobox exposing (Config, Model, Msg, Option, init, update, view)
 
 -}
 
-import Html exposing (..)
+import Html exposing (Html, div, input, option, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Keyed
@@ -57,25 +57,25 @@ import Time
 
 {-| Combobox に使用されるOptionの型です。
 -}
-type alias Option =
-    { value : String
+type alias Option a =
+    { value : a
     , label : String
     }
 
 
 {-| Combobox に利用される Model です。
 -}
-type alias Model msg =
+type alias Model msg a =
     { inputValue : String
     , isOpen : Bool
-    , selectedOption : Maybe Option
-    , config : Config msg
+    , selectedOption : Maybe (Option a)
+    , config : Config msg a
     }
 
 
 {-| Combobox の初期値を設定します。
 -}
-init : Config msg -> Model msg
+init : Config msg a -> Model msg a
 init config =
     { inputValue = ""
     , isOpen = False
@@ -86,42 +86,42 @@ init config =
 
 {-| Combobox で発生するメッセージです。
 -}
-type Msg
+type Msg a
     = InputChanged String
-    | OptionSelected Option
+    | OptionSelected (Option a)
     | OpenDropdown
     | CloseDropdown
     | ClickCreateNew
 
 
-
--- Config type to allow parent to specify behavior
-
-
 {-| Comboboxの設定を行います。
 -}
-type alias Config msg =
-    { onSelect : Option -> msg
+type alias Config msg a =
+    { toString : a -> String
+    , onSelect : Option a -> msg
     , onCreateNew :
         String
         -> msg -- 親コンポーネントが新規作成をハンドルする
-    , toMsg : Msg -> msg
+    , toMsg : Msg a -> msg
     }
 
 
 {-| Combobox のビューを作成します。
 -}
-view : List Option -> Model msg -> Html msg
-view options model =
+view : { ariaLabel : String } -> List (Option a) -> Model msg a -> Html msg
+view { ariaLabel } options model =
     div
         [ class "relative"
-        , onBlur (CloseDropdown |> model.config.toMsg) -- TODO: すべて関係なくなったら閉じる。外側を閉じたら。
+        , attribute "role" "combobox"
+        , attribute "aria-label" ariaLabel
+        , onBlur (CloseDropdown |> model.config.toMsg) -- TODO: 外側を押したら閉じるようにする
         ]
         [ input
             [ value model.inputValue
+            , attribute "role" "combo-input"
             , onInput (InputChanged >> model.config.toMsg)
             , type_ "text"
-            , onFocus (OpenDropdown |> model.config.toMsg)
+            , onClick (OpenDropdown |> model.config.toMsg)
             , class "w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-transparent focus:ring-2 focus:ring-orange-500 caret-orange-500"
             ]
             []
@@ -135,7 +135,7 @@ view options model =
 
 {-| Combobox 下部のドロップダウンを作成します。
 -}
-viewDropdown : List Option -> Model msg -> Html msg
+viewDropdown : List (Option a) -> Model msg a -> Html msg
 viewDropdown options model =
     let
         hasExactMatch =
@@ -146,7 +146,7 @@ viewDropdown options model =
         [ class "absolute mt-2 w-full bg-white rounded-lg border border-gray-100 overflow-hidden z-50" ]
         (List.concat
             [ List.map (viewOption model) options
-            , if not hasExactMatch && String.length model.inputValue > 0 then
+            , if (not hasExactMatch && String.length model.inputValue > 0) || List.isEmpty options then
                 [ ( "create-new", viewCreateNew model.config model.inputValue ) ]
 
               else
@@ -157,28 +157,31 @@ viewDropdown options model =
 
 {-| Comobobox のオプションを作成します。
 -}
-viewOption : { model | selectedOption : Maybe Option, config : Config msg } -> Option -> ( String, Html msg )
-viewOption { selectedOption, config } option =
-    ( option.value
+viewOption : { model | selectedOption : Maybe (Option a), config : Config msg a } -> Option a -> ( String, Html msg )
+viewOption { selectedOption, config } opt =
+    ( config.toString opt.value
     , div
-        [ onClick (OptionSelected option |> config.toMsg)
+        [ onClick (OptionSelected opt |> config.toMsg)
+        , attribute "role" "option"
+        , attribute "data-id" ("option-" ++ config.toString opt.value)
         , class "px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center" -- TODO: groupってなんだ？
-        , if selectedOption == Just option then
+        , if selectedOption == Just opt then
             class "bg-gray-50"
 
           else
             class ""
         ]
-        [ text option.label ]
+        [ text opt.label ]
     )
 
 
 {-| Combobox の新規作成行を作成します。
 -}
-viewCreateNew : Config msg -> String -> Html msg
+viewCreateNew : Config msg a -> String -> Html msg
 viewCreateNew config inputValue =
     div
         [ onClick (ClickCreateNew |> config.toMsg)
+        , attribute "role" "create-new-option"
         , class "px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center group"
         ]
         [ text ("新規作成: " ++ inputValue) ]
@@ -186,7 +189,7 @@ viewCreateNew config inputValue =
 
 {-| Combobox のアップデートを行います。
 -}
-update : Msg -> Model msg -> ( Model msg, Cmd msg )
+update : Msg a -> Model msg a -> ( Model msg a, Cmd msg )
 update msg model =
     case msg of
         InputChanged newValue ->
