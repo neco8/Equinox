@@ -20,7 +20,15 @@ const storage = new WebTestStorage();
 // Elmアプリケーションの初期化
 const elem = document.getElementById("main");
 if (elem) {
-  const app = applyUuid(Elm.Main.init({ node: elem, flags: Date.now() }));
+  const app = applyUuid(
+    Elm.Main.init({
+      node: elem,
+      flags: {
+        now: Date.now(),
+        environment: "development",
+      },
+    })
+  );
 
   // ストレージクエリの処理
   app.ports.queryStorage.subscribe(async (query: StorageQuerySDL) => {

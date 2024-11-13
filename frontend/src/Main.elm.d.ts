@@ -73,6 +73,11 @@ export type SaveResult =
   | { type: "success" }
   | { type: "error"; message: string };
 
+type Flags = {
+  now: number;
+  environment: "development" | "production" | "test";
+};
+
 // Command and Subscription Types
 export type Cmd<T> = {
   subscribe: (fn: (value: T) => void) => void;
@@ -106,7 +111,7 @@ export namespace Elm {
     }
     export function init(param: {
       node: HTMLElement;
-      flags: number /** 現在時刻 */;
+      flags: Flags;
     }): Elm.Main.App;
   }
 }
