@@ -144,7 +144,9 @@ viewDropdown options model =
                 options
     in
     Html.Keyed.node "div"
-        [ class "absolute mt-2 w-full bg-white rounded-lg border border-gray-100 overflow-hidden z-50" ]
+        [ class "absolute mt-2 w-full bg-white rounded-lg border border-gray-100 overflow-hidden z-50"
+        , attribute "role" "listbox"
+        ]
         (List.concat
             [ List.map (viewOption model) options
             , if (not hasExactMatch && String.length model.inputValue > 0) || List.isEmpty options then
