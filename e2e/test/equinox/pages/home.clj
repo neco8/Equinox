@@ -3,8 +3,8 @@
             [equinox.pages.core :as core]))
 
 (def selectors
-  {:category-list #(do [{:tag "ul" :aria-label %}])
-   :breathing-method-card #(do [{:tag "article" :aria-label %}])
+  {:category-list #(do [{:tag "ul" :aria-label "category" :data-id %}])
+   :breathing-method-card #(do [{:tag "article" :aria-label "breathing-method-card" :data-id %}])
    :start-button [{:tag "button" :aria-label "start-session-prepare"}]
    :add-new-button [{:tag "button" :aria-label "add-new-breathing-method"}]
    :settings-button [{:tag "button" :aria-label "settings"}]

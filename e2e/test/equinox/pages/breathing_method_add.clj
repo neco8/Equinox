@@ -32,17 +32,16 @@
   (e/fill driver (:name-input selectors) name))
 
 (defn select-category [driver category-id]
-  (:screenshot category-id)
   (e/click driver (:category-combobox selectors))
-  (:screenshot category-id)
   (e/wait-visible driver ((:category-option selectors) category-id))
-  (:screenshot category-id)
-  (e/click driver ((:category-option selectors) category-id)))
+  (e/click driver ((:category-option selectors) category-id))
+  (e/wait-invisible driver {:role "listbox"}))
 
 (defn create-category [driver category-title]
   (e/click driver (:category-combobox selectors))
   (e/fill driver (:category-input selectors) category-title)
-  (e/click driver (:category-create-option selectors)))
+  (e/click driver (:category-create-option selectors))
+  (e/wait-invisible driver {:role "listbox"}))
 
 (defn submit-breathing-method [driver]
   (is (= (e/visible? driver (:submit-breathing-method-button selectors)) true))
