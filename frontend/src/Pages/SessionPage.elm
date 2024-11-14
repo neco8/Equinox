@@ -511,8 +511,8 @@ redirectToHome bs =
 
 {-| アップデート
 -}
-update : RemoteData e (List BreathingMethod) -> Maybe Duration -> Nav.Key -> Msg -> Model -> Uuid.Registry Msg -> ( Model, Cmd Msg, Uuid.Registry Msg )
-update remote duration key msg model registry =
+update : RemoteData e (List BreathingMethod) -> Maybe Duration -> Nav.Key -> Msg -> Model -> (Msg -> msg) -> Uuid.Registry msg -> ( Model, Cmd msg, Uuid.Registry msg )
+update remote duration key msg model toMsg registry =
     case model of
         ModelLoading selectedBreathingMethod ->
             let
@@ -521,14 +521,16 @@ update remote duration key msg model registry =
 
                 redirectToHomeCmd =
                     redirectToHome breathingMethodState
+                        |> Cmd.map toMsg
 
                 redirectToPreparationCmd =
-                    case breathingMethodState of
-                        Valid selected ->
-                            redirectToPreparation duration selected
+                    Cmd.map toMsg <|
+                        case breathingMethodState of
+                            Valid selected ->
+                                redirectToPreparation duration selected
 
-                        _ ->
-                            Cmd.none
+                            _ ->
+                                Cmd.none
             in
             case breathingMethodState of
                 Valid selected ->
@@ -540,7 +542,7 @@ update remote duration key msg model registry =
                     , Cmd.batch
                         [ redirectToPreparationCmd
                         , redirectToHomeCmd
-                        , cmd
+                        , cmd |> Cmd.map toMsg
                         ]
                     , registry
                     )
@@ -556,17 +558,24 @@ update remote duration key msg model registry =
                 Just d ->
                     let
                         ( newInternalModel, cmd, newRegistry ) =
-                            updateInternal d key msg loaded registry
+                            updateInternal d key msg loaded toMsg registry
                     in
-                    ( ModelLoaded newInternalModel, cmd, newRegistry )
+                    ( ModelLoaded newInternalModel
+                    , cmd
+                    , newRegistry
+                    )
 
                 Nothing ->
-                    ( ModelLoaded loaded, redirectToPreparation duration loaded.selectedBreathingMethod, registry )
+                    ( ModelLoaded loaded
+                    , redirectToPreparation duration loaded.selectedBreathingMethod
+                        |> Cmd.map toMsg
+                    , registry
+                    )
 
 
 {-| レジストリをタプルに追加するためのヘルパー関数
 -}
-withRegistry : Uuid.Registry msg -> ( model, Cmd msg ) -> ( model, Cmd msg, Uuid.Registry msg )
+withRegistry : registry -> ( model, cmd ) -> ( model, cmd, registry )
 withRegistry registry ( m, c ) =
     ( m, c, registry )
 
@@ -612,50 +621,54 @@ createSession selectedBreathingMethod duration posix =
 
 {-| 内部で利用されているアップデート(リダイレクト考慮なし)
 -}
-updateInternal : Duration -> Nav.Key -> Msg -> InternalModel -> Uuid.Registry Msg -> ( InternalModel, Cmd Msg, Uuid.Registry Msg )
-updateInternal duration key msg model registry =
+updateInternal : Duration -> Nav.Key -> Msg -> InternalModel -> (Msg -> msg) -> Uuid.Registry msg -> ( InternalModel, Cmd msg, Uuid.Registry msg )
+updateInternal duration key msg model toMsg registry =
     case ( msg, model.timerState ) of
         ( Start now, NotStarted ) ->
             handleStart now model
+                |> Tuple.mapSecond (Cmd.map toMsg)
                 |> withRegistry registry
 
         ( Start _, _ ) ->
             ( model, Cmd.none, registry )
 
         ( ClickPauseButton, Running _ ) ->
-            ( model, Task.perform Pause Time.now, registry )
+            ( model, Task.perform (Pause >> toMsg) Time.now, registry )
 
         ( ClickPauseButton, _ ) ->
             ( model, Cmd.none, registry )
 
         ( Pause now, Running running ) ->
             handlePause now running model
+                |> Tuple.mapSecond (Cmd.map toMsg)
                 |> withRegistry registry
 
         ( Pause _, _ ) ->
             ( model, Cmd.none, registry )
 
         ( ClickResumeButton, Paused _ ) ->
-            ( model, Task.perform Resume Time.now, registry )
+            ( model, Task.perform (Resume >> toMsg) Time.now, registry )
 
         ( ClickResumeButton, _ ) ->
             ( model, Cmd.none, registry )
 
         ( Resume now, Paused paused ) ->
             handleResume now paused model
+                |> Tuple.mapSecond (Cmd.map toMsg)
                 |> withRegistry registry
 
         ( Resume _, _ ) ->
             ( model, Cmd.none, registry )
 
         ( ClickStopButton, Paused _ ) ->
-            ( model, Task.perform Stop Time.now, registry )
+            ( model, Task.perform (Stop >> toMsg) Time.now, registry )
 
         ( ClickStopButton, _ ) ->
             ( model, Cmd.none, registry )
 
         ( Stop now, Paused paused ) ->
             handleStop now paused model
+                |> Tuple.mapSecond (Cmd.map toMsg)
                 |> withRegistry registry
 
         ( Stop _, _ ) ->
@@ -666,6 +679,7 @@ updateInternal duration key msg model registry =
                 ( model
                 , createSession model.selectedBreathingMethod duration posix
                     |> GetSessionId
+                    |> toMsg
                     |> always
                     |> Task.perform
                     |> (|>) Time.now
@@ -681,7 +695,7 @@ updateInternal duration key msg model registry =
         ( GetSessionId f, _ ) ->
             let
                 ( newRegistry, effect, maybeMsg ) =
-                    Uuid.uuidGenerate "session/complete-session" (GotSessionId f)
+                    Uuid.uuidGenerate "session/complete-session" (GotSessionId f >> toMsg)
                         |> Uuid.update
                         |> (|>) registry
 
@@ -701,6 +715,7 @@ updateInternal duration key msg model registry =
         ( GotSessionId f id, _ ) ->
             ( model
             , handleCompletion duration model (f id)
+                |> Cmd.map toMsg
             , registry
             )
 
