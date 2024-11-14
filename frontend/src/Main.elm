@@ -296,11 +296,14 @@ handleStartSessionPageMsg msg model =
     case model.currentPage of
         PresetSessionPage duration sessionModel ->
             let
-                ( newSessionModel, cmd ) =
-                    SessionPage.update model.breathingMethods duration model.key msg sessionModel
+                ( newSessionModel, cmd, newRegistry ) =
+                    SessionPage.update model.breathingMethods duration model.key msg sessionModel PresetSessionPageMsg model.uuidRegistry
             in
-            ( { model | currentPage = PresetSessionPage duration newSessionModel }
-            , Cmd.map PresetSessionPageMsg cmd
+            ( { model
+                | currentPage = PresetSessionPage duration newSessionModel
+                , uuidRegistry = newRegistry
+              }
+            , cmd
             )
 
         _ ->
@@ -317,11 +320,14 @@ handleStartCustomSessionPageMsg msg model =
     case model.currentPage of
         ManualSessionPage duration sessionModel ->
             let
-                ( newSessionModel, cmd ) =
-                    SessionPage.update model.breathingMethods duration model.key msg sessionModel
+                ( newSessionModel, cmd, newRegistry ) =
+                    SessionPage.update model.breathingMethods duration model.key msg sessionModel ManualSessionPageMsg model.uuidRegistry
             in
-            ( { model | currentPage = ManualSessionPage duration newSessionModel }
-            , Cmd.map ManualSessionPageMsg cmd
+            ( { model
+                | currentPage = ManualSessionPage duration newSessionModel
+                , uuidRegistry = newRegistry
+              }
+            , cmd
             )
 
         _ ->
