@@ -1,6 +1,6 @@
 module Pages.SessionPreparationPage exposing
     ( Model, init
-    , Msg
+    , Msg, noOp
     , update
     , PracticeStyle(..), view
     )
@@ -20,7 +20,7 @@ module Pages.SessionPreparationPage exposing
 
 ### メッセージ
 
-@docs Msg
+@docs Msg, noOp
 
 
 ### アップデート
@@ -150,6 +150,15 @@ type Msg
     = InputSessionDuration String
     | ManualInputMsg ManualInputMsg
     | NavigateToRoute Route
+    | NoOp
+
+
+{-| メッセージ: NoOp
+画面更新用に利用される
+-}
+noOp : Msg
+noOp =
+    NoOp
 
 
 {-| カスタム練習の入力メッセージを処理する
@@ -231,6 +240,9 @@ update remote key msg model =
 updateInternal : Nav.Key -> Msg -> InternalModel -> ( InternalModel, Cmd Msg )
 updateInternal key msg model =
     case msg of
+        NoOp ->
+            ( model, Cmd.none )
+
         InputSessionDuration duration ->
             ( { model | sessionDurationInput = duration }, Cmd.none )
 

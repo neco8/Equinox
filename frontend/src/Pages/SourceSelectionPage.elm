@@ -1,7 +1,7 @@
 module Pages.SourceSelectionPage exposing
     ( view
     , update, Model, Msg
-    , init
+    , noOp, init
     )
 
 {-|
@@ -20,6 +20,8 @@ module Pages.SourceSelectionPage exposing
 
 @docs update, Model, Msg
 
+@docs noOp, init
+
 -}
 
 import API.OnlineBreathingMethod exposing (OnlineBreathingMethod)
@@ -30,6 +32,8 @@ import Html.Attributes exposing (attribute)
 import Html.Events exposing (onClick)
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route)
+import Task
+import Time
 import Types.BreathingMethod exposing (fromName)
 import Uuid
 
@@ -61,9 +65,21 @@ init _ =
 {-| メッセージ
 -}
 type Msg
-    = ClickGoToOnlineList -- TODO: この変数名気に入らない
+    = OpenOnlineList
+    | OpenManualInput
     | GotOnlineBreathingMethods (Result API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
     | NavigateToRoute Route
+    | NoOp
+
+
+{-| メッセージ: NoOp
+
+画面更新用に利用される。
+
+-}
+noOp : Msg
+noOp =
+    NoOp
 
 
 {-| アップデート関数
@@ -71,9 +87,18 @@ type Msg
 update : Config -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
 update config key msg model =
     case msg of
-        ClickGoToOnlineList ->
+        OpenOnlineList ->
             ( { model | sourceSelection = OnlineList Loading }
             , API.OnlineBreathingMethod.getOnlineBreathingMethods config GotOnlineBreathingMethods
+            )
+
+        OpenManualInput ->
+            ( model
+            , NavigateToRoute
+                (Route.BreathingMethodAddRoute Nothing Nothing Nothing Nothing Nothing)
+                |> always
+                |> Task.perform
+                |> (|>) Time.now
             )
 
         GotOnlineBreathingMethods result ->
@@ -94,6 +119,9 @@ update config key msg model =
 
         NavigateToRoute route ->
             ( model, Nav.pushUrl key (Route.toString route) )
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 {-| オンラインの呼吸法を表示する
@@ -136,8 +164,13 @@ viewSourceSelection =
     div [ attribute "role" "source-selection" ]
         [ text "ソース選択画面"
         , button
+            [ attribute "aria-label" "manual-source-selection-button"
+            , onClick OpenManualInput
+            ]
+            [ text "手動入力" ]
+        , button
             [ attribute "aria-label" "online-source-selection-button"
-            , onClick ClickGoToOnlineList
+            , onClick OpenOnlineList
             ]
             [ text "オンラインソースへ" ]
         ]
