@@ -157,7 +157,7 @@ initInternal breathingMethods pageAction =
                 (Combobox.Config
                     Uuid.toString
                     (.value >> SelectCategory)
-                    (toTitle >> Maybe.Extra.isNothing)
+                    (toTitle >> Maybe.Extra.isJust)
                     CreateNewCategory
                     CategoryComboboxMsg
                 )
