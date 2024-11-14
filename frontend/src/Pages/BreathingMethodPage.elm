@@ -1,5 +1,6 @@
 module Pages.BreathingMethodPage exposing
     ( PageAction(..), Model, Msg
+    , noOp
     , init
     , update
     , view
@@ -16,6 +17,7 @@ module Pages.BreathingMethodPage exposing
 ### 型
 
 @docs PageAction, Model, Msg
+@docs noOp
 
 
 ### 初期化関数
@@ -157,7 +159,7 @@ initInternal breathingMethods pageAction =
                 (Combobox.Config
                     Uuid.toString
                     (.value >> SelectCategory)
-                    (toTitle >> Maybe.Extra.isNothing)
+                    (toTitle >> Maybe.Extra.isJust)
                     CreateNewCategory
                     CategoryComboboxMsg
                 )
@@ -178,7 +180,8 @@ initInternal breathingMethods pageAction =
 {-| メッセージ
 -}
 type Msg
-    = InputInhaleDuration String
+    = NoOp
+    | InputInhaleDuration String
     | InputInhaleHoldDuration String
     | InputExhaleDuration String
     | InputExhaleHoldDuration String
@@ -191,6 +194,16 @@ type Msg
     | GotCreatedAt Time.Posix
     | GotNewBreathingMethodId (Uuid -> BreathingMethod) Uuid
     | NavigateToRoute Route
+
+
+{-| メッセージ: NoOp
+
+画面描画更新用のメッセージ
+
+-}
+noOp : Msg
+noOp =
+    NoOp
 
 
 {-| アップデート関数
@@ -260,6 +273,9 @@ createBreathingMethod model =
 updateInternal : Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> InternalModel -> ( InternalModel, Cmd msg, Uuid.Registry msg )
 updateInternal key registry toMsg msg model =
     case msg of
+        NoOp ->
+            ( model, Cmd.none, registry )
+
         InputInhaleDuration duration ->
             ( { model | inhaleDurationInput = duration }, Cmd.none, registry )
 
