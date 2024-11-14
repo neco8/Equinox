@@ -800,7 +800,8 @@ viewFooter =
 viewBreathingMethodCard : BreathingMethod -> Html Msg
 viewBreathingMethodCard breathingMethod =
     article
-        [ attribute "aria-label" <| Uuid.toString breathingMethod.id
+        [ attribute "aria-label" "breathing-method-card"
+        , attribute "data-id" <| Uuid.toString breathingMethod.id
         , onClick
             (NavigateToRoute <|
                 PresetSessionPreparationRoute breathingMethod.id
@@ -814,7 +815,9 @@ viewBreathingMethodCard breathingMethod =
 viewBreathingMethodList : Category -> List (Html Msg) -> Html Msg
 viewBreathingMethodList category children =
     ul
-        [ attribute "aria-label" <| Uuid.toString category.id ]
+        [ attribute "aria-label" "category"
+        , attribute "data-id" <| Uuid.toString category.id
+        ]
     <|
         span [ attribute "role" "category-title" ] [ text <| fromTitle category.title ]
             :: children
