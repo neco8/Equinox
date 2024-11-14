@@ -6,7 +6,7 @@ import { QueryListResult, QuerySingleResult, SaveResult } from "../Main.elm";
 class WebTestStorage implements Storage {
   private getData(key: StorageKey) {
     const rawData = localStorage.getItem(key);
-    if (rawData === null) throw new NotFoundError();
+    if (rawData === null) return {};
 
     const data = JSON.parse(rawData);
     return data;
