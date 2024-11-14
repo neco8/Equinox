@@ -1,5 +1,5 @@
 module Pages.SessionCompletionPage exposing
-    ( Msg
+    ( Msg, noOp
     , view
     , update
     , Model, init
@@ -15,7 +15,7 @@ module Pages.SessionCompletionPage exposing
 
 ### メッセージ
 
-@docs Msg
+@docs Msg, noOp
 
 
 ### ビュー
@@ -45,6 +45,17 @@ import Uuid
 -}
 type Msg
     = NavigateToRoute Route
+    | NoOp
+
+
+{-| メッセージ: NoOp
+
+画面更新用に利用される。
+
+-}
+noOp : Msg
+noOp =
+    NoOp
 
 
 {-| Model
@@ -131,3 +142,6 @@ update key msg model =
     case msg of
         NavigateToRoute route ->
             ( model, Nav.pushUrl key (Route.toString route) )
+
+        NoOp ->
+            ( model, Cmd.none )
