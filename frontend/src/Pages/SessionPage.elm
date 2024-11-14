@@ -51,10 +51,13 @@ import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import List.Extra
+import Maybe.Extra
+import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
+import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
 import Types.Session exposing (Duration, fromDuration, toDuration)
 
 
@@ -80,8 +83,18 @@ type TimerState
 
 {-| モデル
 -}
-type alias Model =
-    { selectedBreathingMethod : SelectedBreathingMethod
+type Model
+    = ModelLoading SelectedBreathingMethod
+    | ModelLoaded InternalModel
+
+
+{-| 内部モデル
+
+ここでは、すでにすべてが正しい状態で入っているモデルを表現している。
+
+-}
+type alias InternalModel =
+    { selectedBreathingMethod : ValidSelectedBreathingMethod
     , timerState : TimerState
     , displayCurrentTime : Time.Posix
     }
@@ -89,7 +102,7 @@ type alias Model =
 
 {-| フェーズの計算
 -}
-calculatePhase : Int -> SelectedBreathingMethod -> { phaseType : PhaseType, elapsedMillisecondsInPhase : Int }
+calculatePhase : Int -> ValidSelectedBreathingMethod -> { phaseType : PhaseType, elapsedMillisecondsInPhase : Int }
 calculatePhase elapsedMilliseconds method =
     let
         { inhaleDuration, inhaleHoldDuration, exhaleDuration, exhaleHoldDuration } =
@@ -175,22 +188,81 @@ type Msg
     | NavigateToRoute Route
 
 
-{-| 選択された呼吸法
+{-| ページを呼び出す際選択された呼吸法
+
+ただし、まだ指定された呼吸法などが正しいか否かが不明なため、後々ValidSelectedBreathingMethodに変換する必要がある。
+
 -}
 type SelectedBreathingMethod
-    = Existing BreathingMethod
-    | Custom
-        { inhaleDuration : InhaleDuration
-        , inhaleHoldDuration : InhaleHoldDuration
-        , exhaleDuration : ExhaleDuration
-        , exhaleHoldDuration : ExhaleHoldDuration
+    = PresetBreathingMethod BreathingMethodId
+    | CustomBreathingMethod
+        { inhaleDuration : Maybe InhaleDuration
+        , inhaleHoldDuration : Maybe InhaleHoldDuration
+        , exhaleDuration : Maybe ExhaleDuration
+        , exhaleHoldDuration : Maybe ExhaleHoldDuration
         }
+
+
+{-| カスタム呼吸法で正確に秒数が入力されている型
+-}
+type alias CustomValidBreathingMethod =
+    { inhaleDuration : InhaleDuration
+    , inhaleHoldDuration : InhaleHoldDuration
+    , exhaleDuration : ExhaleDuration
+    , exhaleHoldDuration : ExhaleHoldDuration
+    }
+
+
+{-| 選択された呼吸法
+-}
+type ValidSelectedBreathingMethod
+    = Existing BreathingMethod
+    | Custom CustomValidBreathingMethod
 
 
 {-| 初期化
 -}
-init : SelectedBreathingMethod -> ( Model, Cmd Msg )
-init selected =
+init : RemoteData e (List BreathingMethod) -> Maybe Duration -> SelectedBreathingMethod -> ( Model, Cmd Msg )
+init remote duration selected =
+    let
+        breathingMethodState =
+            validateSelectedBreathingMethod remote selected
+
+        redirectToHomeCmd =
+            redirectToHome breathingMethodState
+
+        redirectToPreparationCmd =
+            case breathingMethodState of
+                Valid valid ->
+                    redirectToPreparation duration valid
+
+                _ ->
+                    Cmd.none
+    in
+    case breathingMethodState of
+        Valid valid ->
+            let
+                ( newModel, cmd ) =
+                    initInternal valid
+            in
+            ( ModelLoaded newModel
+            , Cmd.batch
+                [ redirectToPreparationCmd
+                , redirectToHomeCmd
+                , cmd
+                ]
+            )
+
+        _ ->
+            ( ModelLoading selected
+            , Cmd.batch [ redirectToPreparationCmd, redirectToHomeCmd ]
+            )
+
+
+{-| 初期化
+-}
+initInternal : ValidSelectedBreathingMethod -> ( InternalModel, Cmd Msg )
+initInternal selected =
     ( { selectedBreathingMethod = selected
       , timerState = NotStarted
       , displayCurrentTime = Time.millisToPosix 0
@@ -201,7 +273,7 @@ init selected =
 
 {-| スタートに関する処理
 -}
-handleStart : Time.Posix -> Model -> ( Model, Cmd Msg )
+handleStart : Time.Posix -> InternalModel -> ( InternalModel, Cmd Msg )
 handleStart now model =
     ( { model
         | timerState =
@@ -214,7 +286,7 @@ handleStart now model =
 
 {-| 一時停止に関する処理
 -}
-handlePause : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int } -> Model -> ( Model, Cmd Msg )
+handlePause : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int } -> InternalModel -> ( InternalModel, Cmd Msg )
 handlePause now running model =
     ( { model
         | timerState =
@@ -230,7 +302,7 @@ handlePause now running model =
 
 {-| 再開に関する処理
 -}
-handleResume : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int, pauseStartTime : Time.Posix } -> Model -> ( Model, Cmd Msg )
+handleResume : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int, pauseStartTime : Time.Posix } -> InternalModel -> ( InternalModel, Cmd Msg )
 handleResume now paused model =
     let
         pauseDuration =
@@ -253,7 +325,7 @@ handleResume now paused model =
 タイマー状態を完了に変更する
 
 -}
-handleStop : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int, pauseStartTime : Time.Posix } -> Model -> ( Model, Cmd Msg )
+handleStop : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int, pauseStartTime : Time.Posix } -> InternalModel -> ( InternalModel, Cmd Msg )
 handleStop now paused model =
     let
         finalDuration =
@@ -289,7 +361,7 @@ handleStop now paused model =
 次の画面に遷移する処理
 
 -}
-handleNavigateToCompleteSession : Duration -> Model -> Cmd Msg
+handleNavigateToCompleteSession : Duration -> InternalModel -> Cmd Msg
 handleNavigateToCompleteSession duration model =
     let
         route =
@@ -305,10 +377,179 @@ handleNavigateToCompleteSession duration model =
         Time.now
 
 
+{-| ストレージの呼吸法がロード中なのか、それとも不正な状態なのかを表す型
+-}
+type BreathingMethodState
+    = BreathingMethodLoading
+    | InvalidBreathingMethodId
+    | InvalidCustomBreathingMethodDuration
+    | Valid ValidSelectedBreathingMethod
+
+
+{-| 選択された呼吸法が正しいかどうかを検証する関数
+
+これは既存の呼吸法を選択するときにしか使われない。
+
+カスタムの場合は、すでに正しい値が入っているはず。
+
+-}
+validateSelectedBreathingMethod : RemoteData e (List BreathingMethod) -> SelectedBreathingMethod -> BreathingMethodState
+validateSelectedBreathingMethod remote selected =
+    case selected of
+        PresetBreathingMethod id ->
+            case RemoteData.map (List.Extra.find (.id >> (==) id)) remote of
+                Success (Just method) ->
+                    Valid (Existing method)
+
+                Success Nothing ->
+                    -- すでに呼吸法がすべて存在しているのに呼吸法が存在しない場合、不正であるのでホーム画面へリダイレクトする
+                    -- TODO: ホーム画面へリダイレクトした後、エラーメッセージを表示する
+                    InvalidBreathingMethodId
+
+                Failure _ ->
+                    -- TODO: 呼吸法取得に失敗したので、いずれエラーメッセージを表示する
+                    InvalidBreathingMethodId
+
+                Loading ->
+                    BreathingMethodLoading
+
+                NotAsked ->
+                    BreathingMethodLoading
+
+        CustomBreathingMethod custom ->
+            case
+                Just CustomValidBreathingMethod
+                    |> Maybe.Extra.andMap custom.inhaleDuration
+                    |> Maybe.Extra.andMap custom.inhaleHoldDuration
+                    |> Maybe.Extra.andMap custom.exhaleDuration
+                    |> Maybe.Extra.andMap custom.exhaleHoldDuration
+            of
+                Just valid ->
+                    Valid (Custom valid)
+
+                Nothing ->
+                    InvalidCustomBreathingMethodDuration
+
+
+{-| 準備画面にリダイレクトする関数
+
+セッションの秒数が存在しない場合、準備画面にリダイレクトする。
+
+ただし、既存の呼吸法で、かつ呼吸法が存在しない場合はそもそも不正なため、、ホーム画面へリダイレクトする必要がある。このリダイレクトは、前提として呼吸法が存在する上での関数である。
+
+-}
+redirectToPreparation : Maybe Duration -> ValidSelectedBreathingMethod -> Cmd Msg
+redirectToPreparation duration selected =
+    case duration of
+        Nothing ->
+            case selected of
+                Existing method ->
+                    Route.PresetSessionPreparationRoute method.id
+                        |> NavigateToRoute
+                        |> always
+                        |> Task.perform
+                        |> (|>) Time.now
+
+                Custom _ ->
+                    Route.ManualSessionPreparationRoute
+                        |> NavigateToRoute
+                        |> always
+                        |> Task.perform
+                        |> (|>) Time.now
+
+        Just _ ->
+            Cmd.none
+
+
+{-| ホーム画面にリダイレクトする関数
+
+呼吸法IDに不正があり、準備画面に戻ることも意味がない場合、ホーム画面にリダイレクトする。
+
+準備画面へのリダイレクトと、根本的なBreathingMethodのStateで条件分岐しているので、2回リダイレクトしてしまってどちらの画面に行くかがわからないということはない。
+
+  - [ ] TODO: ここで、エラーメッセージを表示するために、 #92 のグローバルのエラーメッセージ対応にて、エラーメッセージを表示するようにする。
+
+-}
+redirectToHome : BreathingMethodState -> Cmd Msg
+redirectToHome bs =
+    case bs of
+        InvalidBreathingMethodId ->
+            NavigateToRoute HomeRoute
+                |> always
+                |> Task.perform
+                |> (|>) Time.now
+
+        InvalidCustomBreathingMethodDuration ->
+            -- Manual準備画面へリダイレクトする
+            NavigateToRoute ManualSessionPreparationRoute
+                |> always
+                |> Task.perform
+                |> (|>) Time.now
+
+        Valid _ ->
+            Cmd.none
+
+        BreathingMethodLoading ->
+            Cmd.none
+
+
 {-| アップデート
 -}
-update : Duration -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
-update duration key msg model =
+update : RemoteData e (List BreathingMethod) -> Maybe Duration -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
+update remote duration key msg model =
+    case model of
+        ModelLoading selectedBreathingMethod ->
+            let
+                breathingMethodState =
+                    validateSelectedBreathingMethod remote selectedBreathingMethod
+
+                redirectToHomeCmd =
+                    redirectToHome breathingMethodState
+
+                redirectToPreparationCmd =
+                    case breathingMethodState of
+                        Valid selected ->
+                            redirectToPreparation duration selected
+
+                        _ ->
+                            Cmd.none
+            in
+            case breathingMethodState of
+                Valid selected ->
+                    let
+                        ( newModel, cmd ) =
+                            initInternal selected
+                    in
+                    ( ModelLoaded newModel
+                    , Cmd.batch
+                        [ redirectToPreparationCmd
+                        , redirectToHomeCmd
+                        , cmd
+                        ]
+                    )
+
+                _ ->
+                    ( ModelLoading selectedBreathingMethod
+                    , Cmd.batch [ redirectToPreparationCmd, redirectToHomeCmd ]
+                    )
+
+        ModelLoaded loaded ->
+            case duration of
+                Just d ->
+                    let
+                        ( newInternalModel, cmd ) =
+                            updateInternal d key msg loaded
+                    in
+                    ( ModelLoaded newInternalModel, cmd )
+
+                Nothing ->
+                    ( ModelLoaded loaded, redirectToPreparation duration loaded.selectedBreathingMethod )
+
+
+{-| 内部で利用されているアップデート(リダイレクト考慮なし)
+-}
+updateInternal : Duration -> Nav.Key -> Msg -> InternalModel -> ( InternalModel, Cmd Msg )
+updateInternal duration key msg model =
     case ( msg, model.timerState ) of
         ( Start now, NotStarted ) ->
             handleStart now model
@@ -389,21 +630,31 @@ getElapsedMilliseconds timerState displayCurrentTime =
 
 {-| ビュー
 -}
-view : Duration -> Model -> Html Msg
-view duration model =
-    div
-        [ attribute "role" "session"
-        ]
-        [ viewTimer model
-        , viewInstruction model
-        , viewControls model
-        , text <| "総時間: " ++ String.fromInt (fromDuration duration) ++ "秒"
-        ]
+view : Maybe Duration -> Model -> Html Msg
+view mduration model =
+    case model of
+        ModelLoading _ ->
+            div [] [ text "loading..." ]
+
+        ModelLoaded loaded ->
+            div
+                [ attribute "role" "session"
+                ]
+                [ viewTimer loaded
+                , viewInstruction loaded
+                , viewControls loaded
+                , case mduration of
+                    Just duration ->
+                        text <| "総時間: " ++ String.fromInt (fromDuration duration) ++ "秒"
+
+                    Nothing ->
+                        text "redirecting..."
+                ]
 
 
 {-| タイマーのビュー
 -}
-viewTimer : Model -> Html Msg
+viewTimer : InternalModel -> Html Msg
 viewTimer model =
     let
         elapsedSeconds =
@@ -462,7 +713,7 @@ formatFloat digits num =
 
 {-| 指示文のビュー
 -}
-viewInstruction : Model -> Html Msg
+viewInstruction : InternalModel -> Html Msg
 viewInstruction model =
     let
         elapsedMilliseconds =
@@ -481,7 +732,7 @@ viewInstruction model =
 
 {-| コントロールのビュー
 -}
-viewControls : Model -> Html Msg
+viewControls : InternalModel -> Html Msg
 viewControls model =
     case model.timerState of
         NotStarted ->
@@ -520,15 +771,20 @@ viewControls model =
 -}
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.timerState of
-        NotStarted ->
-            Time.every 100 TickDisplayTime
+    case model of
+        ModelLoading _ ->
+            Sub.none
 
-        Running _ ->
-            Time.every 100 TickDisplayTime
+        ModelLoaded internalModel ->
+            case internalModel.timerState of
+                NotStarted ->
+                    Time.every 100 TickDisplayTime
 
-        Paused _ ->
-            Time.every 100 TickDisplayTime
+                Running _ ->
+                    Time.every 100 TickDisplayTime
 
-        Completed _ ->
-            Time.every 100 TickDisplayTime
+                Paused _ ->
+                    Time.every 100 TickDisplayTime
+
+                Completed _ ->
+                    Time.every 100 TickDisplayTime
