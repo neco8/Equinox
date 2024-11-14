@@ -20,6 +20,8 @@ module Pages.SourceSelectionPage exposing
 
 @docs update, Model, Msg
 
+@docs noOp, init
+
 -}
 
 import API.OnlineBreathingMethod exposing (OnlineBreathingMethod)
@@ -67,6 +69,17 @@ type Msg
     | OpenManualInput
     | GotOnlineBreathingMethods (Result API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
     | NavigateToRoute Route
+    | NoOp
+
+
+{-| メッセージ: NoOp
+
+画面更新用に利用される。
+
+-}
+noOp : Msg
+noOp =
+    NoOp
 
 
 {-| アップデート関数
@@ -106,6 +119,9 @@ update config key msg model =
 
         NavigateToRoute route ->
             ( model, Nav.pushUrl key (Route.toString route) )
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 {-| オンラインの呼吸法を表示する

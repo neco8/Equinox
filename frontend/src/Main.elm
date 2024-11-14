@@ -39,6 +39,7 @@ import Pages.SessionPreparationPage as SessionPreparationPage exposing (Practice
 import Pages.SourceSelectionPage as SourceSelectionPage
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
+import Task
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, PhaseType(..))
 import Types.Category exposing (Category, fromTitle)
@@ -152,6 +153,7 @@ updateModelFromUrl model url =
     case Route.fromUrl url of
         Just route ->
             initializePage model route
+                |> Tuple.mapSecond (Cmd.map PageMsg)
 
         Nothing ->
             ( { model | currentPage = NotFoundPage }, Cmd.none )
@@ -159,7 +161,7 @@ updateModelFromUrl model url =
 
 {-| Routeに基づいて初期化する
 -}
-initializePage : Model -> Route -> ( Model, Cmd Msg )
+initializePage : Model -> Route -> ( Model, Cmd PageMsg )
 initializePage model route =
     case route of
         HomeRoute ->
@@ -250,14 +252,10 @@ initializePage model route =
             ( { model | currentPage = BreathingMethodAddPage newModel }, Cmd.map BreathingMethodAddPageMsg cmd )
 
 
-{-| メッセージ
+{-| ページのメッセージ
 -}
-type Msg
-    = LinkClicked Browser.UrlRequest
-    | UrlChanged Url.Url
-    | NavigateToRoute Route
-      -- Page
-    | PresetSessionPageMsg SessionPage.Msg
+type PageMsg
+    = PresetSessionPageMsg SessionPage.Msg
     | ManualSessionPageMsg SessionPage.Msg
     | PresetSessionPreparationPageMsg SessionPreparationPage.Msg
     | ManualSessionPreparationPageMsg SessionPreparationPage.Msg
@@ -266,12 +264,73 @@ type Msg
     | SourceSelectionPageMsg SourceSelectionPage.Msg
     | BreathingMethodEditPageMsg BreathingMethodPage.Msg
     | BreathingMethodAddPageMsg BreathingMethodPage.Msg
+
+
+{-| メッセージ
+-}
+type Msg
+    = LinkClicked Browser.UrlRequest
+    | UrlChanged Url.Url
+    | NavigateToRoute Route
+      -- Page
+    | PageMsg PageMsg
       -- Add these messages
     | ReceiveQueryResult (Result QueryError QueryResult)
     | ReceiveQueryError QueryError
       -- Add saving messages for test
     | UuidMsg (Uuid.Msg Msg)
     | GotUuid Uuid.Uuid
+    | CmdMsg (Cmd Msg)
+
+
+{-| 画面を更新するためのNoOpのリスト
+-}
+noOps : List PageMsg
+noOps =
+    let
+        firstMsg =
+            PresetSessionPageMsg SessionPage.noOp
+
+        next msg =
+            case msg of
+                PresetSessionPageMsg _ ->
+                    Just (ManualSessionPageMsg SessionPage.noOp)
+
+                ManualSessionPageMsg _ ->
+                    Just (PresetSessionPreparationPageMsg SessionPreparationPage.noOp)
+
+                PresetSessionPreparationPageMsg _ ->
+                    Just (ManualSessionPreparationPageMsg SessionPreparationPage.noOp)
+
+                ManualSessionPreparationPageMsg _ ->
+                    Just (PresetSessionCompletionPageMsg SessionCompletionPage.noOp)
+
+                PresetSessionCompletionPageMsg _ ->
+                    Just (ManualSessionCompletionPageMsg SessionCompletionPage.noOp)
+
+                ManualSessionCompletionPageMsg _ ->
+                    Just (SourceSelectionPageMsg SourceSelectionPage.noOp)
+
+                SourceSelectionPageMsg _ ->
+                    Just (BreathingMethodEditPageMsg BreathingMethodPage.noOp)
+
+                BreathingMethodEditPageMsg _ ->
+                    Just (BreathingMethodAddPageMsg BreathingMethodPage.noOp)
+
+                BreathingMethodAddPageMsg _ ->
+                    Nothing
+
+        generateList acc =
+            case Maybe.andThen next (List.head acc) of
+                Just nextMsg ->
+                    generateList (nextMsg :: acc)
+
+                Nothing ->
+                    acc
+    in
+    generateList
+        [ firstMsg
+        ]
 
 
 {-| リンクがクリックされたときの処理
@@ -297,7 +356,7 @@ handleStartSessionPageMsg msg model =
         PresetSessionPage duration sessionModel ->
             let
                 ( newSessionModel, cmd, newRegistry ) =
-                    SessionPage.update model.breathingMethods duration model.key msg sessionModel PresetSessionPageMsg model.uuidRegistry
+                    SessionPage.update model.breathingMethods duration model.key msg sessionModel (PageMsg << PresetSessionPageMsg) model.uuidRegistry
             in
             ( { model
                 | currentPage = PresetSessionPage duration newSessionModel
@@ -321,7 +380,7 @@ handleStartCustomSessionPageMsg msg model =
         ManualSessionPage duration sessionModel ->
             let
                 ( newSessionModel, cmd, newRegistry ) =
-                    SessionPage.update model.breathingMethods duration model.key msg sessionModel ManualSessionPageMsg model.uuidRegistry
+                    SessionPage.update model.breathingMethods duration model.key msg sessionModel (PageMsg << ManualSessionPageMsg) model.uuidRegistry
             in
             ( { model
                 | currentPage = ManualSessionPage duration newSessionModel
@@ -352,7 +411,7 @@ handlePresetSessionPreparationPageMsg msg model =
                         prepareModel
             in
             ( { model | currentPage = PresetSessionPreparationPage id newPrepareModel }
-            , Cmd.map PresetSessionPreparationPageMsg cmd
+            , Cmd.map (PageMsg << PresetSessionPreparationPageMsg) cmd
             )
 
         _ ->
@@ -377,7 +436,7 @@ handleManualSessionPreparationPageMsg msg model =
                         prepareModel
             in
             ( { model | currentPage = ManualSessionPreparationPage newPrepareModel }
-            , Cmd.map ManualSessionPreparationPageMsg cmd
+            , Cmd.map (PageMsg << ManualSessionPreparationPageMsg) cmd
             )
 
         _ ->
@@ -395,7 +454,7 @@ handlePresetSessionCompletionPageMsg msg model =
                     SessionCompletionPage.update model.key msg completionModel
             in
             ( { model | currentPage = PresetSessionCompletionPage newCompletionModel }
-            , Cmd.map PresetSessionCompletionPageMsg cmd
+            , Cmd.map (PageMsg << PresetSessionCompletionPageMsg) cmd
             )
 
         _ ->
@@ -413,7 +472,7 @@ handleManualSessionCompletionPageMsg msg model =
                     SessionCompletionPage.update model.key msg completionModel
             in
             ( { model | currentPage = ManualSessionCompletionPage newCompletionModel }
-            , Cmd.map ManualSessionCompletionPageMsg cmd
+            , Cmd.map (PageMsg << ManualSessionCompletionPageMsg) cmd
             )
 
         _ ->
@@ -431,7 +490,7 @@ handleSourceSelectionPageMsg msg model =
                     SourceSelectionPage.update model.config model.key msg sourceSelectionModel
             in
             ( { model | currentPage = SourceSelectionPage newSourceSelectionModel }
-            , Cmd.map SourceSelectionPageMsg cmd
+            , Cmd.map (PageMsg << SourceSelectionPageMsg) cmd
             )
 
         _ ->
@@ -446,7 +505,7 @@ handleBreathingMethodEditPageMsg msg model =
         BreathingMethodEditPage editModel ->
             let
                 ( newEditModel, cmd, newRegistry ) =
-                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry BreathingMethodEditPageMsg msg editModel
+                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry (PageMsg << BreathingMethodEditPageMsg) msg editModel
             in
             ( { model
                 | currentPage = BreathingMethodEditPage newEditModel
@@ -467,7 +526,7 @@ handleBreathingMethodAddPageMsg msg model =
         BreathingMethodAddPage addModel ->
             let
                 ( newAddModel, cmd, newRegistry ) =
-                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry BreathingMethodAddPageMsg msg addModel
+                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry (PageMsg << BreathingMethodAddPageMsg) msg addModel
             in
             ( { model
                 | currentPage = BreathingMethodAddPage newAddModel
@@ -539,20 +598,11 @@ handleUuidMsg msg model =
             ( newModel, cmd )
 
 
-{-| モデルの更新
+{-| ページのメッセージを処理する
 -}
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+updatePage : PageMsg -> Model -> ( Model, Cmd Msg )
+updatePage msg model =
     case msg of
-        LinkClicked urlRequest ->
-            handleLinkClicked urlRequest model
-
-        UrlChanged url ->
-            updateModelFromUrl model url
-
-        NavigateToRoute route ->
-            ( model, Nav.pushUrl model.key (Route.toString route) )
-
         PresetSessionPageMsg subMsg ->
             handleStartSessionPageMsg subMsg model
 
@@ -580,8 +630,40 @@ update msg model =
         BreathingMethodAddPageMsg subMsg ->
             handleBreathingMethodAddPageMsg subMsg model
 
+
+{-| モデルの更新
+-}
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        LinkClicked urlRequest ->
+            handleLinkClicked urlRequest model
+
+        UrlChanged url ->
+            updateModelFromUrl model url
+
+        NavigateToRoute route ->
+            ( model, Nav.pushUrl model.key (Route.toString route) )
+
+        PageMsg pageMsg ->
+            updatePage pageMsg model
+
         ReceiveQueryResult result ->
-            handleReceiveQueryResult result model
+            handleReceiveQueryResult result
+                model
+                |> Tuple.mapSecond
+                    (\c ->
+                        Cmd.batch
+                            [ c
+                            , noOps
+                                |> List.map (PageMsg >> always >> Task.perform >> (|>) Time.now)
+                                |> Cmd.batch
+                                |> CmdMsg
+                                |> always
+                                |> Task.perform
+                                |> (|>) Time.now
+                            ]
+                    )
 
         ReceiveQueryError error ->
             handleReceiveErrQueryResult error model
@@ -596,6 +678,9 @@ update msg model =
               }
             , Cmd.none
             )
+
+        CmdMsg cmd ->
+            ( model, cmd )
 
 
 {-| ビュー
@@ -804,7 +889,7 @@ viewManualSessionPreparation model =
 viewPresetSessionCompletion : SessionCompletionPage.Model -> Html Msg
 viewPresetSessionCompletion model =
     SessionCompletionPage.view model
-        |> Html.map PresetSessionCompletionPageMsg
+        |> Html.map (PresetSessionCompletionPageMsg >> PageMsg)
 
 
 {-| カスタムセッション完了画面のビュー
@@ -812,7 +897,7 @@ viewPresetSessionCompletion model =
 viewManualSessionCompletion : SessionCompletionPage.Model -> Html Msg
 viewManualSessionCompletion model =
     SessionCompletionPage.view model
-        |> Html.map ManualSessionCompletionPageMsg
+        |> Html.map (ManualSessionCompletionPageMsg >> PageMsg)
 
 
 {-| 統計画面のビュー
@@ -854,7 +939,7 @@ viewSettings =
 viewSourceSelection : SourceSelectionPage.Model -> Html Msg
 viewSourceSelection model =
     SourceSelectionPage.view model
-        |> Html.map SourceSelectionPageMsg
+        |> Html.map (SourceSelectionPageMsg >> PageMsg)
 
 
 {-| 呼吸法編集画面のビュー
@@ -862,7 +947,7 @@ viewSourceSelection model =
 viewBreathingMethodEdit : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
 viewBreathingMethodEdit categories model =
     BreathingMethodPage.view categories model
-        |> Html.map BreathingMethodEditPageMsg
+        |> Html.map (BreathingMethodEditPageMsg >> PageMsg)
 
 
 {-| 呼吸法追加画面のビュー
@@ -870,7 +955,7 @@ viewBreathingMethodEdit categories model =
 viewBreathingMethodAdd : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
 viewBreathingMethodAdd categories model =
     BreathingMethodPage.view categories model
-        |> Html.map BreathingMethodAddPageMsg
+        |> Html.map (BreathingMethodAddPageMsg >> PageMsg)
 
 
 {-| ページが見つからなかった場合のビュー
@@ -890,19 +975,19 @@ viewContent model =
 
         PresetSessionPreparationPage id prepareModel ->
             viewPresetSessionPreparation prepareModel id
-                |> Html.map PresetSessionPreparationPageMsg
+                |> Html.map (PresetSessionPreparationPageMsg >> PageMsg)
 
         ManualSessionPreparationPage prepareModel ->
             viewManualSessionPreparation prepareModel
-                |> Html.map ManualSessionPreparationPageMsg
+                |> Html.map (ManualSessionPreparationPageMsg >> PageMsg)
 
         PresetSessionPage duration sessionModel ->
             SessionPage.view duration sessionModel
-                |> Html.map PresetSessionPageMsg
+                |> Html.map (PresetSessionPageMsg >> PageMsg)
 
         ManualSessionPage duration sessionModel ->
             SessionPage.view duration sessionModel
-                |> Html.map ManualSessionPageMsg
+                |> Html.map (ManualSessionPageMsg >> PageMsg)
 
         PresetSessionCompletionPage completionModel ->
             viewPresetSessionCompletion completionModel
@@ -955,7 +1040,7 @@ manualSessionPreparationSubscriptions =
 presetSessionSubscriptions : SessionPage.Model -> Sub Msg
 presetSessionSubscriptions sessionModel =
     SessionPage.subscriptions sessionModel
-        |> Sub.map PresetSessionPageMsg
+        |> Sub.map (PresetSessionPageMsg >> PageMsg)
 
 
 {-| カスタムセッション中画面のサブスクリプション
@@ -963,7 +1048,7 @@ presetSessionSubscriptions sessionModel =
 manualSessionSubscriptions : SessionPage.Model -> Sub Msg
 manualSessionSubscriptions sessionModel =
     SessionPage.subscriptions sessionModel
-        |> Sub.map ManualSessionPageMsg
+        |> Sub.map (ManualSessionPageMsg >> PageMsg)
 
 
 {-| セッション完了画面のサブスクリプション

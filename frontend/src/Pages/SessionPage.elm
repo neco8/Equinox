@@ -1,6 +1,6 @@
 module Pages.SessionPage exposing
     ( Model, SelectedBreathingMethod(..), init
-    , Msg
+    , Msg, noOp
     , update
     , view
     , subscriptions
@@ -21,7 +21,7 @@ module Pages.SessionPage exposing
 
 ### メッセージ
 
-@docs Msg
+@docs Msg, noOp
 
 
 ### アップデート
@@ -61,7 +61,6 @@ import Task
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
 import Types.Session exposing (Duration, Session, fromDuration, toDuration)
-import Types.Statistics exposing (recentDaysThreshold)
 import Uuid exposing (Uuid)
 
 
@@ -192,6 +191,17 @@ type Msg
     | NavigateToRoute Route
     | GetSessionId (Uuid -> Session)
     | GotSessionId (Uuid -> Session) Uuid
+    | NoOp
+
+
+{-| メッセージ: NoOp
+
+画面更新用のメッセージ
+
+-}
+noOp : Msg
+noOp =
+    NoOp
 
 
 {-| ページを呼び出す際選択された呼吸法
@@ -624,6 +634,9 @@ createSession selectedBreathingMethod duration posix =
 updateInternal : Duration -> Nav.Key -> Msg -> InternalModel -> (Msg -> msg) -> Uuid.Registry msg -> ( InternalModel, Cmd msg, Uuid.Registry msg )
 updateInternal duration key msg model toMsg registry =
     case ( msg, model.timerState ) of
+        ( NoOp, _ ) ->
+            ( model, Cmd.none, registry )
+
         ( Start now, NotStarted ) ->
             handleStart now model
                 |> Tuple.mapSecond (Cmd.map toMsg)
