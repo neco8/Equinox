@@ -279,7 +279,6 @@ type Msg
     | ReceiveQueryError QueryError
       -- Add saving messages for test
     | UuidMsg (Uuid.Msg Msg)
-    | GotUuid Uuid.Uuid
     | CmdMsg (Cmd Msg)
 
 
@@ -671,14 +670,6 @@ update msg model =
         UuidMsg uuidMsg ->
             handleUuidMsg uuidMsg model
 
-        GotUuid uuid ->
-            ( { model
-                | uuids =
-                    model.uuids ++ [ uuid ]
-              }
-            , Cmd.none
-            )
-
         CmdMsg cmd ->
             ( model, cmd )
 
@@ -690,8 +681,6 @@ view model =
     { title = pageTitle model.currentPage
     , body =
         [ viewPage model
-        , Html.map UuidMsg <| button [ onClick (Uuid.uuidGenerate "main" GotUuid) ] [ text "Generate UUID" ]
-        , ul [] <| List.map (\uuid -> li [] [ text <| Uuid.toString uuid ]) model.uuids
         ]
     }
 
@@ -745,9 +734,14 @@ pageTitle page =
 -}
 viewPage : Model -> Html Msg
 viewPage model =
-    div []
+    div
+        [ class "min-h-screen flex flex-col"
+        ]
         [ nav [] [ viewNav ]
-        , main_ [] [ viewContent model ]
+        , main_
+            [ class "flex-1 px-4 py-6"
+            ]
+            [ viewContent model ]
         , viewFooter
         ]
 
@@ -756,9 +750,13 @@ viewPage model =
 -}
 viewStreak : Int -> Html msg
 viewStreak streak =
-    div []
+    div [ class "flex items-center space-x-2" ]
         [ Icon.view Icon.Flame
-        , text <| String.fromInt streak
+        , span
+            [ class "font-medium text-xs"
+            ]
+            [ text <| String.fromInt streak
+            ]
         ]
 
 
@@ -766,9 +764,13 @@ viewStreak streak =
 -}
 viewNav : Html Msg
 viewNav =
-    ul []
+    nav [ class "bg-white shadow-sm px-4 py-3 flex justify-end items-center space-x-4" ]
         [ viewStreak 30
-        , button [ attribute "aria-label" "settings" ] [ text "設定" ]
+        , button
+            [ attribute "aria-label" "settings"
+            , class "p-2 hover:bg-gray-200 rounded-full"
+            ]
+            [ Icon.view Icon.Settings ]
         ]
 
 
@@ -776,22 +778,39 @@ viewNav =
 -}
 viewFooter : Html Msg
 viewFooter =
-    footer []
-        [ button
-            [ attribute "aria-label" "home-tab"
-            , onClick (NavigateToRoute HomeRoute)
+    let
+        tabClass =
+            class "flex flex-col items-center space-y-1"
+    in
+    footer
+        [ class "bg-white shadow-lg px-4 py-3"
+        ]
+        [ div [ class "max-w-2xl mx-auto flex justify-around" ]
+            [ button
+                [ attribute "aria-label" "home-tab"
+                , onClick (NavigateToRoute HomeRoute)
+                , tabClass
+                ]
+                [ Icon.view Icon.Home
+                , span [ class "text-sm" ] [ text "ホーム" ]
+                ]
+            , button
+                [ attribute "aria-label" "start-session-prepare"
+                , onClick (NavigateToRoute ManualSessionPreparationRoute)
+                , tabClass
+                ]
+                [ Icon.view Icon.Play
+                , span [ class "text-sm" ] [ text "セッション開始" ]
+                ]
+            , button
+                [ attribute "aria-label" "statistics-tab"
+                , onClick (NavigateToRoute StatisticsRoute)
+                , tabClass
+                ]
+                [ Icon.view Icon.Statistics
+                , span [ class "text-sm" ] [ text "統計" ]
+                ]
             ]
-            [ text "ホーム" ]
-        , button
-            [ attribute "aria-label" "start-session-prepare"
-            , onClick (NavigateToRoute ManualSessionPreparationRoute)
-            ]
-            [ text "セッション開始" ]
-        , button
-            [ attribute "aria-label" "statistics-tab"
-            , onClick (NavigateToRoute StatisticsRoute)
-            ]
-            [ text "統計" ]
         ]
 
 
@@ -806,21 +825,34 @@ viewBreathingMethodCard breathingMethod =
             (NavigateToRoute <|
                 PresetSessionPreparationRoute breathingMethod.id
             )
+        , class "p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
         ]
-        [ text <| Types.BreathingMethod.fromName breathingMethod.name ]
+        [ h3
+            [ class "text-lg font-medium"
+            ]
+            [ text <| Types.BreathingMethod.fromName breathingMethod.name
+            ]
+        ]
 
 
 {-| 呼吸法リストのビュー
 -}
 viewBreathingMethodList : Category -> List (Html Msg) -> Html Msg
 viewBreathingMethodList category children =
-    ul
+    section
         [ attribute "aria-label" "category"
         , attribute "data-id" <| Uuid.toString category.id
+        , class "mb-6"
         ]
-    <|
-        span [ attribute "role" "category-title" ] [ text <| fromTitle category.title ]
-            :: children
+        [ h2
+            [ attribute "role" "category-title"
+            , class "text-xl font-bold mb-3"
+            ]
+            [ text <| fromTitle category.title ]
+        , ul
+            [ class "space-y-3" ]
+            children
+        ]
 
 
 {-| ホーム画面のビュー
@@ -829,9 +861,11 @@ viewHome : { model | categories : RemoteData e (List Category), breathingMethods
 viewHome model =
     case ( model.categories, model.breathingMethods ) of
         ( Success cs, Success ms ) ->
-            div [ attribute "role" "home" ]
-                [ text "ホーム画面"
-                , div [] <|
+            div
+                [ attribute "role" "home"
+                , class "max-w-2xl mx-auto space-y-6"
+                ]
+                [ div [] <|
                     List.map
                         (\category ->
                             viewBreathingMethodList
@@ -851,8 +885,11 @@ viewHome model =
                 , button
                     [ attribute "aria-label" "add-new-breathing-method"
                     , onClick (NavigateToRoute SourceSelectionRoute)
+                    , class "w-full py-3 px-4 bg-blue-500 text-white rounded-lg flex items-center justify-center space-x-2 hover:bg-blue-600 transition-colors"
                     ]
-                    [ text "新しい呼吸法を追加" ]
+                    [ Icon.view Icon.Plus
+                    , text "新しい呼吸法を追加"
+                    ]
                 ]
 
         ( _, _ ) ->
