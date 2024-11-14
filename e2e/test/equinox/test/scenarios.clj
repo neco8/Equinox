@@ -158,7 +158,7 @@
          (:screenshot "ホーム"))
 
        (testing "▶️ ホームからセッションをスタート"
-         (e/click driver (home/selectors :start-button))
+         (home/click-start driver)
          (e/wait-visible driver {:role "preparation"})
          (is (core/current-url? driver :manual-preparation) "カスタム準備ページへの移動に失敗しました")
          (doseq [q (map preparation/selectors [:duration-input :start-button :inhale-input :inhale-hold-input :exhale-input :exhale-hold-input])]
@@ -269,7 +269,7 @@
   ((use-data-fixture online-source-flow-test-data)
    (fn []
      (let [driver (get-driver)
-           {:keys [online-breathing-methods selected-online-breathing-method edit-breathing-method edit-category]} online-source-flow-test-data]
+           {:keys [online-breathing-methods selected-online-breathing-method edit-breathing-method edit-category breathing-methods categories]} online-source-flow-test-data]
 
        (testing "✨ ホームページが正しく表示されるかURLを確認"
          (home/open driver)
@@ -282,7 +282,7 @@
             (change-online-methods online-breathing-methods)
 
             (testing "➕ 新規呼吸法追加ボタンをクリック"
-              (e/click driver (home/selectors :add-new-button))
+              (home/click-add-new driver)
                ;; ソース選択画面への遷移を確認
               (e/wait-visible driver {:role "source-selection"})
               (is (core/current-url? driver :source-selection) "ソース選択画面への移動に失敗しました")
@@ -337,8 +337,84 @@
 
        (testing "🌟 ホームページで呼吸法が正しく追加されていることを確認"
          ;; カテゴリー、呼吸法を追加できているかどうかを確認。
-         (e/visible? driver {:tag "ul" :aria-label (:title (:category edit-category))})
-         (e/visible? driver {:tag "article"
-                             :aria-label (:name (case (:type edit-breathing-method)
-                                                  :edit (:breathing-method edit-breathing-method)
-                                                  :not-edit selected-online-breathing-method))}))))))
+         (is (= (count (e/query-all driver {:tag "ul" :aria-label "category"}))
+                (case (:type edit-category)
+                  :add (inc (count categories))
+                  :existing (count categories))) (str "カテゴリーが追加されていません → " (:title (:category edit-category))))
+         (is (= (count (e/query-all driver {:tag "article"}))
+                (inc (count breathing-methods)))
+             (str "呼吸法が追加されていません → " (:name (case (:type edit-breathing-method)
+                                              :edit (:breathing-method edit-breathing-method)
+                                              :not-edit selected-online-breathing-method)))))))))
+
+(def manual-source-flow-test-data
+  (let [categories (gen/generate
+                    (gen/vector sca/gen-category 1 10))
+        breathing-methods (gen/generate
+                           (gen/vector (sbm/gen-breathing-method categories) 1 10))
+        sessions (gen/generate
+                  (gen/vector (sse/gen-session breathing-methods) 1 10))
+
+        edit-breathing-method (gen/generate
+                               (sbm/gen-breathing-method categories))
+        edit-category (gen/generate
+                       (gen/let [type (gen/elements #{:add :existing})
+                                 category (case type
+                                            :add sca/gen-category
+                                            :existing (gen/elements categories))]
+                         (gen/return {:type type :category category})))]
+    {:categories categories
+     :breathing-methods breathing-methods
+     :sessions sessions
+     :edit-breathing-method edit-breathing-method
+     :edit-category edit-category}))
+
+(defscreenshottest 手動で呼吸法を追加する
+  ((use-data-fixture manual-source-flow-test-data)
+   (fn []
+     (let [driver (get-driver)
+           {:keys [edit-breathing-method edit-category breathing-methods categories]} manual-source-flow-test-data]
+
+       (testing "✨ ホームページが正しく表示されるかURLを確認"
+         (home/open driver)
+         (e/wait-visible driver {:role "home"})
+         (is (core/current-url? driver :home) "ホームページが開けません")
+         (:screenshot "ホーム"))
+
+       (testing "➕ 新規呼吸法追加ボタンをクリック"
+         (home/click-add-new driver)
+               ;; ソース選択画面への遷移を確認
+         (e/wait-visible driver {:role "source-selection"})
+         (is (core/current-url? driver :source-selection) "ソース選択画面への移動に失敗しました")
+         (:screenshot "ソース選択"))
+
+       (testing "✍️ 手動ソースを選択"
+         (source-selection/click-manual-source-selection-button driver)
+         (e/wait-visible driver {:role "edit"})
+         ;; 新規呼吸法追加画面へ遷移する
+         (is (core/current-url? driver :add) "呼吸法新規追加画面への遷移に失敗しました")
+         (:screenshot "呼吸法新規追加"))
+
+       (testing "➕️ 呼吸法を編集し、追加する"
+         (breathing-method-add/set-custom-breathing-parameters driver edit-breathing-method)
+         (breathing-method-add/set-breathing-name driver (:name edit-breathing-method))
+         (case (:type edit-category)
+           :add (breathing-method-add/create-category driver
+                                                      (:title (:category edit-category)))
+           :existing (breathing-method-add/select-category driver
+                                                           (:id (:category edit-category))))
+         (:screenshot "呼吸法編集")
+         (breathing-method-add/submit-breathing-method driver)
+         (e/wait-visible driver {:role "home"} {:timeout 10})
+         (is (core/current-url? driver :home) "ホームページへの遷移に失敗しました")
+         (:screenshot "ホーム"))
+
+       (testing "🌟 ホームページで呼吸法が正しく追加されていることを確認"
+         ;; カテゴリー、呼吸法を追加できているかどうかを確認。
+         (is (= (count (e/query-all driver {:tag "ul" :aria-label "category"}))
+                (case (:type edit-category)
+                  :add (inc (count categories))
+                  :existing (count categories)))
+             (str "カテゴリーが追加されていません → " (:title (:category edit-category))))
+         (is (= (count (e/query-all driver {:tag "article" :aria-label "breathing-method-card"}))
+                (inc (count breathing-methods))) (str "呼吸法が追加されていません → " (:name edit-breathing-method))))))))
