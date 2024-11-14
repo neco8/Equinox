@@ -36,8 +36,11 @@
                current-count (format "%03d" @counter)]
            (swap! counter inc)
            `(let [screenshot-dir# (ensure-screenshot-dir "screenshots" ~timestamp)
-                  screenshot-path# (str (.getPath screenshot-dir#) "/" ~test-name "_" ~current-count "_" ~filename ".png")]
-              (e/screenshot ~'driver screenshot-path#)))
+                  screenshot-path# (str (.getPath screenshot-dir#) "/" ~test-name "_" ~current-count "_" ~filename ".png")
+                  screenshot-html-path# (str (.getPath screenshot-dir#) "/" ~test-name "_" ~current-count "_" ~filename ".html")
+                  html-content# (e/get-element-inner-html ~'driver {:tag :html})]
+              (e/screenshot ~'driver screenshot-path#)
+              (spit screenshot-html-path# html-content#)))
          node))
      form)))
 
