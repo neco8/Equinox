@@ -47,7 +47,7 @@ module Common.Combobox exposing (Config, Model, Msg, Option, init, update, view)
 
 -}
 
-import Html exposing (Html, div, input, option, text)
+import Html exposing (Html, button, div, input, option, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Keyed
@@ -99,6 +99,7 @@ type Msg a
 type alias Config msg a =
     { toString : a -> String
     , onSelect : Option a -> msg
+    , canCreateNew : String -> Bool
     , onCreateNew :
         String
         -> msg -- 親コンポーネントが新規作成をハンドルする
@@ -179,10 +180,11 @@ viewOption { selectedOption, config } opt =
 -}
 viewCreateNew : Config msg a -> String -> Html msg
 viewCreateNew config inputValue =
-    div
+    button
         [ onClick (ClickCreateNew |> config.toMsg)
         , attribute "role" "create-new-option"
-        , class "px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center group"
+        , class "px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center disabled:bg-gray-200"
+        , disabled (not (config.canCreateNew inputValue))
         ]
         [ text ("新規作成: " ++ inputValue) ]
 

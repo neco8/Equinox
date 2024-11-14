@@ -38,7 +38,7 @@ import BreathingMethodDurationInput
 import Browser.Navigation as Nav
 import Common.Combobox as Combobox
 import Html exposing (Html, button, div, input, text)
-import Html.Attributes exposing (attribute, value)
+import Html.Attributes exposing (attribute, class, disabled, value)
 import Html.Events exposing (onClick, onInput)
 import JS.Ports as Ports
 import List.Extra
@@ -157,6 +157,7 @@ initInternal breathingMethods pageAction =
                 (Combobox.Config
                     Uuid.toString
                     (.value >> SelectCategory)
+                    (toTitle >> Maybe.Extra.isNothing)
                     CreateNewCategory
                     CategoryComboboxMsg
                 )
@@ -231,6 +232,27 @@ update remote key registry toMsg msg model =
             ( ModelLoaded newInternal, cmd, newRegistry )
 
 
+createBreathingMethod : InternalModel -> Maybe (Time.Posix -> Uuid -> BreathingMethod)
+createBreathingMethod model =
+    Just
+        (\name categoryId inhaleDuration inhaleHoldDuration exhaleDuration exhaleHoldDuration createdAt id ->
+            BreathingMethod id
+                name
+                categoryId
+                createdAt
+                inhaleDuration
+                inhaleHoldDuration
+                exhaleDuration
+                exhaleHoldDuration
+        )
+        |> Maybe.Extra.andMap (toName model.nameInput)
+        |> Maybe.Extra.andMap model.selectedCategory
+        |> Maybe.Extra.andMap (Maybe.andThen toInhaleDuration <| String.toInt model.inhaleDurationInput)
+        |> Maybe.Extra.andMap (Maybe.andThen toInhaleHoldDuration <| String.toInt model.inhaleHoldDurationInput)
+        |> Maybe.Extra.andMap (Maybe.andThen toExhaleDuration <| String.toInt model.exhaleDurationInput)
+        |> Maybe.Extra.andMap (Maybe.andThen toExhaleHoldDuration <| String.toInt model.exhaleHoldDurationInput)
+
+
 {-| 内部で利用されているアップデート関数
 -}
 updateInternal : Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> InternalModel -> ( InternalModel, Cmd msg, Uuid.Registry msg )
@@ -252,28 +274,10 @@ updateInternal key registry toMsg msg model =
             ( { model | nameInput = name }, Cmd.none, registry )
 
         GotCreatedAt createdAt ->
-            let
-                getBreathingMethod : Maybe (Uuid -> BreathingMethod)
-                getBreathingMethod =
-                    Just
-                        (\name categoryId inhaleDuration inhaleHoldDuration exhaleDuration exhaleHoldDuration id ->
-                            BreathingMethod id
-                                name
-                                categoryId
-                                createdAt
-                                inhaleDuration
-                                inhaleHoldDuration
-                                exhaleDuration
-                                exhaleHoldDuration
-                        )
-                        |> Maybe.Extra.andMap (toName model.nameInput)
-                        |> Maybe.Extra.andMap model.selectedCategory
-                        |> Maybe.Extra.andMap (Maybe.andThen toInhaleDuration <| String.toInt model.inhaleDurationInput)
-                        |> Maybe.Extra.andMap (Maybe.andThen toInhaleHoldDuration <| String.toInt model.inhaleHoldDurationInput)
-                        |> Maybe.Extra.andMap (Maybe.andThen toExhaleDuration <| String.toInt model.exhaleDurationInput)
-                        |> Maybe.Extra.andMap (Maybe.andThen toExhaleHoldDuration <| String.toInt model.exhaleHoldDurationInput)
-            in
-            case getBreathingMethod of
+            case
+                createBreathingMethod model
+                    |> Maybe.Extra.andMap (Just createdAt)
+            of
                 Just fn ->
                     let
                         tag =
@@ -434,12 +438,16 @@ view remote model =
 
                         NotAsked ->
                             text "category not asked"
+                    , button
+                        [ attribute "aria-label" "submit-breathing-method"
+                        , onClick Submit
+                        , createBreathingMethod loaded
+                            |> Maybe.Extra.isNothing
+                            |> disabled
+                        , class "disabled:bg-gray-300"
+                        ]
+                        [ text "Submit" ]
                     ]
-            , [ button
-                    [ attribute "aria-label" "submit-breathing-method"
-                    , onClick Submit
-                    ]
-                    [ text "Submit" ]
-              ]
+            , []
             ]
         )
