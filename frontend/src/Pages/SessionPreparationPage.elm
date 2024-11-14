@@ -152,6 +152,8 @@ type Msg
     | NavigateToRoute Route
 
 
+{-| カスタム練習の入力メッセージを処理する
+-}
 handleManualInputMsg :
     ManualInputMsg
     ->
@@ -268,6 +270,8 @@ type ValidPracticeStyle
     | Preset BreathingMethod
 
 
+{-| 入力を検証する
+-}
 validateInput : InternalModel -> Maybe { sessionDuration : Duration, selectedBreathingMethod : SessionPage.SelectedBreathingMethod }
 validateInput { sessionDurationInput, practiceStyle } =
     Just (\sessionDuration selectedBreathingMethod -> { sessionDuration = sessionDuration, selectedBreathingMethod = selectedBreathingMethod })

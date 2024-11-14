@@ -232,6 +232,8 @@ update remote key registry toMsg msg model =
             ( ModelLoaded newInternal, cmd, newRegistry )
 
 
+{-| 呼吸法を作成する関数
+-}
 createBreathingMethod : InternalModel -> Maybe (Time.Posix -> Uuid -> BreathingMethod)
 createBreathingMethod model =
     Just
