@@ -59,8 +59,8 @@ sessionFuzzer breathingMethods deletedBreathingMethod =
                 bm.inhaleHoldDuration
                 bm.exhaleDuration
                 bm.exhaleHoldDuration
-                bm.id
-                bm.name
+                (Just bm.id)
+                (Just bm.name)
     in
     Fuzz.map4
         createSession
