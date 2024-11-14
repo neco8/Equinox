@@ -286,7 +286,7 @@
                ;; ソース選択画面への遷移を確認
               (e/wait-visible driver {:role "source-selection"})
               (is (core/current-url? driver :source-selection) "ソース選択画面への移動に失敗しました")
-              (doseq [q (map source-selection/selectors [:online-source-selection-button])]
+              (doseq [q (map source-selection/selectors [:online-source-selection-button :manual-source-selection-button])]
                 (e/wait-visible driver q {:timeout 10})
                 (is (e/visible? driver q) (str "見つからない要素があります → " q)))
               (:screenshot "ソース選択"))
@@ -306,10 +306,11 @@
                 (is (e/visible? driver q) (str "見つからない要素があります → " q)))
               (:screenshot "オンラインソースリスト")
               (source-selection/click-online-item driver (:name selected-online-breathing-method) (:id selected-online-breathing-method))
+              (e/wait-visible driver {:role "edit"}))
 
                ;; 新規呼吸法追加画面へ遷移する
-              (is (core/current-url? driver :add) "呼吸法新規追加画面への遷移に失敗しました")
-              (:screenshot "呼吸法新規追加"))))
+            (is (core/current-url? driver :add) "呼吸法新規追加画面への遷移に失敗しました")
+            (:screenshot "呼吸法新規追加")))
 
        (letfn [(add-breathing-method
                  []
@@ -318,11 +319,11 @@
                                                               (:title (:category edit-category)))
                    :existing (breathing-method-add/select-category driver
                                                                    (:id (:category edit-category))))
+                 (:screenshot "カテゴリー選択")
 
                  (breathing-method-add/submit-breathing-method driver)
                  (e/wait-visible driver {:role "home"} {:timeout 10})
                  (is (core/current-url? driver :home) "ホームページへの遷移に失敗しました"))]
-         (:screenshot (str (e/get-url driver)))
           ;; TODO: 前の画面から受け取った値が最初から表示されているか確認する
          (case (:type edit-breathing-method)
            :edit (testing "➕️ 呼吸法を編集した後、追加する"
