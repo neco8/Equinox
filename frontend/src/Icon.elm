@@ -20,6 +20,11 @@ import Html exposing (Html, div, text)
 -}
 type Icon
     = Flame
+    | Settings
+    | Plus
+    | Home
+    | Play
+    | Statistics
 
 
 {-| ビュー
@@ -31,3 +36,28 @@ view icon =
             div
                 []
                 [ text "🔥" ]
+
+        Settings ->
+            div
+                []
+                [ text "⚙️" ]
+
+        Plus ->
+            div
+                []
+                [ text "➕" ]
+
+        Home ->
+            div
+                []
+                [ text "🏠" ]
+
+        Play ->
+            div
+                []
+                [ text "▶️" ]
+
+        Statistics ->
+            div
+                []
+                [ text "📊" ]
