@@ -51,6 +51,8 @@ import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import JS.Ports as Ports
+import JS.Storage.StorageQueryDSL exposing (Query(..))
 import List.Extra
 import Maybe.Extra
 import RemoteData exposing (RemoteData(..))
@@ -58,7 +60,9 @@ import Route exposing (Route(..))
 import Task
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
-import Types.Session exposing (Duration, fromDuration, toDuration)
+import Types.Session exposing (Duration, Session, fromDuration, toDuration)
+import Types.Statistics exposing (recentDaysThreshold)
+import Uuid exposing (Uuid)
 
 
 {-| タイマーを管理するための状態
@@ -186,6 +190,8 @@ type Msg
     | Stop Time.Posix
     | TickDisplayTime Time.Posix
     | NavigateToRoute Route
+    | GetSessionId (Uuid -> Session)
+    | GotSessionId (Uuid -> Session) Uuid
 
 
 {-| ページを呼び出す際選択された呼吸法
@@ -348,7 +354,11 @@ handleStop now paused model =
       }
     , case toDuration <| elapsedMilliseconds // 1000 of
         Just d ->
-            handleNavigateToCompleteSession d model
+            createSession model.selectedBreathingMethod d now
+                |> GetSessionId
+                |> always
+                |> Task.perform
+                |> (|>) Time.now
 
         Nothing ->
             -- TODO: セッションより超過するか、短すぎるか。短すぎるときに、時間にならないですよ、というのを追加してあげる。
@@ -358,11 +368,13 @@ handleStop now paused model =
 
 {-| 時間経過後セッション完了に関する処理
 
-次の画面に遷移する処理
+  - セッションの結果を保存する処理
+  - セッションを再度取得する処理
+  - 次の画面に遷移する処理
 
 -}
-handleNavigateToCompleteSession : Duration -> InternalModel -> Cmd Msg
-handleNavigateToCompleteSession duration model =
+handleCompletion : Duration -> InternalModel -> Session -> Cmd Msg
+handleCompletion duration model session =
     let
         route =
             case model.selectedBreathingMethod of
@@ -372,9 +384,13 @@ handleNavigateToCompleteSession duration model =
                 Custom _ ->
                     Route.ManualSessionCompletionRoute (Just duration)
     in
-    Task.perform
-        (always <| NavigateToRoute route)
-        Time.now
+    Cmd.batch
+        [ Task.perform
+            (always <| NavigateToRoute route)
+            Time.now
+        , Ports.saveSessionValue session
+        , Ports.loadQuery GetAllSessions
+        ]
 
 
 {-| ストレージの呼吸法がロード中なのか、それとも不正な状態なのかを表す型
@@ -495,8 +511,8 @@ redirectToHome bs =
 
 {-| アップデート
 -}
-update : RemoteData e (List BreathingMethod) -> Maybe Duration -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
-update remote duration key msg model =
+update : RemoteData e (List BreathingMethod) -> Maybe Duration -> Nav.Key -> Msg -> Model -> Uuid.Registry Msg -> ( Model, Cmd Msg, Uuid.Registry Msg )
+update remote duration key msg model registry =
     case model of
         ModelLoading selectedBreathingMethod ->
             let
@@ -526,82 +542,167 @@ update remote duration key msg model =
                         , redirectToHomeCmd
                         , cmd
                         ]
+                    , registry
                     )
 
                 _ ->
                     ( ModelLoading selectedBreathingMethod
                     , Cmd.batch [ redirectToPreparationCmd, redirectToHomeCmd ]
+                    , registry
                     )
 
         ModelLoaded loaded ->
             case duration of
                 Just d ->
                     let
-                        ( newInternalModel, cmd ) =
-                            updateInternal d key msg loaded
+                        ( newInternalModel, cmd, newRegistry ) =
+                            updateInternal d key msg loaded registry
                     in
-                    ( ModelLoaded newInternalModel, cmd )
+                    ( ModelLoaded newInternalModel, cmd, newRegistry )
 
                 Nothing ->
-                    ( ModelLoaded loaded, redirectToPreparation duration loaded.selectedBreathingMethod )
+                    ( ModelLoaded loaded, redirectToPreparation duration loaded.selectedBreathingMethod, registry )
+
+
+{-| レジストリをタプルに追加するためのヘルパー関数
+-}
+withRegistry : Uuid.Registry msg -> ( model, Cmd msg ) -> ( model, Cmd msg, Uuid.Registry msg )
+withRegistry registry ( m, c ) =
+    ( m, c, registry )
+
+
+{-| セッションを作成する
+-}
+createSession : ValidSelectedBreathingMethod -> Duration -> Time.Posix -> Uuid -> Session
+createSession selectedBreathingMethod duration posix =
+    let
+        method =
+            case selectedBreathingMethod of
+                Existing m ->
+                    { id = Just m.id
+                    , name = Just m.name
+                    , inhaleDuration = m.inhaleDuration
+                    , inhaleHoldDuration = m.inhaleHoldDuration
+                    , exhaleDuration = m.exhaleDuration
+                    , exhaleHoldDuration = m.exhaleHoldDuration
+                    }
+
+                Custom custom ->
+                    { id = Nothing
+                    , name = Nothing
+                    , inhaleDuration = custom.inhaleDuration
+                    , inhaleHoldDuration = custom.inhaleHoldDuration
+                    , exhaleDuration = custom.exhaleDuration
+                    , exhaleHoldDuration = custom.exhaleHoldDuration
+                    }
+    in
+    \id ->
+        Session
+            id
+            method.inhaleDuration
+            method.inhaleHoldDuration
+            method.exhaleDuration
+            method.exhaleHoldDuration
+            method.id
+            method.name
+            duration
+            -- 最後まで終わったので、durationをそのまま使う
+            posix
 
 
 {-| 内部で利用されているアップデート(リダイレクト考慮なし)
 -}
-updateInternal : Duration -> Nav.Key -> Msg -> InternalModel -> ( InternalModel, Cmd Msg )
-updateInternal duration key msg model =
+updateInternal : Duration -> Nav.Key -> Msg -> InternalModel -> Uuid.Registry Msg -> ( InternalModel, Cmd Msg, Uuid.Registry Msg )
+updateInternal duration key msg model registry =
     case ( msg, model.timerState ) of
         ( Start now, NotStarted ) ->
             handleStart now model
+                |> withRegistry registry
 
         ( Start _, _ ) ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, registry )
 
         ( ClickPauseButton, Running _ ) ->
-            ( model, Task.perform Pause Time.now )
+            ( model, Task.perform Pause Time.now, registry )
 
         ( ClickPauseButton, _ ) ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, registry )
 
         ( Pause now, Running running ) ->
             handlePause now running model
+                |> withRegistry registry
 
         ( Pause _, _ ) ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, registry )
 
         ( ClickResumeButton, Paused _ ) ->
-            ( model, Task.perform Resume Time.now )
+            ( model, Task.perform Resume Time.now, registry )
 
         ( ClickResumeButton, _ ) ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, registry )
 
         ( Resume now, Paused paused ) ->
             handleResume now paused model
+                |> withRegistry registry
 
         ( Resume _, _ ) ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, registry )
 
         ( ClickStopButton, Paused _ ) ->
-            ( model, Task.perform Stop Time.now )
+            ( model, Task.perform Stop Time.now, registry )
 
         ( ClickStopButton, _ ) ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, registry )
 
         ( Stop now, Paused paused ) ->
             handleStop now paused model
+                |> withRegistry registry
 
         ( Stop _, _ ) ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, registry )
 
         ( TickDisplayTime posix, _ ) ->
             if getElapsedMilliseconds model.timerState posix >= fromDuration duration * 1000 then
-                ( model, handleNavigateToCompleteSession duration model )
+                ( model
+                , createSession model.selectedBreathingMethod duration posix
+                    |> GetSessionId
+                    |> always
+                    |> Task.perform
+                    |> (|>) Time.now
+                , registry
+                )
 
             else
-                ( { model | displayCurrentTime = posix }, Cmd.none )
+                ( { model | displayCurrentTime = posix }, Cmd.none, registry )
 
         ( NavigateToRoute route, _ ) ->
-            ( model, Nav.pushUrl key <| Route.toString route )
+            ( model, Nav.pushUrl key <| Route.toString route, registry )
+
+        ( GetSessionId f, _ ) ->
+            let
+                ( newRegistry, effect, maybeMsg ) =
+                    Uuid.uuidGenerate "session/complete-session" (GotSessionId f)
+                        |> Uuid.update
+                        |> (|>) registry
+
+                cmd =
+                    Cmd.batch
+                        [ maybeMsg
+                            |> Maybe.map (always >> Task.perform >> (|>) Time.now)
+                            |> Maybe.withDefault Cmd.none
+                        , Uuid.effectToCmd Ports.generateUuidValue effect
+                        ]
+            in
+            ( model
+            , cmd
+            , newRegistry
+            )
+
+        ( GotSessionId f id, _ ) ->
+            ( model
+            , handleCompletion duration model (f id)
+            , registry
+            )
 
 
 {-| 経過時間をミリ秒で取得する
