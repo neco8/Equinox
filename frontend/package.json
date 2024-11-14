@@ -1,14 +1,16 @@
 {
-  "name": "frontend",
-  "version": "1.0.0",
-  "description": "",
+  "name": "equinox",
+  "version": "0.1.0",
+  "description": "呼吸法を通じて心身をニュートラルな状態に戻すためのモバイルアプリ",
   "main": "index.js",
   "scripts": {
     "start": "vite --port 3000",
-    "test": "elm-test"
+    "test": "elm-test",
+    "review": "elm-review",
+    "build": "vite build"
   },
   "keywords": [],
-  "author": "",
+  "author": "neco8",
   "license": "ISC",
   "devDependencies": {
     "autoprefixer": "^10.4.20",

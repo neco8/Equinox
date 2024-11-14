@@ -3,7 +3,7 @@ module Main exposing (main)
 {-|
 
 
-## Main モジュール
+## Main Module
 
 このモジュールはEntrypointです。複数のページをまとめ、中央のModelの管理も行います。
 
@@ -20,22 +20,27 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Nav
+import Config exposing (Config)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Icon
+import JS.Codec exposing (posixDecoder)
 import JS.Ports as Ports
 import JS.Storage.QueryError exposing (QueryError)
 import JS.Storage.QueryResult as QueryResult exposing (QueryResult)
 import JS.Storage.StorageQueryDSL as Query
-import List.Extra
-import Maybe.Extra
+import Json.Decode as D exposing (Decoder)
+import Json.Decode.Extra as DE
+import Pages.BreathingMethodPage as BreathingMethodPage
 import Pages.SessionCompletionPage as SessionCompletionPage
 import Pages.SessionPage as SessionPage exposing (subscriptions, view)
 import Pages.SessionPreparationPage as SessionPreparationPage exposing (PracticeStyle(..))
+import Pages.SourceSelectionPage as SourceSelectionPage
+import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..))
+import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, PhaseType(..))
 import Types.Category exposing (Category, fromTitle)
 import Types.Session exposing (Duration, Session)
 import Types.Statistics exposing (recentDaysThreshold)
@@ -47,12 +52,13 @@ import Uuid
 -}
 type alias Model =
     { key : Nav.Key
+    , config : Config
     , currentPage : Page
-    , uuidGenerator : Uuid.Generator Msg
+    , uuidRegistry : Uuid.Registry Msg
     , uuids : List Uuid.Uuid
-    , breathingMethods : List BreathingMethod
-    , categories : List Category
-    , recentSessions : List Session
+    , breathingMethods : RemoteData () (List BreathingMethod) -- 暫定的にerrorは()でおく
+    , categories : RemoteData () (List Category) -- 暫定的にerrorは()でおく
+    , recentSessions : RemoteData () (List Session) -- 暫定的にerrorは()でおく
     }
 
 
@@ -62,37 +68,69 @@ type Page
     = HomePage
     | PresetSessionPreparationPage BreathingMethodId SessionPreparationPage.Model
     | ManualSessionPreparationPage SessionPreparationPage.Model
-    | PresetSessionPage Duration SessionPage.Model
-    | ManualSessionPage Duration SessionPage.Model
-    | PresetSessionCompletionPage Duration BreathingMethodId
-    | ManualSessionCompletionPage Duration
+    | PresetSessionPage (Maybe Duration) SessionPage.Model
+    | ManualSessionPage (Maybe Duration) SessionPage.Model
+    | PresetSessionCompletionPage SessionCompletionPage.Model
+    | ManualSessionCompletionPage SessionCompletionPage.Model
     | StatisticsPage
     | SettingsPage
-    | SourceSelectionPage
-    | BreathingMethodEditPage BreathingMethodId
+    | SourceSelectionPage SourceSelectionPage.Model
+    | BreathingMethodEditPage BreathingMethodPage.Model
+    | BreathingMethodAddPage BreathingMethodPage.Model
     | NotFoundPage
+
+
+{-| フラッグ
+-}
+type alias Flags =
+    { now : Time.Posix
+    , environment : Config.Environment
+    }
+
+
+{-| フラッグの初期値
+-}
+defaultFlags : Flags
+defaultFlags =
+    { now = Time.millisToPosix 0
+    , environment = Config.defaultEnvironment
+    }
+
+
+{-| フラッグのデコーダー
+-}
+flagsDecoder : Decoder Flags
+flagsDecoder =
+    D.succeed Flags
+        |> DE.andMap (D.field "now" posixDecoder)
+        |> DE.andMap (D.field "environment" Config.environmentDecoder)
 
 
 {-| Modelを初期化する
 -}
-init : Int -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
-init now url key =
+init : D.Value -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init flagsValue url key =
     let
+        flags =
+            D.decodeValue flagsDecoder flagsValue
+                |> Result.withDefault defaultFlags
+
         model : Model
         model =
             { key = key
+            , config = Config.config flags.environment
             , currentPage = NotFoundPage
-            , uuidGenerator = Uuid.initialModel
+            , uuidRegistry = Uuid.initialRegistry
             , uuids = []
-            , breathingMethods = []
-            , categories = []
-            , recentSessions = []
+            , breathingMethods = NotAsked
+            , categories = NotAsked
+            , recentSessions = NotAsked
             }
 
         initialQueries =
             [ Query.GetAllBreathingMethods
             , Query.GetAllCategories
-            , Query.GetSessionRecentNDays recentDaysThreshold (Time.millisToPosix now)
+            , Query.GetSessionRecentNDays recentDaysThreshold flags.now
             ]
 
         cmd =
@@ -119,38 +157,6 @@ updateModelFromUrl model url =
             ( { model | currentPage = NotFoundPage }, Cmd.none )
 
 
-{-| 呼吸法の各フェーズの時間を解析する
-
-Routeのパラメータから、各フェーズの時間を解析する
-
--}
-parseBreathingMethodControls :
-    { inhale : Maybe InhaleDuration
-    , inhaleHold : Maybe InhaleHoldDuration
-    , exhale : Maybe ExhaleDuration
-    , exhaleHold : Maybe ExhaleHoldDuration
-    }
-    ->
-        Maybe
-            { inhaleDuration : InhaleDuration
-            , inhaleHoldDuration : InhaleHoldDuration
-            , exhaleDuration : ExhaleDuration
-            , exhaleHoldDuration : ExhaleHoldDuration
-            }
-parseBreathingMethodControls { inhale, inhaleHold, exhale, exhaleHold } =
-    case ( ( inhale, inhaleHold ), ( exhale, exhaleHold ) ) of
-        ( ( Just i, Just ih ), ( Just e, Just eh ) ) ->
-            Just
-                { inhaleDuration = i
-                , inhaleHoldDuration = ih
-                , exhaleDuration = e
-                , exhaleHoldDuration = eh
-                }
-
-        _ ->
-            Nothing
-
-
 {-| Routeに基づいて初期化する
 -}
 initializePage : Model -> Route -> ( Model, Cmd Msg )
@@ -160,75 +166,61 @@ initializePage model route =
             ( { model | currentPage = HomePage }, Cmd.none )
 
         PresetSessionPreparationRoute id ->
-            ( { model | currentPage = PresetSessionPreparationPage id (SessionPreparationPage.init ()) }, Cmd.none )
+            let
+                ( sessionModel, cmd ) =
+                    SessionPreparationPage.init model.breathingMethods (PresetPracticeStyle id)
+            in
+            ( { model | currentPage = PresetSessionPreparationPage id sessionModel }, Cmd.map PresetSessionPreparationPageMsg cmd )
 
         ManualSessionPreparationRoute ->
-            ( { model | currentPage = ManualSessionPreparationPage (SessionPreparationPage.init ()) }, Cmd.none )
+            let
+                ( sessionModel, cmd ) =
+                    SessionPreparationPage.init model.breathingMethods ManualPracticeStyle
+            in
+            ( { model | currentPage = ManualSessionPreparationPage sessionModel }, Cmd.map ManualSessionPreparationPageMsg cmd )
 
         PresetSessionRoute id mduration ->
-            case
-                ( List.Extra.find (\m -> m.id == id) model.breathingMethods
-                , mduration
-                )
-            of
-                ( Just method, Just duration ) ->
-                    let
-                        ( sessionModel, sessionCmd ) =
-                            SessionPage.init (SessionPage.Existing method)
-                    in
-                    ( { model | currentPage = PresetSessionPage duration sessionModel }
-                    , Cmd.map PresetSessionPageMsg sessionCmd
-                    )
-
-                ( Nothing, _ ) ->
-                    -- 呼吸法が見つからない場合、NotFoundPageにリダイレクトする
-                    ( { model | currentPage = NotFoundPage }, Cmd.none )
-
-                ( Just _, Nothing ) ->
-                    -- セッション秒数が設定されていない場合、準備画面にリダイレクトし入力を促す
-                    ( model, Nav.replaceUrl model.key (Route.toString (Route.PresetSessionPreparationRoute id)) )
+            let
+                ( sessionModel, sessionCmd ) =
+                    SessionPage.init model.breathingMethods mduration (SessionPage.PresetBreathingMethod id)
+            in
+            ( { model | currentPage = PresetSessionPage mduration sessionModel }
+            , Cmd.map PresetSessionPageMsg sessionCmd
+            )
 
         ManualSessionRoute mduration minhale minhaleHold mexhale mexhaleHold ->
-            case
-                Just Tuple.pair
-                    |> Maybe.Extra.andMap (parseBreathingMethodControls { inhale = minhale, inhaleHold = minhaleHold, exhale = mexhale, exhaleHold = mexhaleHold })
-                    |> Maybe.Extra.andMap mduration
-            of
-                Just ( { inhaleDuration, inhaleHoldDuration, exhaleDuration, exhaleHoldDuration }, duration ) ->
-                    let
-                        ( sessionModel, sessionCmd ) =
-                            SessionPage.init
-                                (SessionPage.Custom
-                                    { inhaleDuration = inhaleDuration
-                                    , inhaleHoldDuration = inhaleHoldDuration
-                                    , exhaleDuration = exhaleDuration
-                                    , exhaleHoldDuration = exhaleHoldDuration
-                                    }
-                                )
-                    in
-                    ( { model | currentPage = ManualSessionPage duration sessionModel }, Cmd.map ManualSessionPageMsg sessionCmd )
-
-                Nothing ->
-                    -- 呼吸法・セッション秒数が設定されていない場合、準備画面にリダイレクトし入力を促す
-                    ( model, Nav.replaceUrl model.key (Route.toString ManualSessionPreparationRoute) )
+            let
+                ( sessionModel, sessionCmd ) =
+                    SessionPage.init
+                        model.breathingMethods
+                        mduration
+                        (SessionPage.CustomBreathingMethod
+                            { inhaleDuration = minhale
+                            , inhaleHoldDuration = minhaleHold
+                            , exhaleDuration = mexhale
+                            , exhaleHoldDuration = mexhaleHold
+                            }
+                        )
+            in
+            ( { model | currentPage = ManualSessionPage mduration sessionModel }, Cmd.map ManualSessionPageMsg sessionCmd )
 
         PresetSessionCompletionRoute id mduration ->
-            case mduration of
-                Just duration ->
-                    ( { model | currentPage = PresetSessionCompletionPage duration id }, Cmd.none )
-
-                Nothing ->
-                    ( model
-                    , Nav.replaceUrl model.key (Route.toString (PresetSessionPreparationRoute id))
-                    )
+            let
+                ( completionModel, cmd ) =
+                    SessionCompletionPage.init mduration (PresetPracticeStyle id)
+            in
+            ( { model | currentPage = PresetSessionCompletionPage completionModel }
+            , Cmd.map PresetSessionCompletionPageMsg cmd
+            )
 
         ManualSessionCompletionRoute mduration ->
-            case mduration of
-                Just duration ->
-                    ( { model | currentPage = ManualSessionCompletionPage duration }, Cmd.none )
-
-                Nothing ->
-                    ( model, Nav.replaceUrl model.key (Route.toString ManualSessionPreparationRoute) )
+            let
+                ( completionModel, cmd ) =
+                    SessionCompletionPage.init mduration ManualPracticeStyle
+            in
+            ( { model | currentPage = ManualSessionCompletionPage completionModel }
+            , Cmd.map ManualSessionCompletionPageMsg cmd
+            )
 
         StatisticsRoute ->
             ( { model | currentPage = StatisticsPage }, Cmd.none )
@@ -237,10 +229,25 @@ initializePage model route =
             ( { model | currentPage = SettingsPage }, Cmd.none )
 
         SourceSelectionRoute ->
-            ( { model | currentPage = SourceSelectionPage }, Cmd.none )
+            let
+                ( newModel, cmd ) =
+                    SourceSelectionPage.init ()
+            in
+            ( { model | currentPage = SourceSelectionPage newModel }, Cmd.map SourceSelectionPageMsg cmd )
 
         BreathingMethodEditRoute id ->
-            ( { model | currentPage = BreathingMethodEditPage id }, Cmd.none )
+            let
+                ( newModel, cmd ) =
+                    BreathingMethodPage.init model.breathingMethods (BreathingMethodPage.Edit id)
+            in
+            ( { model | currentPage = BreathingMethodEditPage newModel }, Cmd.map BreathingMethodEditPageMsg cmd )
+
+        BreathingMethodAddRoute name inhale inhaleHold exhale exhaleHold ->
+            let
+                ( newModel, cmd ) =
+                    BreathingMethodPage.init model.breathingMethods (BreathingMethodPage.Add name inhale inhaleHold exhale exhaleHold)
+            in
+            ( { model | currentPage = BreathingMethodAddPage newModel }, Cmd.map BreathingMethodAddPageMsg cmd )
 
 
 {-| メッセージ
@@ -256,6 +263,9 @@ type Msg
     | ManualSessionPreparationPageMsg SessionPreparationPage.Msg
     | PresetSessionCompletionPageMsg SessionCompletionPage.Msg
     | ManualSessionCompletionPageMsg SessionCompletionPage.Msg
+    | SourceSelectionPageMsg SourceSelectionPage.Msg
+    | BreathingMethodEditPageMsg BreathingMethodPage.Msg
+    | BreathingMethodAddPageMsg BreathingMethodPage.Msg
       -- Add these messages
     | ReceiveQueryResult (Result QueryError QueryResult)
     | ReceiveQueryError QueryError
@@ -287,7 +297,7 @@ handleStartSessionPageMsg msg model =
         PresetSessionPage duration sessionModel ->
             let
                 ( newSessionModel, cmd ) =
-                    SessionPage.update duration model.key msg sessionModel
+                    SessionPage.update model.breathingMethods duration model.key msg sessionModel
             in
             ( { model | currentPage = PresetSessionPage duration newSessionModel }
             , Cmd.map PresetSessionPageMsg cmd
@@ -308,7 +318,7 @@ handleStartCustomSessionPageMsg msg model =
         ManualSessionPage duration sessionModel ->
             let
                 ( newSessionModel, cmd ) =
-                    SessionPage.update duration model.key msg sessionModel
+                    SessionPage.update model.breathingMethods duration model.key msg sessionModel
             in
             ( { model | currentPage = ManualSessionPage duration newSessionModel }
             , Cmd.map ManualSessionPageMsg cmd
@@ -330,6 +340,7 @@ handlePresetSessionPreparationPageMsg msg model =
             let
                 ( newPrepareModel, cmd ) =
                     SessionPreparationPage.update
+                        model.breathingMethods
                         model.key
                         msg
                         prepareModel
@@ -354,6 +365,7 @@ handleManualSessionPreparationPageMsg msg model =
             let
                 ( newPrepareModel, cmd ) =
                     SessionPreparationPage.update
+                        model.breathingMethods
                         model.key
                         msg
                         prepareModel
@@ -371,12 +383,12 @@ handleManualSessionPreparationPageMsg msg model =
 handlePresetSessionCompletionPageMsg : SessionCompletionPage.Msg -> Model -> ( Model, Cmd Msg )
 handlePresetSessionCompletionPageMsg msg model =
     case model.currentPage of
-        PresetSessionCompletionPage duration id ->
+        PresetSessionCompletionPage completionModel ->
             let
-                cmd =
-                    SessionCompletionPage.update model.key msg
+                ( newCompletionModel, cmd ) =
+                    SessionCompletionPage.update model.key msg completionModel
             in
-            ( { model | currentPage = PresetSessionCompletionPage duration id }
+            ( { model | currentPage = PresetSessionCompletionPage newCompletionModel }
             , Cmd.map PresetSessionCompletionPageMsg cmd
             )
 
@@ -389,13 +401,73 @@ handlePresetSessionCompletionPageMsg msg model =
 handleManualSessionCompletionPageMsg : SessionCompletionPage.Msg -> Model -> ( Model, Cmd Msg )
 handleManualSessionCompletionPageMsg msg model =
     case model.currentPage of
-        ManualSessionCompletionPage duration ->
+        ManualSessionCompletionPage completionModel ->
             let
-                cmd =
-                    SessionCompletionPage.update model.key msg
+                ( newCompletionModel, cmd ) =
+                    SessionCompletionPage.update model.key msg completionModel
             in
-            ( { model | currentPage = ManualSessionCompletionPage duration }
+            ( { model | currentPage = ManualSessionCompletionPage newCompletionModel }
             , Cmd.map ManualSessionCompletionPageMsg cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+{-| ソース選択画面のメッセージを処理する
+-}
+handleSourceSelectionPageMsg : SourceSelectionPage.Msg -> Model -> ( Model, Cmd Msg )
+handleSourceSelectionPageMsg msg model =
+    case model.currentPage of
+        SourceSelectionPage sourceSelectionModel ->
+            let
+                ( newSourceSelectionModel, cmd ) =
+                    SourceSelectionPage.update model.config model.key msg sourceSelectionModel
+            in
+            ( { model | currentPage = SourceSelectionPage newSourceSelectionModel }
+            , Cmd.map SourceSelectionPageMsg cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+{-| 呼吸法編集画面のメッセージを処理する
+-}
+handleBreathingMethodEditPageMsg : BreathingMethodPage.Msg -> Model -> ( Model, Cmd Msg )
+handleBreathingMethodEditPageMsg msg model =
+    case model.currentPage of
+        BreathingMethodEditPage editModel ->
+            let
+                ( newEditModel, cmd, newRegistry ) =
+                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry BreathingMethodEditPageMsg msg editModel
+            in
+            ( { model
+                | currentPage = BreathingMethodEditPage newEditModel
+                , uuidRegistry = newRegistry
+              }
+            , cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+{-| 呼吸法追加画面のメッセージを処理する
+-}
+handleBreathingMethodAddPageMsg : BreathingMethodPage.Msg -> Model -> ( Model, Cmd Msg )
+handleBreathingMethodAddPageMsg msg model =
+    case model.currentPage of
+        BreathingMethodAddPage addModel ->
+            let
+                ( newAddModel, cmd, newRegistry ) =
+                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry BreathingMethodAddPageMsg msg addModel
+            in
+            ( { model
+                | currentPage = BreathingMethodAddPage newAddModel
+                , uuidRegistry = newRegistry
+              }
+            , cmd
             )
 
         _ ->
@@ -408,13 +480,13 @@ handleReceiveOkQueryResult : QueryResult -> Model -> ( Model, Cmd Msg )
 handleReceiveOkQueryResult queryResult model =
     case queryResult of
         QueryResult.CategoryListResult categories ->
-            ( { model | categories = categories }, Cmd.none )
+            ( { model | categories = Success categories }, Cmd.none )
 
         QueryResult.BreathingMethodListResult breathingMethods ->
-            ( { model | breathingMethods = breathingMethods }, Cmd.none )
+            ( { model | breathingMethods = Success breathingMethods }, Cmd.none )
 
         QueryResult.SessionListResult sessions ->
-            ( { model | recentSessions = sessions }, Cmd.none )
+            ( { model | recentSessions = Success sessions }, Cmd.none )
 
         QueryResult.EntitySingleResult _ ->
             ( model, Cmd.none )
@@ -444,14 +516,14 @@ handleReceiveQueryResult result model =
 handleUuidMsg : Uuid.Msg Msg -> Model -> ( Model, Cmd Msg )
 handleUuidMsg msg model =
     let
-        ( newUuidGenerator, effect, maybeMsg ) =
-            Uuid.update msg model.uuidGenerator
+        ( newUuidRegistry, effect, maybeMsg ) =
+            Uuid.update msg model.uuidRegistry
 
         cmd =
             Uuid.effectToCmd Ports.generateUuidValue effect
 
         newModel =
-            { model | uuidGenerator = newUuidGenerator }
+            { model | uuidRegistry = newUuidRegistry }
     in
     case maybeMsg of
         Just m ->
@@ -493,6 +565,15 @@ update msg model =
         ManualSessionCompletionPageMsg subMsg ->
             handleManualSessionCompletionPageMsg subMsg model
 
+        SourceSelectionPageMsg subMsg ->
+            handleSourceSelectionPageMsg subMsg model
+
+        BreathingMethodEditPageMsg subMsg ->
+            handleBreathingMethodEditPageMsg subMsg model
+
+        BreathingMethodAddPageMsg subMsg ->
+            handleBreathingMethodAddPageMsg subMsg model
+
         ReceiveQueryResult result ->
             handleReceiveQueryResult result model
 
@@ -518,7 +599,7 @@ view model =
     { title = pageTitle model.currentPage
     , body =
         [ viewPage model
-        , Html.map UuidMsg <| button [ onClick (Uuid.uuidGenerate GotUuid) ] [ text "Generate UUID" ]
+        , Html.map UuidMsg <| button [ onClick (Uuid.uuidGenerate "main" GotUuid) ] [ text "Generate UUID" ]
         , ul [] <| List.map (\uuid -> li [] [ text <| Uuid.toString uuid ]) model.uuids
         ]
     }
@@ -544,7 +625,7 @@ pageTitle page =
         ManualSessionPage _ _ ->
             "カスタムセッション開始"
 
-        PresetSessionCompletionPage _ _ ->
+        PresetSessionCompletionPage _ ->
             "セッション完了"
 
         ManualSessionCompletionPage _ ->
@@ -556,11 +637,14 @@ pageTitle page =
         SettingsPage ->
             "設定"
 
-        SourceSelectionPage ->
+        SourceSelectionPage _ ->
             "ソース選択"
 
         BreathingMethodEditPage _ ->
             "呼吸法編集"
+
+        BreathingMethodAddPage _ ->
+            "呼吸法追加"
 
         NotFoundPage ->
             "ページが見つかりません"
@@ -577,6 +661,8 @@ viewPage model =
         ]
 
 
+{-| ストリークのビュー
+-}
 viewStreak : Int -> Html msg
 viewStreak streak =
     div []
@@ -645,49 +731,50 @@ viewBreathingMethodList category children =
 
 {-| ホーム画面のビュー
 -}
-viewHome : { model | categories : List Category, breathingMethods : List BreathingMethod } -> Html Msg
+viewHome : { model | categories : RemoteData e (List Category), breathingMethods : RemoteData e (List BreathingMethod) } -> Html Msg
 viewHome model =
-    div [ attribute "role" "home" ]
-        [ text "ホーム画面"
-        , div [] <|
-            List.map
-                (\category ->
-                    viewBreathingMethodList
-                        category
-                    <|
-                        List.filterMap
-                            (\method ->
-                                if method.categoryId == category.id then
-                                    Just (viewBreathingMethodCard method)
+    case ( model.categories, model.breathingMethods ) of
+        ( Success cs, Success ms ) ->
+            div [ attribute "role" "home" ]
+                [ text "ホーム画面"
+                , div [] <|
+                    List.map
+                        (\category ->
+                            viewBreathingMethodList
+                                category
+                            <|
+                                List.filterMap
+                                    (\method ->
+                                        if method.categoryId == category.id then
+                                            Just (viewBreathingMethodCard method)
 
-                                else
-                                    Nothing
-                            )
-                            model.breathingMethods
-                )
-                model.categories
-        , button [ attribute "aria-label" "add-new-breathing-method" ] [ text "新しい呼吸法を追加" ]
-        ]
+                                        else
+                                            Nothing
+                                    )
+                                    ms
+                        )
+                        cs
+                , button
+                    [ attribute "aria-label" "add-new-breathing-method"
+                    , onClick (NavigateToRoute SourceSelectionRoute)
+                    ]
+                    [ text "新しい呼吸法を追加" ]
+                ]
+
+        ( _, _ ) ->
+            text "Loading or failure..."
 
 
 {-| 既存セッション準備画面のビュー
 -}
-viewPresetSessionPreparation : SessionPreparationPage.Model -> BreathingMethod -> Html SessionPreparationPage.Msg
-viewPresetSessionPreparation model m =
+viewPresetSessionPreparation : SessionPreparationPage.Model -> BreathingMethodId -> Html SessionPreparationPage.Msg
+viewPresetSessionPreparation model id =
     let
         txt =
-            "準備画面 - ID: " ++ Uuid.toString m.id
-
-        practiceStyle =
-            Preset m
-
-        route duration =
-            PresetSessionRoute m.id (Just duration)
+            "準備画面 - ID: " ++ Uuid.toString id
     in
     SessionPreparationPage.view
         { txt = txt
-        , practiceStyle = practiceStyle
-        , route = route
         }
         model
 
@@ -699,44 +786,26 @@ viewManualSessionPreparation model =
     let
         txt =
             "カスタム準備画面"
-
-        practiceStyle =
-            Manual
-
-        route duration =
-            ManualSessionRoute (Just duration)
-                (Maybe.andThen Types.BreathingMethod.toInhaleDuration <| String.toInt model.inhaleDurationInput)
-                (Maybe.andThen Types.BreathingMethod.toInhaleHoldDuration <| String.toInt model.inhaleHoldDurationInput)
-                (Maybe.andThen Types.BreathingMethod.toExhaleDuration <| String.toInt model.exhaleDurationInput)
-                (Maybe.andThen Types.BreathingMethod.toExhaleHoldDuration <| String.toInt model.exhaleHoldDurationInput)
     in
     SessionPreparationPage.view
         { txt = txt
-        , practiceStyle = practiceStyle
-        , route = route
         }
         model
 
 
 {-| 既存セッション完了画面のビュー
 -}
-viewPresetSessionCompletion : BreathingMethodId -> Duration -> Html Msg
-viewPresetSessionCompletion id duration =
-    SessionCompletionPage.view
-        { txt = "完了画面 - ID: " ++ Uuid.toString id
-        , duration = duration
-        }
+viewPresetSessionCompletion : SessionCompletionPage.Model -> Html Msg
+viewPresetSessionCompletion model =
+    SessionCompletionPage.view model
         |> Html.map PresetSessionCompletionPageMsg
 
 
 {-| カスタムセッション完了画面のビュー
 -}
-viewManualSessionCompletion : Duration -> Html Msg
-viewManualSessionCompletion duration =
-    SessionCompletionPage.view
-        { txt = "カスタム完了画面"
-        , duration = duration
-        }
+viewManualSessionCompletion : SessionCompletionPage.Model -> Html Msg
+viewManualSessionCompletion model =
+    SessionCompletionPage.view model
         |> Html.map ManualSessionCompletionPageMsg
 
 
@@ -776,16 +845,26 @@ viewSettings =
 
 {-| ソース選択画面のビュー
 -}
-viewSourceSelection : Html Msg
-viewSourceSelection =
-    div [ attribute "role" "source-selection" ] [ text "ソース選択画面" ]
+viewSourceSelection : SourceSelectionPage.Model -> Html Msg
+viewSourceSelection model =
+    SourceSelectionPage.view model
+        |> Html.map SourceSelectionPageMsg
 
 
 {-| 呼吸法編集画面のビュー
 -}
-viewEditingBreathingMethod : BreathingMethodId -> Html Msg
-viewEditingBreathingMethod id =
-    div [ attribute "role" "edit" ] [ text ("呼吸法編集 - ID: " ++ Uuid.toString id) ]
+viewBreathingMethodEdit : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
+viewBreathingMethodEdit categories model =
+    BreathingMethodPage.view categories model
+        |> Html.map BreathingMethodEditPageMsg
+
+
+{-| 呼吸法追加画面のビュー
+-}
+viewBreathingMethodAdd : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
+viewBreathingMethodAdd categories model =
+    BreathingMethodPage.view categories model
+        |> Html.map BreathingMethodAddPageMsg
 
 
 {-| ページが見つからなかった場合のビュー
@@ -804,8 +883,7 @@ viewContent model =
             viewHome model
 
         PresetSessionPreparationPage id prepareModel ->
-            List.Extra.find (\m -> m.id == id) model.breathingMethods
-                |> Maybe.Extra.unwrap viewNotFound (viewPresetSessionPreparation prepareModel)
+            viewPresetSessionPreparation prepareModel id
                 |> Html.map PresetSessionPreparationPageMsg
 
         ManualSessionPreparationPage prepareModel ->
@@ -820,11 +898,11 @@ viewContent model =
             SessionPage.view duration sessionModel
                 |> Html.map ManualSessionPageMsg
 
-        PresetSessionCompletionPage duration id ->
-            viewPresetSessionCompletion id duration
+        PresetSessionCompletionPage completionModel ->
+            viewPresetSessionCompletion completionModel
 
-        ManualSessionCompletionPage duration ->
-            viewManualSessionCompletion duration
+        ManualSessionCompletionPage completionModel ->
+            viewManualSessionCompletion completionModel
 
         StatisticsPage ->
             viewStatistics
@@ -832,11 +910,14 @@ viewContent model =
         SettingsPage ->
             viewSettings
 
-        SourceSelectionPage ->
-            viewSourceSelection
+        SourceSelectionPage sourceSelectionModel ->
+            viewSourceSelection sourceSelectionModel
 
-        BreathingMethodEditPage id ->
-            viewEditingBreathingMethod id
+        BreathingMethodEditPage editModel ->
+            viewBreathingMethodEdit model.categories editModel
+
+        BreathingMethodAddPage addModel ->
+            viewBreathingMethodAdd model.categories addModel
 
         NotFoundPage ->
             viewNotFound
@@ -921,6 +1002,13 @@ breathingMethodEditSubscriptions =
     Sub.none
 
 
+{-| 呼吸法追加画面のサブスクリプション
+-}
+breathingMethodAddSubscriptions : Sub Msg
+breathingMethodAddSubscriptions =
+    Sub.none
+
+
 {-| ページに応じたサブスクリプションを返す関数。
 -}
 pageSubscriptions : Page -> Sub Msg
@@ -941,7 +1029,7 @@ pageSubscriptions page =
         ManualSessionPage _ sessionModel ->
             manualSessionSubscriptions sessionModel
 
-        PresetSessionCompletionPage _ _ ->
+        PresetSessionCompletionPage _ ->
             presetSessionCompletionSubscriptions
 
         ManualSessionCompletionPage _ ->
@@ -953,11 +1041,14 @@ pageSubscriptions page =
         SettingsPage ->
             settingsSubscriptions
 
-        SourceSelectionPage ->
+        SourceSelectionPage _ ->
             sourceSelectionSubscriptions
 
         BreathingMethodEditPage _ ->
             breathingMethodEditSubscriptions
+
+        BreathingMethodAddPage _ ->
+            breathingMethodAddSubscriptions
 
         NotFoundPage ->
             Sub.none
@@ -977,7 +1068,7 @@ subscriptions model =
 
 {-| Entrypoint
 -}
-main : Program Int Model Msg
+main : Program D.Value Model Msg
 main =
     Browser.application
         { init = init

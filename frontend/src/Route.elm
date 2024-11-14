@@ -3,7 +3,12 @@ module Route exposing
     , toString, fromUrl, href
     )
 
-{-| ルーティングを提供します。
+{-|
+
+
+## Route
+
+このモジュールはルーティングを提供します。
 
 
 ### ルート
@@ -19,7 +24,7 @@ module Route exposing
 
 import Html exposing (Attribute)
 import Html.Attributes
-import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
+import Types.BreathingMethod exposing (BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
 import Types.Session exposing (Duration, fromDuration, toDuration)
 import Url
 import Url.Builder
@@ -45,6 +50,7 @@ type Route
     | SettingsRoute
     | SourceSelectionRoute
     | BreathingMethodEditRoute BreathingMethodId
+    | BreathingMethodAddRoute (Maybe Name) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
 
 
 {-| UUIDのURLパーサー
@@ -135,9 +141,39 @@ parser =
             (Parser.s "breathing-methods" </> Parser.s "source-selection")
         , Parser.map BreathingMethodEditRoute
             (Parser.s "breathing-methods" </> Parser.s "edit" </> uuidParser)
+        , Parser.map BreathingMethodAddRoute
+            (Parser.s "breathing-methods"
+                </> Parser.s "edit"
+                <?> Query.custom "name"
+                        (List.head
+                            >> Maybe.andThen toName
+                        )
+                <?> Query.custom "inhale-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toInhaleDuration
+                        )
+                <?> Query.custom "inhale-hold-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toInhaleHoldDuration
+                        )
+                <?> Query.custom "exhale-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toExhaleDuration
+                        )
+                <?> Query.custom "exhale-hold-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toExhaleHoldDuration
+                        )
+            )
         ]
 
 
+{-| ルートを文字列に変換する
+-}
 toString : Route -> String
 toString route =
     case route of
@@ -216,12 +252,46 @@ toString route =
         BreathingMethodEditRoute id ->
             "/breathing-methods/edit/" ++ Uuid.toString id
 
+        BreathingMethodAddRoute name inhale inhaleHold exhale exhaleHold ->
+            "/breathing-methods/edit"
+                ++ Url.Builder.toQuery
+                    [ Url.Builder.string "name"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map fromName name)
+                        )
+                    , Url.Builder.string "inhale-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromInhaleDuration) inhale)
+                        )
+                    , Url.Builder.string "inhale-hold-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromInhaleHoldDuration) inhaleHold)
+                        )
+                    , Url.Builder.string "exhale-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromExhaleDuration) exhale)
+                        )
+                    , Url.Builder.string "exhale-hold-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromExhaleHoldDuration) exhaleHold)
+                        )
+                    ]
 
+
+{-| URLからルートを取得する
+-}
 fromUrl : Url.Url -> Maybe Route
 fromUrl url =
     Parser.parse parser url
 
 
+{-| リンクのhref属性を作成する
+-}
 href : Route -> Attribute msg
 href route =
     Html.Attributes.href <| toString route

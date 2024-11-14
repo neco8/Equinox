@@ -1,168 +1,180 @@
 module Uuid exposing
-    ( Uuid, Generator, Effect, Msg
-    , initialModel
+    ( Uuid, fromString, toString
+    , Registry, initialRegistry, Tag
+    , Effect, effectToCmd, uuidGenerate
+    , decoder, encode
+    , Msg
     , update
     , subscriptions
-    , uuidGenerate, effectToCmd
-    , encode, decoder
-    , toString, fromString
     )
 
-{-| UUIDの生成とパースを提供します。
+{-|
+
+
+## UUID
+
+このモジュールは、UUIDを生成するためのモジュールです。
+中央集権的にMainコンポーネント下にUUID生成後のコールバックレジストリを保管しておく。
+
+そして、UUID生成のときにコールバック識別のためのタグを渡しておき、それに見合ったコールバックを、UUID返却時に利用する。
+
+
+### 使い方
+
+説明が必要な使い方の特徴は、中央集権的に管理しているregistryを更新し、再度中央のregistryを新しいものへと更新することである。
 
 
 ### 型
 
-@docs Uuid, Generator, Effect, Msg
-
-
-### Model
-
-@docs initialModel
-
-
-### Update
-
-@docs update
-
-
-### Subscriptions
-
-@docs subscriptions
+@docs Uuid, fromString, toString
+@docs Registry, initialRegistry, Tag
 
 
 ### Cmd
 
-@docs uuidGenerate, effectToCmd
+@docs Effect, effectToCmd, uuidGenerate
 
 
 ### Codec
 
-@docs encode, decoder
+@docs decoder, encode
 
 
-### Helper関数
+### Msg
 
-@docs toString, fromString
+@docs Msg
+
+
+### update
+
+@docs update
+
+
+### subscriptions
+
+@docs subscriptions
 
 -}
 
 import Char exposing (isHexDigit)
+import Dict exposing (Dict)
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
 import Parser exposing ((|.), (|=), Parser, Step(..), chompIf, getChompedString, loop, succeed, symbol)
-import Time exposing (Month(..))
-import Url exposing (fromString)
 
 
-{-| UUID。内部表現は文字列。
+{-| Uuidの型
+
+Opaque Typesとなっているため、fromStringでのみ生成可能
+
 -}
 type Uuid
     = Uuid String
 
 
-{-| UUIDの生成器。UUIDの生成リクエストを管理する。
+{-| UUID生成のハンドラーを管理するレジストリ
 -}
-type alias Generator msg =
-    { pendingCount : Int
-    , onGenerate : Uuid -> msg
+type alias Registry msg =
+    { handlers : Dict String (Uuid -> msg) -- tag -> handler
     }
 
 
-{-| UUIDの生成の結果外部に送出されるEffect。
+{-| いずれCmdへと変換される効果
 -}
 type Effect
-    = GenerateUuid
+    = GenerateUuid String
     | NoEffect
 
 
-{-| EffectからCmdに変換する関数。
+{-| UUID生成後のコールバックを識別するために必要なタグ文字列
+
+エイリアスにて作成
+
 -}
-effectToCmd : Cmd msg -> Effect -> Cmd msg
-effectToCmd generateUuidValue effect =
-    case effect of
-        GenerateUuid ->
-            generateUuidValue
-
-        NoEffect ->
-            Cmd.none
+type alias Tag =
+    String
 
 
-{-| UUID生成の内部で使われるメッセージ。
+{-| メッセージ
+
+UUIDを生成するために出力するMsgと、UUIDを生成した後に受け取るためのMsgが存在する
+
 -}
 type Msg msg
-    = GotUuid String
-    | RequestUuid (Uuid -> msg)
+    = GotUuid Tag String
+    | RequestUuid Tag (Uuid -> msg)
 
 
-{-| 初期値となるモデル。
+{-| 初期レジストリを生成
 -}
-initialModel : Generator msg
-initialModel =
-    let
-        -- 不動点を使って再帰的に初期化
-        infiniteRequest : Uuid -> msg
-        infiniteRequest _ =
-            let
-                fixpoint : Msg msg
-                fixpoint =
-                    RequestUuid infiniteRequest
-            in
-            -- 型システムを満足させるためのダミー
-            -- 実際には使われない
-            unsafeDummyMsg fixpoint
-
-        -- 型システムを満足させるためのダミー
-        -- 実際には使われないことが保証されている
-        unsafeDummyMsg : Msg msg -> msg
-        unsafeDummyMsg _ =
-            infiniteRequest (Uuid "dummy")
-    in
-    { pendingCount = 0
-    , onGenerate = infiniteRequest
+initialRegistry : Registry msg
+initialRegistry =
+    { handlers = Dict.empty
     }
 
 
-{-| UUID Generatorを更新する関数。
+{-| レジストリの更新
+
+(Msgによってコールバックの数が増減したレジストリ, Cmdを生成するためのEffect, TEA内に送信するべきメッセージ (あったら))
+
+TEA内に送信するべきメッセージというのが、すなわちレジストリに登録されているコールバックのことである。例えば、「UUIDを生成した後にオブジェクトを保存する」などのMsgが保管されており、それを実行してもらうためにMsgを返却する
+
 -}
-update : Msg msg -> Generator msg -> ( Generator msg, Effect, Maybe msg )
-update msg model =
+update : Msg msg -> Registry msg -> ( Registry msg, Effect, Maybe msg )
+update msg registry =
     case msg of
-        RequestUuid callback ->
-            ( { model
-                | pendingCount = model.pendingCount + 1
-                , onGenerate = callback
+        RequestUuid tag callback ->
+            ( { registry
+                | handlers = Dict.insert tag callback registry.handlers
               }
-            , GenerateUuid
+            , GenerateUuid tag
             , Nothing
             )
 
-        GotUuid uuidString ->
-            case fromString uuidString of
-                Just uuid ->
-                    ( { model
-                        | pendingCount = model.pendingCount - 1
+        GotUuid tag uuidString ->
+            case ( fromString uuidString, Dict.get tag registry.handlers ) of
+                ( Just uuid, Just handler ) ->
+                    ( { registry
+                        | handlers = Dict.remove tag registry.handlers
                       }
                     , NoEffect
-                    , Just (model.onGenerate uuid)
+                    , Just (handler uuid)
                     )
 
-                Nothing ->
-                    ( model, NoEffect, Nothing )
+                _ ->
+                    ( registry, NoEffect, Nothing )
 
 
-{-| UUID生成の結果を受け取るためのSubscriptions。
+{-| UUID生成リクエスト
 -}
-subscriptions : ((String -> msg) -> Sub msg) -> (Msg msg -> msg) -> Sub msg
+uuidGenerate : Tag -> (Uuid -> msg) -> Msg msg
+uuidGenerate tag callback =
+    RequestUuid tag callback
+
+
+{-| Subscription
+-}
+subscriptions : ((( String, String ) -> msg) -> Sub msg) -> (Msg msg -> msg) -> Sub msg
 subscriptions subscribeToUuid toMsg =
-    subscribeToUuid (toMsg << GotUuid)
+    subscribeToUuid
+        (\( tag, uuid ) ->
+            toMsg (GotUuid tag uuid)
+        )
 
 
-{-| UUID生成のリクエストのMsgを生成する関数。
+{-| Effect を Cmd に変換するための関数
+
+実際にはPortsを呼び出している。
+
 -}
-uuidGenerate : (Uuid -> msg) -> Msg msg
-uuidGenerate callback =
-    RequestUuid callback
+effectToCmd : (String -> Cmd msg) -> Effect -> Cmd msg
+effectToCmd generateUuidValue effect =
+    case effect of
+        GenerateUuid tag ->
+            generateUuidValue tag
+
+        NoEffect ->
+            Cmd.none
 
 
 {-| UUIDの文字列表現を取得する。

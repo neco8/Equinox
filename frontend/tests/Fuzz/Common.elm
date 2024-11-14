@@ -1,14 +1,23 @@
 module Fuzz.Common exposing (..)
 
-{-| このモジュールは、共通のFuzzerを提供します。
+{-|
+
+
+## Common Fuzzer
+
+このモジュールは、共通のFuzzerを提供します。
 
 
 ### Char
+
+charは、ASCII printable characters (0x20-0x7E) と、ひらがな、カタカナ、漢字を含む文字を生成するFuzzerです。
 
 @docs charFuzzer
 
 
 ### NonEmptyList
+
+NonEmptyListは、一つ以上のListを表す型です。
 
 @docs NonEmptyList, nonEmptyListFuzzer
 

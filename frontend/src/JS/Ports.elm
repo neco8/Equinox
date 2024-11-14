@@ -8,7 +8,12 @@ port module JS.Ports exposing
     , generateUuidValue
     )
 
-{-| JSへのポートをまとめて定義するモジュールです。portとなっている関数は、Elmの世界にはexposingしません。
+{-|
+
+
+## Ports
+
+このモジュールはJSへのポートをまとめて定義するモジュールです。portとなっている関数は、Elmの世界にはexposeしない。
 
 
 ### Cmd
@@ -160,23 +165,26 @@ saveSessionValue session =
 
 {-| UUID生成のリクエストを送信します。
 -}
-port generateUuid : () -> Cmd msg
+port generateUuid : String -> Cmd msg
 
 
 {-| UUID生成のリクエストを送信するCmdを生成するラッパーです。
+
+UUIDを生成した後に、どちらに登録されているコールバックを実行すればいいだけである。
+
 -}
-generateUuidValue : Cmd msg
-generateUuidValue =
-    generateUuid ()
+generateUuidValue : String -> Cmd msg
+generateUuidValue tag =
+    generateUuid tag
 
 
 {-| UUID生成の結果を受け取るポートです。
 -}
-port receiveUuid : (String -> msg) -> Sub msg
+port receiveUuid : (( String, String ) -> msg) -> Sub msg
 
 
 {-| UUID生成の結果を受け取るSubを生成するラッパーです。
 -}
-subscribeToUuid : (String -> msg) -> Sub msg
+subscribeToUuid : (( String, String ) -> msg) -> Sub msg
 subscribeToUuid toMsg =
     receiveUuid toMsg

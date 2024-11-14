@@ -5,13 +5,20 @@ module JS.Codec exposing
     , encodeSession, encodeSessions
     , posixDecoder
     , categoryDecoder, categoriesDecoder
+    , nameDecoder, inhaleDecoder, inhaleHoldDecoder, exhaleDecoder, exhaleHoldDecoder
     , breathingMethodDecoder, breathingMethodsDecoder
     , sessionDecoder, sessionsDecoder
     )
 
-{-| このモジュールはカテゴリー・呼吸法・セッションのCodecを提供します。
+{-|
 
-このモジュールが目的とすることは、Javascriptとのデータのやり取りを、型安全に行うためです。
+
+## Codec
+
+このモジュールはカテゴリー・呼吸法・セッション等JSとやり取りする必要のある値のCodecを提供します。
+
+このモジュールが目的とすることは、Javascriptとのデータのやり取りを、型安全に行うことです。
+
 ですので、Javascriptに関連する値はこちらに集約されます。
 
 
@@ -27,6 +34,7 @@ module JS.Codec exposing
 
 @docs posixDecoder
 @docs categoryDecoder, categoriesDecoder
+@docs nameDecoder, inhaleDecoder, inhaleHoldDecoder, exhaleDecoder, exhaleHoldDecoder
 @docs breathingMethodDecoder, breathingMethodsDecoder
 @docs sessionDecoder, sessionsDecoder
 
@@ -40,6 +48,7 @@ module JS.Codec exposing
 import Json.Decode as D exposing (Decoder)
 import Json.Decode.Extra as DE
 import Json.Encode as E
+import Json.Encode.Extra as EE
 import Time exposing (Posix)
 import Types.BreathingMethod exposing (BreathingMethod, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
 import Types.Category exposing (Category, Title, fromTitle, toTitle)
@@ -141,8 +150,8 @@ encodeSession session =
         , ( "inhale-hold", E.int <| fromInhaleHoldDuration session.inhaleHoldDuration )
         , ( "exhale", E.int <| fromExhaleDuration session.exhaleDuration )
         , ( "exhale-hold", E.int <| fromExhaleHoldDuration session.exhaleHoldDuration )
-        , ( "breathing-method-id", Uuid.encode session.breathingMethodId )
-        , ( "breathing-method-name", E.string <| fromName session.breathingMethodName )
+        , ( "breathing-method-id", EE.maybe Uuid.encode session.breathingMethodId )
+        , ( "breathing-method-name", EE.maybe E.string <| Maybe.map fromName session.breathingMethodName )
         , ( "duration", E.int <| fromDuration session.duration )
         , ( "created-at", encodePosix session.createdAt )
         ]
@@ -360,8 +369,8 @@ sessionDecoder =
         |> DE.andMap (D.field "inhale-hold" inhaleHoldDecoder)
         |> DE.andMap (D.field "exhale" exhaleDecoder)
         |> DE.andMap (D.field "exhale-hold" exhaleHoldDecoder)
-        |> DE.andMap (D.field "breathing-method-id" Uuid.decoder)
-        |> DE.andMap (D.field "breathing-method-name" nameDecoder)
+        |> DE.andMap (D.field "breathing-method-id" (D.nullable Uuid.decoder))
+        |> DE.andMap (D.field "breathing-method-name" (D.nullable nameDecoder))
         |> DE.andMap (D.field "duration" durationDecoder)
         |> DE.andMap (D.field "created-at" posixDecoder)
 

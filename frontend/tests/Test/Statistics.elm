@@ -1,6 +1,9 @@
 module Test.Statistics exposing (suite)
 
-{-| 統計情報の整合性確認
+{-|
+
+
+## 統計情報の整合性確認テスト
 
 
 ### テスト項目

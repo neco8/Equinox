@@ -12,8 +12,12 @@ when inside the directory containing this file.
 -}
 
 import Review.Rule exposing (Rule)
+import DocumentationRule
+import NoMainReplaceUrl
 
 
 config : List Rule
 config =
-    []
+    [ DocumentationRule.rule
+    , NoMainReplaceUrl.rule
+    ]
