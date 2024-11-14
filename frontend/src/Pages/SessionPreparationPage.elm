@@ -40,12 +40,14 @@ import Html exposing (Html, button, div, input, span, text)
 import Html.Attributes exposing (attribute, disabled, style)
 import Html.Events exposing (onClick, onInput)
 import List.Extra
+import Maybe.Extra
+import Pages.SessionPage as SessionPage
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
-import Types.Session exposing (toDuration)
+import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
+import Types.Session exposing (Duration, toDuration)
 
 
 {-| Model
@@ -60,10 +62,6 @@ type Model
 type alias InternalModel =
     { practiceStyle : ValidPracticeStyle
     , sessionDurationInput : String
-    , inhaleDurationInput : String
-    , inhaleHoldDurationInput : String
-    , exhaleDurationInput : String
-    , exhaleHoldDurationInput : String
     }
 
 
@@ -76,7 +74,14 @@ validatePracticeStyle : List BreathingMethod -> PracticeStyle -> Maybe ValidPrac
 validatePracticeStyle breathingMethods practiceStyle =
     case practiceStyle of
         ManualPracticeStyle ->
-            Just Manual
+            Just
+                (Manual
+                    { inhaleDurationInput = ""
+                    , inhaleHoldDurationInput = ""
+                    , exhaleDurationInput = ""
+                    , exhaleHoldDurationInput = ""
+                    }
+                )
 
         PresetPracticeStyle id ->
             List.Extra.find (.id >> (==) id) breathingMethods
@@ -127,22 +132,53 @@ initInternal : ValidPracticeStyle -> InternalModel
 initInternal m =
     { practiceStyle = m
     , sessionDurationInput = ""
-    , inhaleDurationInput = ""
-    , inhaleHoldDurationInput = ""
-    , exhaleDurationInput = ""
-    , exhaleHoldDurationInput = ""
     }
+
+
+{-| カスタム練習のときのみ利用される入力メッセージ
+-}
+type ManualInputMsg
+    = InputInhaleDuration String
+    | InputInhaleHoldDuration String
+    | InputExhaleDuration String
+    | InputExhaleHoldDuration String
 
 
 {-| メッセージ
 -}
 type Msg
     = InputSessionDuration String
-    | InputInhaleDuration String
-    | InputInhaleHoldDuration String
-    | InputExhaleDuration String
-    | InputExhaleHoldDuration String
+    | ManualInputMsg ManualInputMsg
     | NavigateToRoute Route
+
+
+handleManualInputMsg :
+    ManualInputMsg
+    ->
+        { inhaleDurationInput : String
+        , inhaleHoldDurationInput : String
+        , exhaleDurationInput : String
+        , exhaleHoldDurationInput : String
+        }
+    ->
+        { inhaleDurationInput : String
+        , inhaleHoldDurationInput : String
+        , exhaleDurationInput : String
+        , exhaleHoldDurationInput : String
+        }
+handleManualInputMsg msg model =
+    case msg of
+        InputInhaleDuration duration ->
+            { model | inhaleDurationInput = duration }
+
+        InputInhaleHoldDuration duration ->
+            { model | inhaleHoldDurationInput = duration }
+
+        InputExhaleDuration duration ->
+            { model | exhaleDurationInput = duration }
+
+        InputExhaleHoldDuration duration ->
+            { model | exhaleHoldDurationInput = duration }
 
 
 {-| アップデート
@@ -196,17 +232,15 @@ updateInternal key msg model =
         InputSessionDuration duration ->
             ( { model | sessionDurationInput = duration }, Cmd.none )
 
-        InputInhaleDuration duration ->
-            ( { model | inhaleDurationInput = duration }, Cmd.none )
+        ManualInputMsg subMsg ->
+            case model.practiceStyle of
+                Manual manual ->
+                    ( { model | practiceStyle = Manual (handleManualInputMsg subMsg manual) }
+                    , Cmd.none
+                    )
 
-        InputInhaleHoldDuration duration ->
-            ( { model | inhaleHoldDurationInput = duration }, Cmd.none )
-
-        InputExhaleDuration duration ->
-            ( { model | exhaleDurationInput = duration }, Cmd.none )
-
-        InputExhaleHoldDuration duration ->
-            ( { model | exhaleHoldDurationInput = duration }, Cmd.none )
+                _ ->
+                    ( model, Cmd.none )
 
         NavigateToRoute route ->
             ( model, Nav.pushUrl key (Route.toString route) )
@@ -226,7 +260,38 @@ type PracticeStyle
 -}
 type ValidPracticeStyle
     = Manual
+        { inhaleDurationInput : String
+        , inhaleHoldDurationInput : String
+        , exhaleDurationInput : String
+        , exhaleHoldDurationInput : String
+        }
     | Preset BreathingMethod
+
+
+validateInput : InternalModel -> Maybe { sessionDuration : Duration, selectedBreathingMethod : SessionPage.SelectedBreathingMethod }
+validateInput { sessionDurationInput, practiceStyle } =
+    Just (\sessionDuration selectedBreathingMethod -> { sessionDuration = sessionDuration, selectedBreathingMethod = selectedBreathingMethod })
+        |> Maybe.Extra.andMap (sessionDurationInput |> String.toInt |> Maybe.andThen toDuration)
+        |> Maybe.Extra.andMap
+            (case practiceStyle of
+                Manual manual ->
+                    Just
+                        (\i ih e eh ->
+                            SessionPage.CustomBreathingMethod
+                                { inhaleDuration = Just i
+                                , inhaleHoldDuration = Just ih
+                                , exhaleDuration = Just e
+                                , exhaleHoldDuration = Just eh
+                                }
+                        )
+                        |> Maybe.Extra.andMap (manual.inhaleDurationInput |> String.toInt |> Maybe.andThen toInhaleDuration)
+                        |> Maybe.Extra.andMap (manual.inhaleHoldDurationInput |> String.toInt |> Maybe.andThen toInhaleHoldDuration)
+                        |> Maybe.Extra.andMap (manual.exhaleDurationInput |> String.toInt |> Maybe.andThen toExhaleDuration)
+                        |> Maybe.Extra.andMap (manual.exhaleHoldDurationInput |> String.toInt |> Maybe.andThen toExhaleHoldDuration)
+
+                Preset method ->
+                    Just (SessionPage.PresetBreathingMethod method.id)
+            )
 
 
 {-| ビュー
@@ -237,33 +302,34 @@ view { txt } model =
         ModelLoaded loaded ->
             let
                 breathingMethodControls =
-                    case loaded.practiceStyle of
-                        Manual ->
-                            BreathingMethodDurationInput.view
-                                (BreathingMethodDurationInput.Config
-                                    InputInhaleDuration
-                                    InputInhaleHoldDuration
-                                    InputExhaleDuration
-                                    InputExhaleHoldDuration
-                                )
-                                loaded
+                    Html.map ManualInputMsg <|
+                        case loaded.practiceStyle of
+                            Manual manual ->
+                                BreathingMethodDurationInput.view
+                                    (BreathingMethodDurationInput.Config
+                                        InputInhaleDuration
+                                        InputInhaleHoldDuration
+                                        InputExhaleDuration
+                                        InputExhaleHoldDuration
+                                    )
+                                    manual
 
-                        Preset m ->
-                            div []
-                                [ span [ attribute "aria-label" "inhale" ] [ text <| String.fromInt <| fromInhaleDuration m.inhaleDuration ]
-                                , span [ attribute "aria-label" "inhale-hold" ] [ text <| String.fromInt <| fromInhaleHoldDuration m.inhaleHoldDuration ]
-                                , span [ attribute "aria-label" "exhale" ] [ text <| String.fromInt <| fromExhaleDuration m.exhaleDuration ]
-                                , span [ attribute "aria-label" "exhale-hold" ] [ text <| String.fromInt <| fromExhaleHoldDuration m.exhaleHoldDuration ]
-                                ]
+                            Preset m ->
+                                div []
+                                    [ span [ attribute "aria-label" "inhale" ] [ text <| String.fromInt <| fromInhaleDuration m.inhaleDuration ]
+                                    , span [ attribute "aria-label" "inhale-hold" ] [ text <| String.fromInt <| fromInhaleHoldDuration m.inhaleHoldDuration ]
+                                    , span [ attribute "aria-label" "exhale" ] [ text <| String.fromInt <| fromExhaleDuration m.exhaleDuration ]
+                                    , span [ attribute "aria-label" "exhale-hold" ] [ text <| String.fromInt <| fromExhaleHoldDuration m.exhaleHoldDuration ]
+                                    ]
 
                 route duration =
                     case loaded.practiceStyle of
-                        Manual ->
+                        Manual manual ->
                             ManualSessionRoute (Just duration)
-                                (Maybe.andThen Types.BreathingMethod.toInhaleDuration <| String.toInt loaded.inhaleDurationInput)
-                                (Maybe.andThen Types.BreathingMethod.toInhaleHoldDuration <| String.toInt loaded.inhaleHoldDurationInput)
-                                (Maybe.andThen Types.BreathingMethod.toExhaleDuration <| String.toInt loaded.exhaleDurationInput)
-                                (Maybe.andThen Types.BreathingMethod.toExhaleHoldDuration <| String.toInt loaded.exhaleHoldDurationInput)
+                                (Maybe.andThen Types.BreathingMethod.toInhaleDuration <| String.toInt manual.inhaleDurationInput)
+                                (Maybe.andThen Types.BreathingMethod.toInhaleHoldDuration <| String.toInt manual.inhaleHoldDurationInput)
+                                (Maybe.andThen Types.BreathingMethod.toExhaleDuration <| String.toInt manual.exhaleDurationInput)
+                                (Maybe.andThen Types.BreathingMethod.toExhaleHoldDuration <| String.toInt manual.exhaleHoldDurationInput)
 
                         Preset method ->
                             PresetSessionRoute method.id (Just duration)
@@ -277,14 +343,30 @@ view { txt } model =
                     []
                 , breathingMethodControls
                 , button
-                    [ attribute "aria-label" "start-session"
-                    , case Maybe.andThen toDuration <| String.toInt loaded.sessionDurationInput of
+                    ([ attribute "aria-label" "start-session"
+                     , case Maybe.andThen toDuration <| String.toInt loaded.sessionDurationInput of
                         Just duration ->
                             onClick (NavigateToRoute (route duration))
 
                         Nothing ->
                             disabled True
-                    ]
+                     ]
+                        ++ (validateInput loaded
+                                |> (\validated ->
+                                        List.filterMap ((|>) validated)
+                                            [ Maybe.Extra.isNothing
+                                                >> disabled
+                                                >> Just
+                                            , Maybe.map
+                                                (.sessionDuration
+                                                    >> route
+                                                    >> NavigateToRoute
+                                                    >> onClick
+                                                )
+                                            ]
+                                   )
+                           )
+                    )
                     [ text "セッション開始" ]
                 , div [ attribute "aria-label" "backdrop", style "width" "10px", style "height" "10px", style "background-color" "gray" ] []
                 ]
