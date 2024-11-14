@@ -105,8 +105,8 @@ type alias Session =
     , inhaleHoldDuration : InhaleHoldDuration
     , exhaleDuration : ExhaleDuration
     , exhaleHoldDuration : ExhaleHoldDuration
-    , breathingMethodId : BreathingMethodId
-    , breathingMethodName : Name
+    , breathingMethodId : Maybe BreathingMethodId
+    , breathingMethodName : Maybe Name
     , duration : Duration
     , createdAt : Posix
     }

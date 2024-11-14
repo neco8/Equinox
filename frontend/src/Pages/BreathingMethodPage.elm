@@ -38,12 +38,13 @@ import BreathingMethodDurationInput
 import Browser.Navigation as Nav
 import Common.Combobox as Combobox
 import Html exposing (Html, button, div, input, text)
-import Html.Attributes exposing (attribute, value)
+import Html.Attributes exposing (attribute, class, disabled, value)
 import Html.Events exposing (onClick, onInput)
 import JS.Ports as Ports
 import List.Extra
 import Maybe.Extra
-import Route exposing (Route)
+import RemoteData exposing (RemoteData(..))
+import Route exposing (Route(..))
 import Task
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
@@ -61,9 +62,9 @@ type PageAction
     | Add (Maybe Name) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
 
 
-{-| モデル
+{-| 内部モデル
 -}
-type alias Model =
+type alias InternalModel =
     { pageAction : PageAction
     , inhaleDurationInput : String
     , inhaleHoldDurationInput : String
@@ -75,10 +76,51 @@ type alias Model =
     }
 
 
-{-| 初期化関数
+{-| モデル
 -}
-init : List BreathingMethod -> PageAction -> ( Model, Cmd Msg )
-init breathingMethods pageAction =
+type Model
+    = ModelLoading PageAction
+    | ModelLoaded InternalModel
+
+
+{-| 初期化関数
+
+呼吸法が取得済みなら、initしてよい。だが、取得が後からになる場合はupdateの中でも初期化する必要がある。
+
+-}
+init : RemoteData e (List BreathingMethod) -> PageAction -> ( Model, Cmd Msg )
+init remote pageAction =
+    case remote of
+        NotAsked ->
+            ( ModelLoading pageAction, Cmd.none )
+
+        Loading ->
+            ( ModelLoading pageAction, Cmd.none )
+
+        Failure _ ->
+            -- ホーム画面へ戻る。 - [ ] TODO: エラーメッセージを表示する
+            ( ModelLoading pageAction
+            , NavigateToRoute Route.HomeRoute
+                |> always
+                |> Task.perform
+                |> (|>) Time.now
+            )
+
+        Success breathingMethods ->
+            let
+                ( newModel, cmd ) =
+                    initInternal breathingMethods pageAction
+            in
+            ( ModelLoaded newModel, cmd )
+
+
+{-| 初期化関数
+
+内部で実際に行っているもの
+
+-}
+initInternal : List BreathingMethod -> PageAction -> ( InternalModel, Cmd Msg )
+initInternal breathingMethods pageAction =
     let
         breathingMethod : { inhale : String, inhaleHold : String, exhale : String, exhaleHold : String, name : String }
         breathingMethod =
@@ -115,6 +157,7 @@ init breathingMethods pageAction =
                 (Combobox.Config
                     Uuid.toString
                     (.value >> SelectCategory)
+                    (toTitle >> Maybe.Extra.isNothing)
                     CreateNewCategory
                     CategoryComboboxMsg
                 )
@@ -152,8 +195,70 @@ type Msg
 
 {-| アップデート関数
 -}
-update : Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> Model -> ( Model, Cmd msg, Uuid.Registry msg )
-update key registry toMsg msg model =
+update : RemoteData e (List BreathingMethod) -> Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> Model -> ( Model, Cmd msg, Uuid.Registry msg )
+update remote key registry toMsg msg model =
+    case model of
+        ModelLoading pageAction ->
+            case remote of
+                Success breathingMethods ->
+                    let
+                        ( newModel, cmd ) =
+                            initInternal breathingMethods pageAction
+                    in
+                    ( ModelLoaded newModel, Cmd.map toMsg cmd, registry )
+
+                Failure _ ->
+                    ( model
+                      -- ホームへ遷移する。 - [ ] TODO: エラーメッセージを表示する
+                    , NavigateToRoute HomeRoute
+                        |> toMsg
+                        |> always
+                        |> Task.perform
+                        |> (|>) Time.now
+                    , registry
+                    )
+
+                Loading ->
+                    ( model, Cmd.none, registry )
+
+                NotAsked ->
+                    ( model, Cmd.none, registry )
+
+        ModelLoaded internal ->
+            let
+                ( newInternal, cmd, newRegistry ) =
+                    updateInternal key registry toMsg msg internal
+            in
+            ( ModelLoaded newInternal, cmd, newRegistry )
+
+
+{-| 呼吸法を作成する関数
+-}
+createBreathingMethod : InternalModel -> Maybe (Time.Posix -> Uuid -> BreathingMethod)
+createBreathingMethod model =
+    Just
+        (\name categoryId inhaleDuration inhaleHoldDuration exhaleDuration exhaleHoldDuration createdAt id ->
+            BreathingMethod id
+                name
+                categoryId
+                createdAt
+                inhaleDuration
+                inhaleHoldDuration
+                exhaleDuration
+                exhaleHoldDuration
+        )
+        |> Maybe.Extra.andMap (toName model.nameInput)
+        |> Maybe.Extra.andMap model.selectedCategory
+        |> Maybe.Extra.andMap (Maybe.andThen toInhaleDuration <| String.toInt model.inhaleDurationInput)
+        |> Maybe.Extra.andMap (Maybe.andThen toInhaleHoldDuration <| String.toInt model.inhaleHoldDurationInput)
+        |> Maybe.Extra.andMap (Maybe.andThen toExhaleDuration <| String.toInt model.exhaleDurationInput)
+        |> Maybe.Extra.andMap (Maybe.andThen toExhaleHoldDuration <| String.toInt model.exhaleHoldDurationInput)
+
+
+{-| 内部で利用されているアップデート関数
+-}
+updateInternal : Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> InternalModel -> ( InternalModel, Cmd msg, Uuid.Registry msg )
+updateInternal key registry toMsg msg model =
     case msg of
         InputInhaleDuration duration ->
             ( { model | inhaleDurationInput = duration }, Cmd.none, registry )
@@ -171,28 +276,10 @@ update key registry toMsg msg model =
             ( { model | nameInput = name }, Cmd.none, registry )
 
         GotCreatedAt createdAt ->
-            let
-                getBreathingMethod : Maybe (Uuid -> BreathingMethod)
-                getBreathingMethod =
-                    Just
-                        (\name categoryId inhaleDuration inhaleHoldDuration exhaleDuration exhaleHoldDuration id ->
-                            BreathingMethod id
-                                name
-                                categoryId
-                                createdAt
-                                inhaleDuration
-                                inhaleHoldDuration
-                                exhaleDuration
-                                exhaleHoldDuration
-                        )
-                        |> Maybe.Extra.andMap (toName model.nameInput)
-                        |> Maybe.Extra.andMap model.selectedCategory
-                        |> Maybe.Extra.andMap (Maybe.andThen toInhaleDuration <| String.toInt model.inhaleDurationInput)
-                        |> Maybe.Extra.andMap (Maybe.andThen toInhaleHoldDuration <| String.toInt model.inhaleHoldDurationInput)
-                        |> Maybe.Extra.andMap (Maybe.andThen toExhaleDuration <| String.toInt model.exhaleDurationInput)
-                        |> Maybe.Extra.andMap (Maybe.andThen toExhaleHoldDuration <| String.toInt model.exhaleHoldDurationInput)
-            in
-            case getBreathingMethod of
+            case
+                createBreathingMethod model
+                    |> Maybe.Extra.andMap (Just createdAt)
+            of
                 Just fn ->
                     let
                         tag =
@@ -310,35 +397,59 @@ update key registry toMsg msg model =
 
 {-| ビュー
 -}
-view : List Category -> Model -> Html Msg
-view categories model =
+view : RemoteData e (List Category) -> Model -> Html Msg
+view remote model =
     div [ attribute "role" "edit" ]
-        [ text "呼吸法編集 - ID: "
-        , BreathingMethodDurationInput.view
-            (BreathingMethodDurationInput.Config
-                InputInhaleDuration
-                InputInhaleHoldDuration
-                InputExhaleDuration
-                InputExhaleHoldDuration
-            )
-            model
-        , input
-            [ attribute "aria-label" "breathing-method-name-input"
-            , onInput InputName
-            , value model.nameInput
+        (List.concat
+            [ [ text "呼吸法編集 - ID: " ]
+            , case model of
+                ModelLoading _ ->
+                    [ text "loading..." ]
+
+                ModelLoaded loaded ->
+                    [ BreathingMethodDurationInput.view
+                        (BreathingMethodDurationInput.Config
+                            InputInhaleDuration
+                            InputInhaleHoldDuration
+                            InputExhaleDuration
+                            InputExhaleHoldDuration
+                        )
+                        loaded
+                    , input
+                        [ attribute "aria-label" "breathing-method-name-input"
+                        , onInput InputName
+                        , value loaded.nameInput
+                        ]
+                        []
+                    , case remote of
+                        Success categories ->
+                            Combobox.view { ariaLabel = "category-combobox" }
+                                (List.map
+                                    (\c ->
+                                        Combobox.Option c.id (fromTitle c.title)
+                                    )
+                                    categories
+                                )
+                                loaded.categoryComboboxModel
+
+                        Failure _ ->
+                            text "category loading failure"
+
+                        Loading ->
+                            text "category loading..."
+
+                        NotAsked ->
+                            text "category not asked"
+                    , button
+                        [ attribute "aria-label" "submit-breathing-method"
+                        , onClick Submit
+                        , createBreathingMethod loaded
+                            |> Maybe.Extra.isNothing
+                            |> disabled
+                        , class "disabled:bg-gray-300"
+                        ]
+                        [ text "Submit" ]
+                    ]
+            , []
             ]
-            []
-        , Combobox.view { ariaLabel = "category-combobox" }
-            (List.map
-                (\c ->
-                    Combobox.Option c.id (fromTitle c.title)
-                )
-                categories
-            )
-            model.categoryComboboxModel
-        , button
-            [ attribute "aria-label" "submit-breathing-method"
-            , onClick Submit
-            ]
-            [ text "Submit" ]
-        ]
+        )
