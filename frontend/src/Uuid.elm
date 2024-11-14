@@ -5,7 +5,7 @@ module Uuid exposing
     , decoder, encode
     , Msg
     , update
-    , subscriptions
+    , subscriptions, map
     )
 
 {-|
@@ -76,6 +76,14 @@ type Uuid
 -}
 type alias Registry msg =
     { handlers : Dict String (Uuid -> msg) -- tag -> handler
+    }
+
+
+{-| UUID生成レジストリの中身を修正する
+-}
+map : (a -> b) -> Registry a -> Registry b
+map f registry =
+    { handlers = Dict.map (always ((<<) f)) registry.handlers
     }
 
 
