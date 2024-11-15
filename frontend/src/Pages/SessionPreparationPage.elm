@@ -47,7 +47,7 @@ import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
+import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
 import Types.Session exposing (Duration, toDuration)
 
 
@@ -334,49 +334,106 @@ view model =
                             Preset m ->
                                 div [ class "grid grid-cols-2 gap-4 mb-8" ] <|
                                     List.map
-                                        (\{ icon, ariaLabel, textColorClass, bgColorClass, d } ->
+                                        (\phaseType ->
                                             div
                                                 [ class "flex flex-col items-center p-4 rounded-lg"
-                                                , bgColorClass
+                                                , (toColorClass phaseType).bgColorClass
                                                 ]
                                                 [ div [ class "flex items-center space-x-2 mb-2" ]
-                                                    [ icon
-                                                    , span [ class "text-sm text-gray-600" ] [ text "吸う" ]
+                                                    [ toIcon phaseType
+                                                    , span [ class "text-sm text-gray-600" ] [ text <| verbosePhaseType phaseType ]
                                                     ]
                                                 , span
-                                                    [ ariaLabel
+                                                    [ toAriaLabel phaseType
                                                     , class "text-2xl font-semibold"
-                                                    , textColorClass
+                                                    , (toColorClass phaseType).textColorClass
                                                     ]
-                                                    [ text <| String.fromInt d ]
+                                                    [ text <| String.fromInt (toDuration phaseType m) ]
                                                 , span [ class "text-xs text-gray-500 mt-1" ] [ text "秒" ]
                                                 ]
                                         )
-                                        [ { icon = Icon.view Icon.Wind
-                                          , ariaLabel = attribute "aria-label" "inhale"
-                                          , textColorClass = class "text-blue-600"
-                                          , bgColorClass = class "bg-blue-50"
-                                          , d = fromInhaleDuration m.inhaleDuration
-                                          }
-                                        , { icon = Icon.view Icon.Pause
-                                          , ariaLabel = attribute "aria-label" "inhale-hold"
-                                          , textColorClass = class "text-indigo-600"
-                                          , bgColorClass = class "bg-indigo-50"
-                                          , d = fromInhaleHoldDuration m.inhaleHoldDuration
-                                          }
-                                        , { icon = div [ class "transform-rotate-180" ] [ Icon.view Icon.Wind ]
-                                          , ariaLabel = attribute "aria-label" "exhale"
-                                          , textColorClass = class "text-purple-600"
-                                          , bgColorClass = class "bg-purple-50"
-                                          , d = fromExhaleDuration m.exhaleDuration
-                                          }
-                                        , { icon = Icon.view Icon.Pause
-                                          , ariaLabel = attribute "aria-label" "exhale-hold"
-                                          , textColorClass = class "text-pink-600"
-                                          , bgColorClass = class "bg-pink-50"
-                                          , d = fromExhaleHoldDuration m.exhaleHoldDuration
-                                          }
-                                        ]
+                                        [ Inhale, InhaleHold, Exhale, ExhaleHold ]
+
+                verbosePhaseType phaseType =
+                    case phaseType of
+                        Inhale ->
+                            "吸う"
+
+                        InhaleHold ->
+                            "止める"
+
+                        Exhale ->
+                            "吐く"
+
+                        ExhaleHold ->
+                            "止める"
+
+                toDuration phaseType m =
+                    case phaseType of
+                        Inhale ->
+                            fromInhaleDuration m.inhaleDuration
+
+                        InhaleHold ->
+                            fromInhaleHoldDuration m.inhaleHoldDuration
+
+                        Exhale ->
+                            fromExhaleDuration m.exhaleDuration
+
+                        ExhaleHold ->
+                            fromExhaleHoldDuration m.exhaleHoldDuration
+
+                toColorClass phaseType =
+                    case phaseType of
+                        Inhale ->
+                            { textColorClass = class "text-blue-600"
+                            , bgColorClass = class "bg-blue-50"
+                            }
+
+                        InhaleHold ->
+                            { textColorClass = class "text-indigo-600"
+                            , bgColorClass = class "bg-indigo-50"
+                            }
+
+                        Exhale ->
+                            { textColorClass = class "text-purple-600"
+                            , bgColorClass = class "bg-purple-50"
+                            }
+
+                        ExhaleHold ->
+                            { textColorClass = class "text-pink-600"
+                            , bgColorClass = class "bg-pink-50"
+                            }
+
+                phaseTypeToString phaseType =
+                    case phaseType of
+                        Inhale ->
+                            "inhale"
+
+                        InhaleHold ->
+                            "inhale-hold"
+
+                        Exhale ->
+                            "exhale"
+
+                        ExhaleHold ->
+                            "exhale-hold"
+
+                toIcon phaseType =
+                    case phaseType of
+                        Inhale ->
+                            Icon.view Icon.Wind
+
+                        InhaleHold ->
+                            Icon.view Icon.Pause
+
+                        Exhale ->
+                            div [ class "transform-rotate-180" ] [ Icon.view Icon.Wind ]
+
+                        ExhaleHold ->
+                            Icon.view Icon.Pause
+
+                toAriaLabel phaseType =
+                    attribute "aria-label" <| phaseTypeToString phaseType
 
                 route duration =
                     case loaded.practiceStyle of
