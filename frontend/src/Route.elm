@@ -45,7 +45,7 @@ type Route
     | PresetSessionRoute BreathingMethodId (Maybe Duration)
     | ManualSessionRoute (Maybe Duration) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
     | PresetSessionCompletionRoute BreathingMethodId (Maybe Duration)
-    | ManualSessionCompletionRoute (Maybe Duration)
+    | ManualSessionCompletionRoute (Maybe Duration) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
     | StatisticsRoute
     | SettingsRoute
     | SourceSelectionRoute
@@ -131,6 +131,26 @@ parser =
                         (List.head
                             >> Maybe.andThen String.toInt
                             >> Maybe.andThen toDuration
+                        )
+                <?> Query.custom "inhale-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toInhaleDuration
+                        )
+                <?> Query.custom "inhale-hold-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toInhaleHoldDuration
+                        )
+                <?> Query.custom "exhale-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toExhaleDuration
+                        )
+                <?> Query.custom "exhale-hold-duration"
+                        (List.head
+                            >> Maybe.andThen String.toInt
+                            >> Maybe.andThen toExhaleHoldDuration
                         )
             )
         , Parser.map StatisticsRoute
@@ -230,13 +250,33 @@ toString route =
                     [ Url.Builder.string "finished-duration" <| Maybe.withDefault "" <| Maybe.map (String.fromInt << fromDuration) duration
                     ]
 
-        ManualSessionCompletionRoute duration ->
+        ManualSessionCompletionRoute duration inhale inhaleHold exhale exhaleHold ->
             "/breathing-methods/session/completion"
                 ++ Url.Builder.toQuery
                     [ Url.Builder.string "finished-duration"
                         (Maybe.withDefault
                             ""
                             (Maybe.map (String.fromInt << fromDuration) duration)
+                        )
+                    , Url.Builder.string "inhale-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromInhaleDuration) inhale)
+                        )
+                    , Url.Builder.string "inhale-hold-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromInhaleHoldDuration) inhaleHold)
+                        )
+                    , Url.Builder.string "exhale-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromExhaleDuration) exhale)
+                        )
+                    , Url.Builder.string "exhale-hold-duration"
+                        (Maybe.withDefault
+                            ""
+                            (Maybe.map (String.fromInt << fromExhaleHoldDuration) exhaleHold)
                         )
                     ]
 
