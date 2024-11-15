@@ -41,7 +41,7 @@ import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, PhaseType(..))
+import Types.BreathingMethod exposing (BreathingMethod, PhaseType(..))
 import Types.Category exposing (Category, fromTitle)
 import Types.Session exposing (Duration, Session)
 import Types.Statistics exposing (recentDaysThreshold)
@@ -908,10 +908,6 @@ viewPresetSessionPreparation model =
 -}
 viewManualSessionPreparation : SessionPreparationPage.Model -> Html SessionPreparationPage.Msg
 viewManualSessionPreparation model =
-    let
-        txt =
-            "カスタム準備画面"
-    in
     SessionPreparationPage.view
         model
 

@@ -39,7 +39,7 @@ import Browser.Navigation as Nav
 import Html exposing (Html, button, div, h1, input, p, span, text)
 import Html.Attributes exposing (attribute, class, disabled, placeholder, style, type_)
 import Html.Events exposing (onClick, onInput)
-import Icon exposing (Icon)
+import Icon
 import List.Extra
 import Maybe.Extra
 import Pages.SessionPage as SessionPage
