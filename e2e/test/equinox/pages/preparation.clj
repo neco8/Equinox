@@ -15,8 +15,8 @@
    :exhale-hold-input [{:tag "input" :aria-label "exhale-hold-duration-input"}]
    :backdrop [{:tag "div" :aria-label "backdrop"}]})
 
-(defn set-duration [driver duration]
-  (e/fill driver (:duration-input selectors) (str duration)))
+(defn set-duration [driver duration-sec]
+  (e/fill driver (:duration-input selectors) (str (quot duration-sec 60))))
 
 (defn set-custom-breathing-parameters [driver {:keys [inhale inhale-hold exhale exhale-hold]}]
   (e/fill driver (:inhale-input selectors) (str inhale))

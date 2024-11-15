@@ -36,9 +36,10 @@ module Pages.SessionPreparationPage exposing
 
 import BreathingMethodDurationInput
 import Browser.Navigation as Nav
-import Html exposing (Html, button, div, input, span, text)
-import Html.Attributes exposing (attribute, disabled, style)
+import Html exposing (Html, button, div, h1, input, p, span, text)
+import Html.Attributes exposing (attribute, class, disabled, placeholder, style, type_)
 import Html.Events exposing (onClick, onInput)
+import Icon
 import List.Extra
 import Maybe.Extra
 import Pages.SessionPage as SessionPage
@@ -287,7 +288,7 @@ type ValidPracticeStyle
 validateInput : InternalModel -> Maybe { sessionDuration : Duration, selectedBreathingMethod : SessionPage.SelectedBreathingMethod }
 validateInput { sessionDurationInput, practiceStyle } =
     Just (\sessionDuration selectedBreathingMethod -> { sessionDuration = sessionDuration, selectedBreathingMethod = selectedBreathingMethod })
-        |> Maybe.Extra.andMap (sessionDurationInput |> String.toInt |> Maybe.andThen toDuration)
+        |> Maybe.Extra.andMap (sessionDurationInput |> String.toInt |> Maybe.map ((*) 60) |> Maybe.andThen toDuration)
         |> Maybe.Extra.andMap
             (case practiceStyle of
                 Manual manual ->
@@ -312,8 +313,8 @@ validateInput { sessionDurationInput, practiceStyle } =
 
 {-| ビュー
 -}
-view : { a | txt : String } -> Model -> Html Msg
-view { txt } model =
+view : Model -> Html Msg
+view model =
     case model of
         ModelLoaded loaded ->
             let
@@ -331,12 +332,51 @@ view { txt } model =
                                     manual
 
                             Preset m ->
-                                div []
-                                    [ span [ attribute "aria-label" "inhale" ] [ text <| String.fromInt <| fromInhaleDuration m.inhaleDuration ]
-                                    , span [ attribute "aria-label" "inhale-hold" ] [ text <| String.fromInt <| fromInhaleHoldDuration m.inhaleHoldDuration ]
-                                    , span [ attribute "aria-label" "exhale" ] [ text <| String.fromInt <| fromExhaleDuration m.exhaleDuration ]
-                                    , span [ attribute "aria-label" "exhale-hold" ] [ text <| String.fromInt <| fromExhaleHoldDuration m.exhaleHoldDuration ]
-                                    ]
+                                div [ class "grid grid-cols-2 gap-4 mb-8" ] <|
+                                    List.map
+                                        (\{ icon, ariaLabel, textColorClass, bgColorClass, d } ->
+                                            div
+                                                [ class "flex flex-col items-center p-4 rounded-lg"
+                                                , bgColorClass
+                                                ]
+                                                [ div [ class "flex items-center space-x-2 mb-2" ]
+                                                    [ icon
+                                                    , span [ class "text-sm text-gray-600" ] [ text "吸う" ]
+                                                    ]
+                                                , span
+                                                    [ ariaLabel
+                                                    , class "text-2xl font-semibold"
+                                                    , textColorClass
+                                                    ]
+                                                    [ text <| String.fromInt d ]
+                                                , span [ class "text-xs text-gray-500 mt-1" ] [ text "秒" ]
+                                                ]
+                                        )
+                                        [ { icon = Icon.view Icon.Wind
+                                          , ariaLabel = attribute "aria-label" "inhale"
+                                          , textColorClass = class "text-blue-600"
+                                          , bgColorClass = class "bg-blue-50"
+                                          , d = fromInhaleDuration m.inhaleDuration
+                                          }
+                                        , { icon = Icon.view Icon.Pause
+                                          , ariaLabel = attribute "aria-label" "inhale-hold"
+                                          , textColorClass = class "text-indigo-600"
+                                          , bgColorClass = class "bg-indigo-50"
+                                          , d = fromInhaleHoldDuration m.inhaleHoldDuration
+                                          }
+                                        , { icon = div [ class "transform-rotate-180" ] [ Icon.view Icon.Wind ]
+                                          , ariaLabel = attribute "aria-label" "exhale"
+                                          , textColorClass = class "text-purple-600"
+                                          , bgColorClass = class "bg-purple-50"
+                                          , d = fromExhaleDuration m.exhaleDuration
+                                          }
+                                        , { icon = Icon.view Icon.Pause
+                                          , ariaLabel = attribute "aria-label" "exhale-hold"
+                                          , textColorClass = class "text-pink-600"
+                                          , bgColorClass = class "bg-pink-50"
+                                          , d = fromExhaleHoldDuration m.exhaleHoldDuration
+                                          }
+                                        ]
 
                 route duration =
                     case loaded.practiceStyle of
@@ -351,40 +391,59 @@ view { txt } model =
                             PresetSessionRoute method.id (Just duration)
             in
             div [ attribute "role" "preparation" ]
-                [ text txt
-                , input
-                    [ attribute "aria-label" "session-duration-input"
-                    , onInput InputSessionDuration
+                [ div
+                    [ class "text-center mb-8"
+                    ]
+                    [ h1 [ class "text-2xl font-semibold text-gray-800" ] [ text "セッション準備" ]
+                    , p [ class "text-gray-500 mt-2" ]
+                        [ text "呼吸法をカスタマイズして始めましょう"
+                        ]
+                    ]
+                , breathingMethodControls
+                , div [ class "space-y-4" ]
+                    [ div [ class "flex items-center space-x-3 bg-gray-50 p-4 rounded-lg" ]
+                        [ Icon.view Icon.Timer
+                        , input
+                            [ attribute "aria-label" "session-duration-input"
+                            , onInput InputSessionDuration
+                            , type_ "number"
+                            , placeholder "セッション時間（分）"
+                            , class "w-full border-none bg-transparent focus:ring-0"
+                            ]
+                            []
+                        ]
+                    , button
+                        ([ attribute "aria-label" "start-session"
+                         , class "w-full py-6 text-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 rounded-lg disabled:opacity-50 grid grid-flow-col gap-2 items-center justify-center"
+                         ]
+                            ++ (validateInput loaded
+                                    |> (\validated ->
+                                            List.filterMap ((|>) validated)
+                                                [ Maybe.Extra.isNothing
+                                                    >> disabled
+                                                    >> Just
+                                                , Maybe.map
+                                                    (.sessionDuration
+                                                        >> route
+                                                        >> NavigateToRoute
+                                                        >> onClick
+                                                    )
+                                                ]
+                                       )
+                               )
+                        )
+                        [ Icon.view Icon.Play
+                        , text "セッションを始める"
+                        ]
+                    ]
+                , div
+                    [ attribute "aria-label" "backdrop"
+                    , style "width" "10px"
+                    , style "height" "10px"
+                    , style "background-color" "gray"
+                    , class "cursor-pointer"
                     ]
                     []
-                , breathingMethodControls
-                , button
-                    ([ attribute "aria-label" "start-session"
-                     , case Maybe.andThen toDuration <| String.toInt loaded.sessionDurationInput of
-                        Just duration ->
-                            onClick (NavigateToRoute (route duration))
-
-                        Nothing ->
-                            disabled True
-                     ]
-                        ++ (validateInput loaded
-                                |> (\validated ->
-                                        List.filterMap ((|>) validated)
-                                            [ Maybe.Extra.isNothing
-                                                >> disabled
-                                                >> Just
-                                            , Maybe.map
-                                                (.sessionDuration
-                                                    >> route
-                                                    >> NavigateToRoute
-                                                    >> onClick
-                                                )
-                                            ]
-                                   )
-                           )
-                    )
-                    [ text "セッション開始" ]
-                , div [ attribute "aria-label" "backdrop", style "width" "10px", style "height" "10px", style "background-color" "gray" ] []
                 ]
 
         ModelLoading _ ->

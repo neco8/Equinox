@@ -41,7 +41,7 @@ import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, PhaseType(..))
+import Types.BreathingMethod exposing (BreathingMethod, PhaseType(..))
 import Types.Category exposing (Category, fromTitle)
 import Types.Session exposing (Duration, Session)
 import Types.Statistics exposing (recentDaysThreshold)
@@ -67,7 +67,7 @@ type alias Model =
 -}
 type Page
     = HomePage
-    | PresetSessionPreparationPage BreathingMethodId SessionPreparationPage.Model
+    | PresetSessionPreparationPage SessionPreparationPage.Model
     | ManualSessionPreparationPage SessionPreparationPage.Model
     | PresetSessionPage (Maybe Duration) SessionPage.Model
     | ManualSessionPage (Maybe Duration) SessionPage.Model
@@ -172,7 +172,7 @@ initializePage model route =
                 ( sessionModel, cmd ) =
                     SessionPreparationPage.init model.breathingMethods (PresetPracticeStyle id)
             in
-            ( { model | currentPage = PresetSessionPreparationPage id sessionModel }, Cmd.map PresetSessionPreparationPageMsg cmd )
+            ( { model | currentPage = PresetSessionPreparationPage sessionModel }, Cmd.map PresetSessionPreparationPageMsg cmd )
 
         ManualSessionPreparationRoute ->
             let
@@ -400,7 +400,7 @@ PresetSessionPreparationPageMsgを処理していることに注意する
 handlePresetSessionPreparationPageMsg : SessionPreparationPage.Msg -> Model -> ( Model, Cmd Msg )
 handlePresetSessionPreparationPageMsg msg model =
     case model.currentPage of
-        PresetSessionPreparationPage id prepareModel ->
+        PresetSessionPreparationPage prepareModel ->
             let
                 ( newPrepareModel, cmd ) =
                     SessionPreparationPage.update
@@ -409,7 +409,7 @@ handlePresetSessionPreparationPageMsg msg model =
                         msg
                         prepareModel
             in
-            ( { model | currentPage = PresetSessionPreparationPage id newPrepareModel }
+            ( { model | currentPage = PresetSessionPreparationPage newPrepareModel }
             , Cmd.map (PageMsg << PresetSessionPreparationPageMsg) cmd
             )
 
@@ -693,7 +693,7 @@ pageTitle page =
         HomePage ->
             "呼吸法アプリ"
 
-        PresetSessionPreparationPage _ _ ->
+        PresetSessionPreparationPage _ ->
             "準備画面"
 
         ManualSessionPreparationPage _ ->
@@ -898,15 +898,9 @@ viewHome model =
 
 {-| 既存セッション準備画面のビュー
 -}
-viewPresetSessionPreparation : SessionPreparationPage.Model -> BreathingMethodId -> Html SessionPreparationPage.Msg
-viewPresetSessionPreparation model id =
-    let
-        txt =
-            "準備画面 - ID: " ++ Uuid.toString id
-    in
+viewPresetSessionPreparation : SessionPreparationPage.Model -> Html SessionPreparationPage.Msg
+viewPresetSessionPreparation model =
     SessionPreparationPage.view
-        { txt = txt
-        }
         model
 
 
@@ -914,13 +908,7 @@ viewPresetSessionPreparation model id =
 -}
 viewManualSessionPreparation : SessionPreparationPage.Model -> Html SessionPreparationPage.Msg
 viewManualSessionPreparation model =
-    let
-        txt =
-            "カスタム準備画面"
-    in
     SessionPreparationPage.view
-        { txt = txt
-        }
         model
 
 
@@ -1013,8 +1001,8 @@ viewContent model =
         HomePage ->
             viewHome model
 
-        PresetSessionPreparationPage id prepareModel ->
-            viewPresetSessionPreparation prepareModel id
+        PresetSessionPreparationPage prepareModel ->
+            viewPresetSessionPreparation prepareModel
                 |> Html.map (PresetSessionPreparationPageMsg >> PageMsg)
 
         ManualSessionPreparationPage prepareModel ->
@@ -1148,7 +1136,7 @@ pageSubscriptions page =
         HomePage ->
             homeSubscriptions
 
-        PresetSessionPreparationPage _ _ ->
+        PresetSessionPreparationPage _ ->
             presetSessionPreparationSubscriptions
 
         ManualSessionPreparationPage _ ->
