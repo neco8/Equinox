@@ -53,10 +53,10 @@ class BreathingAnimation extends HTMLElement {
       this.timeline.kill();
     }
 
-    const inhale = parseInt(this.getAttribute("inhale")) || 4;
-    const inhaleHold = parseInt(this.getAttribute("inhale-hold")) || 7;
-    const exhale = parseInt(this.getAttribute("exhale")) || 8;
-    const exhaleHold = parseInt(this.getAttribute("exhale-hold")) || 0;
+    const inhale = parseInt(this.getAttribute("inhale")) ?? 4;
+    const inhaleHold = parseInt(this.getAttribute("inhale-hold")) ?? 7;
+    const exhale = parseInt(this.getAttribute("exhale")) ?? 8;
+    const exhaleHold = parseInt(this.getAttribute("exhale-hold")) ?? 0;
 
     const SHAPE_CHANGE_DURATION = 0.5;
 
