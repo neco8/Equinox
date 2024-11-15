@@ -42,7 +42,8 @@
         selected-breathing-method (gen/generate
                                    (gen/elements breathing-methods))
         duration (gen/generate
-                  (gen/choose sse/min-session-duration sse/max-session-duration))]
+                  (gen/let [duration (gen/choose sse/min-session-duration sse/max-session-duration)]
+                    (gen/return (* 60 (quot duration 60)))))]
     {:categories categories
      :breathing-methods breathing-methods
      :sessions sessions
@@ -82,7 +83,7 @@
 
        (testing "⏱️ セッションの準備をする"
          (preparation/set-duration driver duration)
-         (is (= (preparation/get-duration-value driver) (str duration)) "時間の設定が反映されていません"))
+         (is (= (preparation/get-duration-value driver) (str (quot duration 60))) "時間の設定が反映されていません"))
 
        (with-mock-timer driver
          #(do
@@ -138,7 +139,9 @@
         custom-breathing-method (gen/generate (sbm/gen-breathing-method categories))
 
         duration (gen/generate
-                  (gen/choose sse/min-session-duration sse/max-session-duration))]
+                  (gen/let [duration
+                            (gen/choose sse/min-session-duration sse/max-session-duration)]
+                    (gen/return (* 60 (quot duration 60)))))]
     {:categories categories
      :breathing-methods breathing-methods
      :custom-breathing-method custom-breathing-method
@@ -184,7 +187,7 @@
            (is (= (preparation/get-inhale-hold-value driver) (str inhale-hold)) "吸ったあと止める時間の設定が反映されていません")
            (is (= (preparation/get-exhale-value driver) (str exhale)) "吐く時間の設定が反映されていません")
            (is (= (preparation/get-exhale-hold-value driver) (str exhale-hold)) "吐いたあと止める時間の設定が反映されていません")
-           (is (= (preparation/get-duration-value driver) (str duration)) "セッション時間の設定が反映されていません"))
+           (is (= (preparation/get-duration-value driver) (str (quot duration 60))) "セッション時間の設定が反映されていません"))
          (:screenshot "カスタムセッション準備入力"))
 
        (with-mock-timer driver
@@ -338,11 +341,11 @@
 
        (testing "🌟 ホームページで呼吸法が正しく追加されていることを確認"
          ;; カテゴリー、呼吸法を追加できているかどうかを確認。
-         (is (= (count (e/query-all driver {:tag "ul" :aria-label "category"}))
+         (is (= (count (e/query-all driver {:aria-label "category"}))
                 (case (:type edit-category)
                   :add (inc (count categories))
                   :existing (count categories))) (str "カテゴリーが追加されていません → " (:title (:category edit-category))))
-         (is (= (count (e/query-all driver {:tag "article"}))
+         (is (= (count (e/query-all driver {:aria-label "breathing-method-card"}))
                 (inc (count breathing-methods)))
              (str "呼吸法が追加されていません → " (:name (case (:type edit-breathing-method)
                                               :edit (:breathing-method edit-breathing-method)
@@ -412,10 +415,10 @@
 
        (testing "🌟 ホームページで呼吸法が正しく追加されていることを確認"
          ;; カテゴリー、呼吸法を追加できているかどうかを確認。
-         (is (= (count (e/query-all driver {:tag "ul" :aria-label "category"}))
+         (is (= (count (e/query-all driver {:aria-label "category"}))
                 (case (:type edit-category)
                   :add (inc (count categories))
                   :existing (count categories)))
              (str "カテゴリーが追加されていません → " (:title (:category edit-category))))
-         (is (= (count (e/query-all driver {:tag "article" :aria-label "breathing-method-card"}))
+         (is (= (count (e/query-all driver {:aria-label "breathing-method-card"}))
                 (inc (count breathing-methods))) (str "呼吸法が追加されていません → " (:name edit-breathing-method))))))))
