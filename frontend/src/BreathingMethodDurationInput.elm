@@ -137,7 +137,7 @@ view config model =
                 ExhaleHold ->
                     config.onInputExhaleHoldDuration
     in
-    div [ class "grid grid-cols-2 gap-4 mb-8" ] <|
+    div [ class "grid grid-cols-2 gap-4" ] <|
         List.map
             (\phaseType ->
                 div
