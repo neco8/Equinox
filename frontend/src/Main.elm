@@ -45,7 +45,7 @@ import Time
 import Types.BreathingMethod exposing (BreathingMethod, PhaseType(..))
 import Types.Category exposing (Category, fromTitle)
 import Types.Session exposing (Duration, Session)
-import Types.Statistics exposing (recentDaysThreshold)
+import Types.Statistics exposing (calculateFromSessions, calculateRecentFromSessions, recentDaysThreshold)
 import Url
 import Uuid
 import View exposing (View)
@@ -55,13 +55,14 @@ import View exposing (View)
 -}
 type alias Model =
     { key : Nav.Key
+    , now : Time.Posix
     , config : Config
     , currentPage : Page
     , uuidRegistry : Uuid.Registry Msg
     , uuids : List Uuid.Uuid
     , breathingMethods : RemoteData () (List BreathingMethod) -- 暫定的にerrorは()でおく
     , categories : RemoteData () (List Category) -- 暫定的にerrorは()でおく
-    , recentSessions : RemoteData () (List Session) -- 暫定的にerrorは()でおく
+    , sessions : RemoteData () (List Session) -- 暫定的にerrorは()でおく
     }
 
 
@@ -121,19 +122,20 @@ init flagsValue url key =
         model : Model
         model =
             { key = key
+            , now = flags.now
             , config = Config.config flags.environment
             , currentPage = NotFoundPage
             , uuidRegistry = Uuid.initialRegistry
             , uuids = []
             , breathingMethods = NotAsked
             , categories = NotAsked
-            , recentSessions = NotAsked
+            , sessions = NotAsked
             }
 
         initialQueries =
             [ Query.GetAllBreathingMethods
             , Query.GetAllCategories
-            , Query.GetSessionRecentNDays recentDaysThreshold flags.now
+            , Query.GetAllSessions
             ]
 
         cmd =
@@ -552,7 +554,7 @@ handleReceiveOkQueryResult queryResult model =
             ( { model | breathingMethods = Success breathingMethods }, Cmd.none )
 
         QueryResult.SessionListResult sessions ->
-            ( { model | recentSessions = Success sessions }, Cmd.none )
+            ( { model | sessions = Success sessions }, Cmd.none )
 
         QueryResult.EntitySingleResult _ ->
             ( model, Cmd.none )
@@ -766,6 +768,7 @@ viewNav =
         , button
             [ attribute "aria-label" "settings"
             , class "p-2 hover:bg-gray-200 rounded-full"
+            , onClick (NavigateToRoute SettingsRoute)
             ]
             [ Icon.view Icon.Settings ]
         ]
@@ -899,29 +902,108 @@ viewHome model =
 
 {-| 統計画面のビュー
 -}
-viewStatistics : Html Msg
-viewStatistics =
-    div [ attribute "role" "statistics" ]
-        [ text "統計画面"
-        , button
-            [ attribute "aria-label" "home"
-            , onClick (NavigateToRoute HomeRoute)
-            ]
-            [ text "ホーム" ]
-        , div [ attribute "aria-label" "streak-display" ] [ text "この中でアニメーションなどが表示されます。" ]
-        , section [ attribute "aria-label" "recent-7-days" ]
-            [ span [ attribute "aria-label" "recent-sets" ] [ text "10 セット" ]
-            , span [ attribute "aria-label" "recent-minutes" ] [ text "30 分" ]
-            ]
-        , section [ attribute "aria-label" "total" ]
-            [ span [ attribute "aria-label" "total-sets" ] [ text "100 セット" ]
-            , span [ attribute "aria-label" "total-minutes" ] [ text "300 分" ]
-            ]
-        , section [ attribute "aria-label" "practice-days" ]
-            [ span [] []
-            , span [ attribute "aria-label" "total-practice-days" ] [ text "30 日" ]
-            ]
-        ]
+viewStatistics : Model -> Html Msg
+viewStatistics model =
+    case model.sessions of
+        NotAsked ->
+            text "NotAsked"
+
+        Loading ->
+            text "Loading..."
+
+        Failure _ ->
+            text "Failure"
+
+        Success sessions ->
+            let
+                statistics =
+                    calculateFromSessions sessions
+
+                recentStatistics =
+                    calculateRecentFromSessions recentDaysThreshold model.now sessions
+            in
+            div [ attribute "role" "statistics" ]
+                [ div [ attribute "aria-label" "streak-display" ] [ text "" ]
+                , section
+                    [ attribute "aria-label" "recent-7-days"
+                    , class "p-4 rounded-lg shadow"
+                    ]
+                    [ h2 [ class "text-lg font-semibold mb-4" ] [ text "過去7日間" ]
+                    , div [ class "grid grid-cols-2 gap-4" ]
+                        [ div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "🎯" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "recent-sets"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt recentStatistics.totalSets ]
+                                , span [ class "text-sm text-gray-500" ] [ text "セット数" ]
+                                ]
+                            ]
+                        , div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "⏱️" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "recent-minutes"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt <| floor <| (\s -> s / 60) <| toFloat recentStatistics.totalSeconds ]
+                                , span [ class "text-sm text-gray-500" ] [ text "練習時間(分)" ]
+                                ]
+                            ]
+                        ]
+                    ]
+                , section
+                    [ attribute "aria-label" "total"
+                    , class "p-4 rounded-lg shadow mt-4"
+                    ]
+                    [ h2 [ class "text-lg font-semibold mb-4" ] [ text "累計" ]
+                    , div [ class "grid grid-cols-2 gap-4" ]
+                        [ div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "📊" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "total-sets"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt statistics.totalSets ]
+                                , span [ class "text-sm text-gray-500" ] [ text "総セット数" ]
+                                ]
+                            ]
+                        , div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "⏱️" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "total-minutes"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt <| floor <| (\s -> s / 60) <| toFloat statistics.totalSeconds ]
+                                , span [ class "text-sm text-gray-500" ] [ text "総練習時間(秒)" ]
+                                ]
+                            ]
+                        ]
+                    ]
+                , section
+                    [ attribute "aria-label" "practice-days"
+                    , class "p-4 rounded-lg shadow mt-4"
+                    ]
+                    [ h2 [ class "text-lg font-semibold mb-4" ] [ text "練習記録" ]
+                    , div [ class "grid grid-cols-2 gap-4" ]
+                        [ div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "📅" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "total-practice-days"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt statistics.totalPracticeDays ]
+                                , span [ class "text-sm text-gray-500" ] [ text "練習日数" ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
 
 
 {-| 設定画面のビュー
@@ -987,7 +1069,7 @@ viewContent views model =
                     |> View.map (ManualSessionCompletionPageMsg >> PageMsg)
 
             StatisticsPage ->
-                { view = viewStatistics
+                { view = viewStatistics model
                 , nav = True
                 , footer = True
                 }
