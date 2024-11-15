@@ -727,7 +727,7 @@ updateInternal duration key msg model toMsg registry =
 
         ( GotSessionId f id, _ ) ->
             ( model
-            , handleCompletion duration model (f id)
+            , handleCompletion (f id).duration model (f id)
                 |> Cmd.map toMsg
             , registry
             )
