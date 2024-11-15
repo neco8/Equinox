@@ -63,6 +63,7 @@ import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
 import Types.Session exposing (Duration, Session, fromDuration, toDuration)
 import Uuid exposing (Uuid)
+import View exposing (View)
 
 
 {-| タイマーを管理するための状態
@@ -760,60 +761,66 @@ getElapsedMilliseconds timerState displayCurrentTime =
 
 {-| ビュー
 -}
-view : Maybe Duration -> Model -> Html Msg
+view : Maybe Duration -> Model -> View Msg
 view _ model =
-    case model of
-        ModelLoading _ ->
-            div [] [ text "breathing method loading..." ]
+    { nav = False
+    , footer = False
+    , view =
+        case model of
+            ModelLoading _ ->
+                div [] [ text "breathing method loading..." ]
 
-        ModelLoaded loaded ->
-            let
-                { inhaleDuration, inhaleHoldDuration, exhaleDuration, exhaleHoldDuration } =
-                    case loaded.selectedBreathingMethod of
-                        Existing m ->
-                            { inhaleDuration = m.inhaleDuration
-                            , inhaleHoldDuration = m.inhaleHoldDuration
-                            , exhaleDuration = m.exhaleDuration
-                            , exhaleHoldDuration = m.exhaleHoldDuration
-                            }
+            ModelLoaded loaded ->
+                let
+                    { inhaleDuration, inhaleHoldDuration, exhaleDuration, exhaleHoldDuration } =
+                        case loaded.selectedBreathingMethod of
+                            Existing m ->
+                                { inhaleDuration = m.inhaleDuration
+                                , inhaleHoldDuration = m.inhaleHoldDuration
+                                , exhaleDuration = m.exhaleDuration
+                                , exhaleHoldDuration = m.exhaleHoldDuration
+                                }
 
-                        Custom m ->
-                            { inhaleDuration = m.inhaleDuration
-                            , inhaleHoldDuration = m.inhaleHoldDuration
-                            , exhaleDuration = m.exhaleDuration
-                            , exhaleHoldDuration = m.exhaleHoldDuration
-                            }
-            in
-            div
-                [ attribute "role" "session"
-                , class "flex flex-col items-center justify-center min-h-screen bg-white text-gray-900 p-4 gap-16"
-                ]
-                [ viewTimer loaded
-                , div [ class "relative flex items-center justify-center mb-4 h-80" ]
-                    [ node "breathing-animation"
-                        [ attribute "inhale" <|
-                            (String.fromInt <| fromInhaleDuration inhaleDuration)
-                        , attribute "inhale-hold" <|
-                            (String.fromInt <| fromInhaleHoldDuration inhaleHoldDuration)
-                        , attribute "exhale" <|
-                            (String.fromInt <| fromExhaleDuration exhaleDuration)
-                        , attribute "exhale-hold" <|
-                            (String.fromInt <| fromExhaleHoldDuration exhaleHoldDuration)
-                        , attribute "paused" <|
-                            case loaded.timerState of
-                                Paused _ ->
-                                    "true"
-
-                                _ ->
-                                    "false"
-                        ]
-                        []
-                    , viewInstruction loaded
-                        [ class "absolute text-2xl"
-                        ]
+                            Custom m ->
+                                { inhaleDuration = m.inhaleDuration
+                                , inhaleHoldDuration = m.inhaleHoldDuration
+                                , exhaleDuration = m.exhaleDuration
+                                , exhaleHoldDuration = m.exhaleHoldDuration
+                                }
+                in
+                div
+                    [ attribute "role" "session"
+                    , class "relative flex flex-col items-center justify-center h-full bg-white text-gray-900 p-4 gap-60"
                     ]
-                , viewControls loaded
-                ]
+                    [ viewTimer loaded
+                    , div [ class "absolute" ]
+                        [ div [ class "relative flex items-center justify-center mb-4 h-80" ]
+                            [ node "breathing-animation"
+                                [ attribute "inhale" <|
+                                    (String.fromInt <| fromInhaleDuration inhaleDuration)
+                                , attribute "inhale-hold" <|
+                                    (String.fromInt <| fromInhaleHoldDuration inhaleHoldDuration)
+                                , attribute "exhale" <|
+                                    (String.fromInt <| fromExhaleDuration exhaleDuration)
+                                , attribute "exhale-hold" <|
+                                    (String.fromInt <| fromExhaleHoldDuration exhaleHoldDuration)
+                                , attribute "paused" <|
+                                    case loaded.timerState of
+                                        Paused _ ->
+                                            "true"
+
+                                        _ ->
+                                            "false"
+                                ]
+                                []
+                            , viewInstruction loaded
+                                [ class "absolute text-2xl"
+                                ]
+                            ]
+                        ]
+                    , viewControls loaded
+                    ]
+    }
 
 
 {-| タイマーのビュー

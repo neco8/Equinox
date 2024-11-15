@@ -36,7 +36,7 @@ module Pages.SessionPreparationPage exposing
 
 import BreathingMethodDurationInput
 import Browser.Navigation as Nav
-import Html exposing (Html, button, div, h1, input, p, span, text)
+import Html exposing (button, div, h1, input, p, span, text)
 import Html.Attributes exposing (attribute, class, disabled, placeholder, style, type_)
 import Html.Events exposing (onClick, onInput)
 import Icon
@@ -49,6 +49,7 @@ import Task
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration)
 import Types.Session exposing (Duration, toDuration)
+import View exposing (View)
 
 
 {-| Model
@@ -313,196 +314,200 @@ validateInput { sessionDurationInput, practiceStyle } =
 
 {-| ビュー
 -}
-view : Model -> Html Msg
+view : Model -> View Msg
 view model =
-    case model of
-        ModelLoaded loaded ->
-            let
-                breathingMethodControls =
-                    Html.map ManualInputMsg <|
+    { nav = True
+    , footer = True
+    , view =
+        case model of
+            ModelLoaded loaded ->
+                let
+                    breathingMethodControls =
+                        Html.map ManualInputMsg <|
+                            case loaded.practiceStyle of
+                                Manual manual ->
+                                    BreathingMethodDurationInput.view
+                                        (BreathingMethodDurationInput.Config
+                                            InputInhaleDuration
+                                            InputInhaleHoldDuration
+                                            InputExhaleDuration
+                                            InputExhaleHoldDuration
+                                        )
+                                        manual
+
+                                Preset m ->
+                                    div [ class "grid grid-cols-2 gap-4 mb-8" ] <|
+                                        List.map
+                                            (\phaseType ->
+                                                div
+                                                    [ class "flex flex-col items-center p-4 rounded-lg"
+                                                    , (toColorClass phaseType).bgColorClass
+                                                    ]
+                                                    [ div [ class "flex items-center space-x-2 mb-2" ]
+                                                        [ toIcon phaseType
+                                                        , span [ class "text-sm text-gray-600" ] [ text <| verbosePhaseType phaseType ]
+                                                        ]
+                                                    , span
+                                                        [ toAriaLabel phaseType
+                                                        , class "text-2xl font-semibold"
+                                                        , (toColorClass phaseType).textColorClass
+                                                        ]
+                                                        [ text <| String.fromInt (toDuration phaseType m) ]
+                                                    , span [ class "text-xs text-gray-500 mt-1" ] [ text "秒" ]
+                                                    ]
+                                            )
+                                            [ Inhale, InhaleHold, Exhale, ExhaleHold ]
+
+                    verbosePhaseType phaseType =
+                        case phaseType of
+                            Inhale ->
+                                "吸う"
+
+                            InhaleHold ->
+                                "止める"
+
+                            Exhale ->
+                                "吐く"
+
+                            ExhaleHold ->
+                                "止める"
+
+                    toDuration phaseType m =
+                        case phaseType of
+                            Inhale ->
+                                fromInhaleDuration m.inhaleDuration
+
+                            InhaleHold ->
+                                fromInhaleHoldDuration m.inhaleHoldDuration
+
+                            Exhale ->
+                                fromExhaleDuration m.exhaleDuration
+
+                            ExhaleHold ->
+                                fromExhaleHoldDuration m.exhaleHoldDuration
+
+                    toColorClass phaseType =
+                        case phaseType of
+                            Inhale ->
+                                { textColorClass = class "text-blue-600"
+                                , bgColorClass = class "bg-blue-50"
+                                }
+
+                            InhaleHold ->
+                                { textColorClass = class "text-indigo-600"
+                                , bgColorClass = class "bg-indigo-50"
+                                }
+
+                            Exhale ->
+                                { textColorClass = class "text-purple-600"
+                                , bgColorClass = class "bg-purple-50"
+                                }
+
+                            ExhaleHold ->
+                                { textColorClass = class "text-pink-600"
+                                , bgColorClass = class "bg-pink-50"
+                                }
+
+                    phaseTypeToString phaseType =
+                        case phaseType of
+                            Inhale ->
+                                "inhale"
+
+                            InhaleHold ->
+                                "inhale-hold"
+
+                            Exhale ->
+                                "exhale"
+
+                            ExhaleHold ->
+                                "exhale-hold"
+
+                    toIcon phaseType =
+                        case phaseType of
+                            Inhale ->
+                                Icon.view Icon.Wind
+
+                            InhaleHold ->
+                                Icon.view Icon.Pause
+
+                            Exhale ->
+                                div [ class "transform-rotate-180" ] [ Icon.view Icon.Wind ]
+
+                            ExhaleHold ->
+                                Icon.view Icon.Pause
+
+                    toAriaLabel phaseType =
+                        attribute "aria-label" <| phaseTypeToString phaseType
+
+                    route duration =
                         case loaded.practiceStyle of
                             Manual manual ->
-                                BreathingMethodDurationInput.view
-                                    (BreathingMethodDurationInput.Config
-                                        InputInhaleDuration
-                                        InputInhaleHoldDuration
-                                        InputExhaleDuration
-                                        InputExhaleHoldDuration
-                                    )
-                                    manual
+                                ManualSessionRoute (Just duration)
+                                    (Maybe.andThen Types.BreathingMethod.toInhaleDuration <| String.toInt manual.inhaleDurationInput)
+                                    (Maybe.andThen Types.BreathingMethod.toInhaleHoldDuration <| String.toInt manual.inhaleHoldDurationInput)
+                                    (Maybe.andThen Types.BreathingMethod.toExhaleDuration <| String.toInt manual.exhaleDurationInput)
+                                    (Maybe.andThen Types.BreathingMethod.toExhaleHoldDuration <| String.toInt manual.exhaleHoldDurationInput)
 
-                            Preset m ->
-                                div [ class "grid grid-cols-2 gap-4 mb-8" ] <|
-                                    List.map
-                                        (\phaseType ->
-                                            div
-                                                [ class "flex flex-col items-center p-4 rounded-lg"
-                                                , (toColorClass phaseType).bgColorClass
-                                                ]
-                                                [ div [ class "flex items-center space-x-2 mb-2" ]
-                                                    [ toIcon phaseType
-                                                    , span [ class "text-sm text-gray-600" ] [ text <| verbosePhaseType phaseType ]
-                                                    ]
-                                                , span
-                                                    [ toAriaLabel phaseType
-                                                    , class "text-2xl font-semibold"
-                                                    , (toColorClass phaseType).textColorClass
-                                                    ]
-                                                    [ text <| String.fromInt (toDuration phaseType m) ]
-                                                , span [ class "text-xs text-gray-500 mt-1" ] [ text "秒" ]
-                                                ]
-                                        )
-                                        [ Inhale, InhaleHold, Exhale, ExhaleHold ]
-
-                verbosePhaseType phaseType =
-                    case phaseType of
-                        Inhale ->
-                            "吸う"
-
-                        InhaleHold ->
-                            "止める"
-
-                        Exhale ->
-                            "吐く"
-
-                        ExhaleHold ->
-                            "止める"
-
-                toDuration phaseType m =
-                    case phaseType of
-                        Inhale ->
-                            fromInhaleDuration m.inhaleDuration
-
-                        InhaleHold ->
-                            fromInhaleHoldDuration m.inhaleHoldDuration
-
-                        Exhale ->
-                            fromExhaleDuration m.exhaleDuration
-
-                        ExhaleHold ->
-                            fromExhaleHoldDuration m.exhaleHoldDuration
-
-                toColorClass phaseType =
-                    case phaseType of
-                        Inhale ->
-                            { textColorClass = class "text-blue-600"
-                            , bgColorClass = class "bg-blue-50"
-                            }
-
-                        InhaleHold ->
-                            { textColorClass = class "text-indigo-600"
-                            , bgColorClass = class "bg-indigo-50"
-                            }
-
-                        Exhale ->
-                            { textColorClass = class "text-purple-600"
-                            , bgColorClass = class "bg-purple-50"
-                            }
-
-                        ExhaleHold ->
-                            { textColorClass = class "text-pink-600"
-                            , bgColorClass = class "bg-pink-50"
-                            }
-
-                phaseTypeToString phaseType =
-                    case phaseType of
-                        Inhale ->
-                            "inhale"
-
-                        InhaleHold ->
-                            "inhale-hold"
-
-                        Exhale ->
-                            "exhale"
-
-                        ExhaleHold ->
-                            "exhale-hold"
-
-                toIcon phaseType =
-                    case phaseType of
-                        Inhale ->
-                            Icon.view Icon.Wind
-
-                        InhaleHold ->
-                            Icon.view Icon.Pause
-
-                        Exhale ->
-                            div [ class "transform-rotate-180" ] [ Icon.view Icon.Wind ]
-
-                        ExhaleHold ->
-                            Icon.view Icon.Pause
-
-                toAriaLabel phaseType =
-                    attribute "aria-label" <| phaseTypeToString phaseType
-
-                route duration =
-                    case loaded.practiceStyle of
-                        Manual manual ->
-                            ManualSessionRoute (Just duration)
-                                (Maybe.andThen Types.BreathingMethod.toInhaleDuration <| String.toInt manual.inhaleDurationInput)
-                                (Maybe.andThen Types.BreathingMethod.toInhaleHoldDuration <| String.toInt manual.inhaleHoldDurationInput)
-                                (Maybe.andThen Types.BreathingMethod.toExhaleDuration <| String.toInt manual.exhaleDurationInput)
-                                (Maybe.andThen Types.BreathingMethod.toExhaleHoldDuration <| String.toInt manual.exhaleHoldDurationInput)
-
-                        Preset method ->
-                            PresetSessionRoute method.id (Just duration)
-            in
-            div [ attribute "role" "preparation" ]
-                [ div
-                    [ class "text-center mb-8"
-                    ]
-                    [ h1 [ class "text-2xl font-semibold text-gray-800" ] [ text "セッション準備" ]
-                    , p [ class "text-gray-500 mt-2" ]
-                        [ text "呼吸法をカスタマイズして始めましょう"
+                            Preset method ->
+                                PresetSessionRoute method.id (Just duration)
+                in
+                div [ attribute "role" "preparation" ]
+                    [ div
+                        [ class "text-center mb-8"
                         ]
-                    ]
-                , breathingMethodControls
-                , div [ class "space-y-4" ]
-                    [ div [ class "flex items-center space-x-3 bg-gray-50 p-4 rounded-lg" ]
-                        [ Icon.view Icon.Timer
-                        , input
-                            [ attribute "aria-label" "session-duration-input"
-                            , onInput InputSessionDuration
-                            , type_ "number"
-                            , placeholder "セッション時間（分）"
-                            , class "w-full border-none bg-transparent focus:ring-0"
+                        [ h1 [ class "text-2xl font-semibold text-gray-800" ] [ text "セッション準備" ]
+                        , p [ class "text-gray-500 mt-2" ]
+                            [ text "呼吸法をカスタマイズして始めましょう"
                             ]
-                            []
                         ]
-                    , button
-                        ([ attribute "aria-label" "start-session"
-                         , class "w-full py-6 text-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 rounded-lg disabled:opacity-50 grid grid-flow-col gap-2 items-center justify-center"
-                         ]
-                            ++ (validateInput loaded
-                                    |> (\validated ->
-                                            List.filterMap ((|>) validated)
-                                                [ Maybe.Extra.isNothing
-                                                    >> disabled
-                                                    >> Just
-                                                , Maybe.map
-                                                    (.sessionDuration
-                                                        >> route
-                                                        >> NavigateToRoute
-                                                        >> onClick
-                                                    )
-                                                ]
-                                       )
-                               )
-                        )
-                        [ Icon.view Icon.Play
-                        , text "セッションを始める"
+                    , breathingMethodControls
+                    , div [ class "space-y-4" ]
+                        [ div [ class "flex items-center space-x-3 bg-gray-50 p-4 rounded-lg" ]
+                            [ Icon.view Icon.Timer
+                            , input
+                                [ attribute "aria-label" "session-duration-input"
+                                , onInput InputSessionDuration
+                                , type_ "number"
+                                , placeholder "セッション時間（分）"
+                                , class "w-full border-none bg-transparent focus:ring-0"
+                                ]
+                                []
+                            ]
+                        , button
+                            ([ attribute "aria-label" "start-session"
+                             , class "w-full py-6 text-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 rounded-lg disabled:opacity-50 grid grid-flow-col gap-2 items-center justify-center"
+                             ]
+                                ++ (validateInput loaded
+                                        |> (\validated ->
+                                                List.filterMap ((|>) validated)
+                                                    [ Maybe.Extra.isNothing
+                                                        >> disabled
+                                                        >> Just
+                                                    , Maybe.map
+                                                        (.sessionDuration
+                                                            >> route
+                                                            >> NavigateToRoute
+                                                            >> onClick
+                                                        )
+                                                    ]
+                                           )
+                                   )
+                            )
+                            [ Icon.view Icon.Play
+                            , text "セッションを始める"
+                            ]
                         ]
+                    , div
+                        [ attribute "aria-label" "backdrop"
+                        , style "width" "10px"
+                        , style "height" "10px"
+                        , style "background-color" "gray"
+                        , class "cursor-pointer"
+                        ]
+                        []
                     ]
-                , div
-                    [ attribute "aria-label" "backdrop"
-                    , style "width" "10px"
-                    , style "height" "10px"
-                    , style "background-color" "gray"
-                    , class "cursor-pointer"
-                    ]
-                    []
-                ]
 
-        ModelLoading _ ->
-            div []
-                [ text "Loading..." ]
+            ModelLoading _ ->
+                div []
+                    [ text "Loading..." ]
+    }

@@ -39,6 +39,7 @@ import Task
 import Time
 import Types.Session exposing (Duration, fromDuration)
 import Uuid
+import View exposing (View)
 
 
 {-| メッセージ
@@ -99,40 +100,44 @@ init mduration practiceStyle =
 
 {-| ビュー
 -}
-view : Model -> Html Msg
+view : Model -> View Msg
 view model =
-    case model of
-        ModelValid { duration, practiceStyle } ->
-            let
-                txt =
-                    case practiceStyle of
-                        PresetPracticeStyle id ->
-                            "完了画面 - ID: " ++ Uuid.toString id
+    { nav = False
+    , footer = False
+    , view =
+        case model of
+            ModelValid { duration, practiceStyle } ->
+                let
+                    txt =
+                        case practiceStyle of
+                            PresetPracticeStyle id ->
+                                "完了画面 - ID: " ++ Uuid.toString id
 
-                        ManualPracticeStyle ->
-                            "カスタム完了画面"
-            in
-            div [ attribute "role" "session-completion" ]
-                [ text txt
-                , text "完了"
-                , span
-                    [ attribute "aria-label" "finish-duration"
-                    , value (String.fromInt <| fromDuration duration)
+                            ManualPracticeStyle ->
+                                "カスタム完了画面"
+                in
+                div [ attribute "role" "session-completion" ]
+                    [ text txt
+                    , text "完了"
+                    , span
+                        [ attribute "aria-label" "finish-duration"
+                        , value (String.fromInt <| fromDuration duration)
+                        ]
+                        [ text <| (String.fromInt << fromDuration) duration ]
+                    , text "秒"
+                    , button
+                        [ attribute "aria-label" "next" ]
+                        [ text "次へ" ]
+                    , button
+                        [ attribute "aria-label" "finish"
+                        , onClick (NavigateToRoute StatisticsRoute)
+                        ]
+                        [ text "完了" ]
                     ]
-                    [ text <| (String.fromInt << fromDuration) duration ]
-                , text "秒"
-                , button
-                    [ attribute "aria-label" "next" ]
-                    [ text "次へ" ]
-                , button
-                    [ attribute "aria-label" "finish"
-                    , onClick (NavigateToRoute StatisticsRoute)
-                    ]
-                    [ text "完了" ]
-                ]
 
-        ModelInvalid _ ->
-            text "durationが存在していません。"
+            ModelInvalid _ ->
+                text "durationが存在していません。"
+    }
 
 
 {-| アップデート
