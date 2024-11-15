@@ -16,7 +16,6 @@ import Html.Attributes exposing (attribute, class, value)
 import Html.Events exposing (onInput)
 import Icon
 import Types.BreathingMethod exposing (PhaseType(..))
-import Html.Attributes exposing (type_)
 import Html.Attributes exposing (placeholder)
 
 
@@ -138,7 +137,7 @@ view config model =
                 ExhaleHold ->
                     config.onInputExhaleHoldDuration
     in
-    div [ class "grid grid-cols-2 gap-4 mb-8" ] <|
+    div [ class "grid grid-cols-2 gap-4" ] <|
         List.map
             (\phaseType ->
                 div
@@ -153,7 +152,7 @@ view config model =
                         [ toAriaLabel phaseType
                         , onInput (toOnInput phaseType)
                         , value (toValue phaseType)
-                        , class "text-center rounded-lg border bg-transparent focus:ring-4 text-2xl font-semibold"
+                        , class "text-center rounded-lg border bg-transparent focus:ring-4 text-2xl font-semibold w-full"
                         , (toColorClass phaseType).textColorClass
                         , (toColorClass phaseType).borderColorClass
                         , (toColorClass phaseType).ringColorClass

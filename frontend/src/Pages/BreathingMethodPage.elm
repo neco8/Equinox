@@ -52,6 +52,7 @@ import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, Name, fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName, toExhaleDuration, toExhaleHoldDuration, toInhaleDuration, toInhaleHoldDuration, toName)
 import Types.Category exposing (Category, CategoryId, Title, fromTitle, toTitle)
 import Uuid exposing (Uuid, effectToCmd)
+import View exposing (View)
 
 
 {-| ページアクション
@@ -413,59 +414,63 @@ updateInternal key registry toMsg msg model =
 
 {-| ビュー
 -}
-view : RemoteData e (List Category) -> Model -> Html Msg
+view : RemoteData e (List Category) -> Model -> View Msg
 view remote model =
-    div [ attribute "role" "edit" ]
-        (List.concat
-            [ [ text "呼吸法編集 - ID: " ]
-            , case model of
-                ModelLoading _ ->
-                    [ text "loading..." ]
+    { nav = False
+    , footer = False
+    , view =
+        div [ attribute "role" "edit" ]
+            (List.concat
+                [ [ text "呼吸法編集 - ID: " ]
+                , case model of
+                    ModelLoading _ ->
+                        [ text "loading..." ]
 
-                ModelLoaded loaded ->
-                    [ BreathingMethodDurationInput.view
-                        (BreathingMethodDurationInput.Config
-                            InputInhaleDuration
-                            InputInhaleHoldDuration
-                            InputExhaleDuration
-                            InputExhaleHoldDuration
-                        )
-                        loaded
-                    , input
-                        [ attribute "aria-label" "breathing-method-name-input"
-                        , onInput InputName
-                        , value loaded.nameInput
-                        ]
-                        []
-                    , case remote of
-                        Success categories ->
-                            Combobox.view { ariaLabel = "category-combobox" }
-                                (List.map
-                                    (\c ->
-                                        Combobox.Option c.id (fromTitle c.title)
+                    ModelLoaded loaded ->
+                        [ BreathingMethodDurationInput.view
+                            (BreathingMethodDurationInput.Config
+                                InputInhaleDuration
+                                InputInhaleHoldDuration
+                                InputExhaleDuration
+                                InputExhaleHoldDuration
+                            )
+                            loaded
+                        , input
+                            [ attribute "aria-label" "breathing-method-name-input"
+                            , onInput InputName
+                            , value loaded.nameInput
+                            ]
+                            []
+                        , case remote of
+                            Success categories ->
+                                Combobox.view { ariaLabel = "category-combobox" }
+                                    (List.map
+                                        (\c ->
+                                            Combobox.Option c.id (fromTitle c.title)
+                                        )
+                                        categories
                                     )
-                                    categories
-                                )
-                                loaded.categoryComboboxModel
+                                    loaded.categoryComboboxModel
 
-                        Failure _ ->
-                            text "category loading failure"
+                            Failure _ ->
+                                text "category loading failure"
 
-                        Loading ->
-                            text "category loading..."
+                            Loading ->
+                                text "category loading..."
 
-                        NotAsked ->
-                            text "category not asked"
-                    , button
-                        [ attribute "aria-label" "submit-breathing-method"
-                        , onClick Submit
-                        , createBreathingMethod loaded
-                            |> Maybe.Extra.isNothing
-                            |> disabled
-                        , class "disabled:bg-gray-300"
+                            NotAsked ->
+                                text "category not asked"
+                        , button
+                            [ attribute "aria-label" "submit-breathing-method"
+                            , onClick Submit
+                            , createBreathingMethod loaded
+                                |> Maybe.Extra.isNothing
+                                |> disabled
+                            , class "disabled:bg-gray-300"
+                            ]
+                            [ text "Submit" ]
                         ]
-                        [ text "Submit" ]
-                    ]
-            , []
-            ]
-        )
+                , []
+                ]
+            )
+    }

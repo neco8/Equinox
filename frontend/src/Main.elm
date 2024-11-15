@@ -32,6 +32,7 @@ import JS.Storage.QueryResult as QueryResult exposing (QueryResult)
 import JS.Storage.StorageQueryDSL as Query
 import Json.Decode as D exposing (Decoder)
 import Json.Decode.Extra as DE
+import Maybe.Extra
 import Pages.BreathingMethodPage as BreathingMethodPage
 import Pages.SessionCompletionPage as SessionCompletionPage
 import Pages.SessionPage as SessionPage exposing (subscriptions, view)
@@ -47,6 +48,7 @@ import Types.Session exposing (Duration, Session)
 import Types.Statistics exposing (recentDaysThreshold)
 import Url
 import Uuid
+import View exposing (View)
 
 
 {-| Model
@@ -735,15 +737,10 @@ pageTitle page =
 viewPage : Model -> Html Msg
 viewPage model =
     div
-        [ class "min-h-screen flex flex-col"
+        [ class "h-screen flex flex-col"
         ]
-        [ nav [] [ viewNav ]
-        , main_
-            [ class "flex-1 px-4 py-6"
-            ]
-            [ viewContent model ]
-        , viewFooter
-        ]
+    <|
+        viewContent { viewNav = viewNav, viewFooter = viewFooter } model
 
 
 {-| ストリークのビュー
@@ -857,75 +854,47 @@ viewBreathingMethodList category children =
 
 {-| ホーム画面のビュー
 -}
-viewHome : { model | categories : RemoteData e (List Category), breathingMethods : RemoteData e (List BreathingMethod) } -> Html Msg
+viewHome : { model | categories : RemoteData e (List Category), breathingMethods : RemoteData e (List BreathingMethod) } -> View Msg
 viewHome model =
-    case ( model.categories, model.breathingMethods ) of
-        ( Success cs, Success ms ) ->
-            div
-                [ attribute "role" "home"
-                , class "max-w-2xl mx-auto space-y-6"
-                ]
-                [ div [] <|
-                    List.map
-                        (\category ->
-                            viewBreathingMethodList
-                                category
-                            <|
-                                List.filterMap
-                                    (\method ->
-                                        if method.categoryId == category.id then
-                                            Just (viewBreathingMethodCard method)
-
-                                        else
-                                            Nothing
-                                    )
-                                    ms
-                        )
-                        cs
-                , button
-                    [ attribute "aria-label" "add-new-breathing-method"
-                    , onClick (NavigateToRoute SourceSelectionRoute)
-                    , class "w-full py-3 px-4 bg-blue-500 text-white rounded-lg flex items-center justify-center space-x-2 hover:bg-blue-600 transition-colors"
+    { nav = True
+    , footer = True
+    , view =
+        case ( model.categories, model.breathingMethods ) of
+            ( Success cs, Success ms ) ->
+                div
+                    [ attribute "role" "home"
+                    , class "max-w-2xl mx-auto space-y-6"
                     ]
-                    [ Icon.view Icon.Plus
-                    , text "新しい呼吸法を追加"
+                    [ div [] <|
+                        List.map
+                            (\category ->
+                                viewBreathingMethodList
+                                    category
+                                <|
+                                    List.filterMap
+                                        (\method ->
+                                            if method.categoryId == category.id then
+                                                Just (viewBreathingMethodCard method)
+
+                                            else
+                                                Nothing
+                                        )
+                                        ms
+                            )
+                            cs
+                    , button
+                        [ attribute "aria-label" "add-new-breathing-method"
+                        , onClick (NavigateToRoute SourceSelectionRoute)
+                        , class "w-full py-3 px-4 bg-blue-500 text-white rounded-lg flex items-center justify-center space-x-2 hover:bg-blue-600 transition-colors"
+                        ]
+                        [ Icon.view Icon.Plus
+                        , text "新しい呼吸法を追加"
+                        ]
                     ]
-                ]
 
-        ( _, _ ) ->
-            text "Loading or failure..."
-
-
-{-| 既存セッション準備画面のビュー
--}
-viewPresetSessionPreparation : SessionPreparationPage.Model -> Html SessionPreparationPage.Msg
-viewPresetSessionPreparation model =
-    SessionPreparationPage.view
-        model
-
-
-{-| カスタムセッション準備画面のビュー
--}
-viewManualSessionPreparation : SessionPreparationPage.Model -> Html SessionPreparationPage.Msg
-viewManualSessionPreparation model =
-    SessionPreparationPage.view
-        model
-
-
-{-| 既存セッション完了画面のビュー
--}
-viewPresetSessionCompletion : SessionCompletionPage.Model -> Html Msg
-viewPresetSessionCompletion model =
-    SessionCompletionPage.view model
-        |> Html.map (PresetSessionCompletionPageMsg >> PageMsg)
-
-
-{-| カスタムセッション完了画面のビュー
--}
-viewManualSessionCompletion : SessionCompletionPage.Model -> Html Msg
-viewManualSessionCompletion model =
-    SessionCompletionPage.view model
-        |> Html.map (ManualSessionCompletionPageMsg >> PageMsg)
+            ( _, _ ) ->
+                text "Loading or failure..."
+    }
 
 
 {-| 統計画面のビュー
@@ -962,30 +931,6 @@ viewSettings =
     div [ attribute "role" "settings" ] [ text "設定画面" ]
 
 
-{-| ソース選択画面のビュー
--}
-viewSourceSelection : SourceSelectionPage.Model -> Html Msg
-viewSourceSelection model =
-    SourceSelectionPage.view model
-        |> Html.map (SourceSelectionPageMsg >> PageMsg)
-
-
-{-| 呼吸法編集画面のビュー
--}
-viewBreathingMethodEdit : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
-viewBreathingMethodEdit categories model =
-    BreathingMethodPage.view categories model
-        |> Html.map (BreathingMethodEditPageMsg >> PageMsg)
-
-
-{-| 呼吸法追加画面のビュー
--}
-viewBreathingMethodAdd : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
-viewBreathingMethodAdd categories model =
-    BreathingMethodPage.view categories model
-        |> Html.map (BreathingMethodAddPageMsg >> PageMsg)
-
-
 {-| ページが見つからなかった場合のビュー
 -}
 viewNotFound : Html msg
@@ -995,51 +940,81 @@ viewNotFound =
 
 {-| ページに応じたビューを返す関数。
 -}
-viewContent : Model -> Html Msg
-viewContent model =
-    case model.currentPage of
-        HomePage ->
-            viewHome model
+viewContent : { viewNav : Html Msg, viewFooter : Html Msg } -> Model -> List (Html Msg)
+viewContent views model =
+    (\opt ->
+        List.filterMap identity
+            [ Maybe.Extra.filter (always opt.nav)
+                (Just views.viewNav)
+            , Just
+                (main_
+                    [ class "flex-1 px-4 py-6 overflow-scroll"
+                    ]
+                    [ opt.view
+                    ]
+                )
+            , Maybe.Extra.filter (always opt.footer)
+                (Just views.viewFooter)
+            ]
+    )
+    <|
+        case model.currentPage of
+            HomePage ->
+                viewHome model
 
-        PresetSessionPreparationPage prepareModel ->
-            viewPresetSessionPreparation prepareModel
-                |> Html.map (PresetSessionPreparationPageMsg >> PageMsg)
+            PresetSessionPreparationPage prepareModel ->
+                SessionPreparationPage.view prepareModel
+                    |> View.map (PresetSessionPreparationPageMsg >> PageMsg)
 
-        ManualSessionPreparationPage prepareModel ->
-            viewManualSessionPreparation prepareModel
-                |> Html.map (ManualSessionPreparationPageMsg >> PageMsg)
+            ManualSessionPreparationPage prepareModel ->
+                SessionPreparationPage.view prepareModel
+                    |> View.map (ManualSessionPreparationPageMsg >> PageMsg)
 
-        PresetSessionPage duration sessionModel ->
-            SessionPage.view duration sessionModel
-                |> Html.map (PresetSessionPageMsg >> PageMsg)
+            PresetSessionPage duration sessionModel ->
+                SessionPage.view duration sessionModel
+                    |> View.map (PresetSessionPageMsg >> PageMsg)
 
-        ManualSessionPage duration sessionModel ->
-            SessionPage.view duration sessionModel
-                |> Html.map (ManualSessionPageMsg >> PageMsg)
+            ManualSessionPage duration sessionModel ->
+                SessionPage.view duration sessionModel
+                    |> View.map (ManualSessionPageMsg >> PageMsg)
 
-        PresetSessionCompletionPage completionModel ->
-            viewPresetSessionCompletion completionModel
+            PresetSessionCompletionPage completionModel ->
+                SessionCompletionPage.view completionModel
+                    |> View.map (PresetSessionCompletionPageMsg >> PageMsg)
 
-        ManualSessionCompletionPage completionModel ->
-            viewManualSessionCompletion completionModel
+            ManualSessionCompletionPage completionModel ->
+                SessionCompletionPage.view completionModel
+                    |> View.map (ManualSessionCompletionPageMsg >> PageMsg)
 
-        StatisticsPage ->
-            viewStatistics
+            StatisticsPage ->
+                { view = viewStatistics
+                , nav = True
+                , footer = True
+                }
 
-        SettingsPage ->
-            viewSettings
+            SettingsPage ->
+                { nav = False
+                , footer = False
+                , view = viewSettings
+                }
 
-        SourceSelectionPage sourceSelectionModel ->
-            viewSourceSelection sourceSelectionModel
+            SourceSelectionPage sourceSelectionModel ->
+                SourceSelectionPage.view sourceSelectionModel
+                    |> View.map (SourceSelectionPageMsg >> PageMsg)
 
-        BreathingMethodEditPage editModel ->
-            viewBreathingMethodEdit model.categories editModel
+            BreathingMethodEditPage editModel ->
+                BreathingMethodPage.view model.categories editModel
+                    |> View.map (BreathingMethodEditPageMsg >> PageMsg)
 
-        BreathingMethodAddPage addModel ->
-            viewBreathingMethodAdd model.categories addModel
+            BreathingMethodAddPage addModel ->
+                BreathingMethodPage.view model.categories addModel
+                    |> View.map (BreathingMethodAddPageMsg >> PageMsg)
 
-        NotFoundPage ->
-            viewNotFound
+            NotFoundPage ->
+                { view = viewNotFound
+                , nav = False
+                , footer = False
+                }
 
 
 {-| ホーム画面のサブスクリプション

@@ -36,6 +36,7 @@ import Task
 import Time
 import Types.BreathingMethod exposing (fromName)
 import Uuid
+import View exposing (View)
 
 
 {-| ソース選択の状態を表す型
@@ -178,11 +179,15 @@ viewSourceSelection =
 
 {-| ビュー
 -}
-view : Model -> Html Msg
+view : Model -> View Msg
 view model =
-    case model.sourceSelection of
-        OnlineList onlineList ->
-            viewOnlineList onlineList
+    { nav = False
+    , footer = False
+    , view =
+        case model.sourceSelection of
+            OnlineList onlineList ->
+                viewOnlineList onlineList
 
-        SourceSelection ->
-            viewSourceSelection
+            SourceSelection ->
+                viewSourceSelection
+    }
