@@ -842,9 +842,11 @@ viewTimer model =
     div
         [ attribute "role" "timer"
         , attribute "aria-label" "session-timer"
-        , class "text-6xl font-mono"
+        , class "text-6xl font-mono z-10 p-8 relative"
         ]
-        [ text (minutes ++ ":" ++ seconds) ]
+        [ div [ class "absolute -inset-6 bg-blue-100/20 blur-2xl"] []
+        , span [class "relative"] [text (minutes ++ ":" ++ seconds)]
+        ]
 
 
 {-| 指示文のビュー
