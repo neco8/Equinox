@@ -2,7 +2,7 @@ module Pages.SessionPreparationPage exposing
     ( Model, init
     , Msg, noOp
     , update
-    , PracticeStyle(..), view
+    , PracticeStyle(..), validatePracticeStyle, ValidPracticeStyle(..), ValidatePracticeStyleResult(..), view
     )
 
 {-|
@@ -30,7 +30,7 @@ module Pages.SessionPreparationPage exposing
 
 ### ビュー
 
-@docs PracticeStyle, view
+@docs PracticeStyle, validatePracticeStyle, ValidPracticeStyle, ValidatePracticeStyleResult, view
 
 -}
 
@@ -67,16 +67,32 @@ type alias InternalModel =
     }
 
 
+{-| validatePracticeStyleの結果
+
+未知という状態が存在する
+
+    type ValidatePracticeStyleResult
+        = Valid ValidPracticeStyle
+        | Invalid
+        | NotYetKnown
+
+-}
+type ValidatePracticeStyleResult
+    = Valid ValidPracticeStyle
+    | Invalid
+    | NotYetKnown
+
+
 {-| 練習スタイルを検証する
 
 既存の呼吸法のリストに存在するかを検証する
 
 -}
-validatePracticeStyle : List BreathingMethod -> PracticeStyle -> Maybe ValidPracticeStyle
-validatePracticeStyle breathingMethods practiceStyle =
+validatePracticeStyle : RemoteData e (List BreathingMethod) -> PracticeStyle -> ValidatePracticeStyleResult
+validatePracticeStyle remote practiceStyle =
     case practiceStyle of
         ManualPracticeStyle ->
-            Just
+            Valid
                 (Manual
                     { inhaleDurationInput = ""
                     , inhaleHoldDurationInput = ""
@@ -86,46 +102,53 @@ validatePracticeStyle breathingMethods practiceStyle =
                 )
 
         PresetPracticeStyle id ->
-            List.Extra.find (.id >> (==) id) breathingMethods
-                |> Maybe.map Preset
+            case remote of
+                Success breathingMethods ->
+                    case
+                        List.Extra.find (.id >> (==) id) breathingMethods
+                            |> Maybe.map Preset
+                    of
+                        Just valid ->
+                            Valid valid
+
+                        Nothing ->
+                            Invalid
+
+                Failure _ ->
+                    -- リモートデータが失敗しているため、idから検証はできない。失敗とする
+                    Invalid
+
+                NotAsked ->
+                    -- リモートデータがまだ取得されていないため、idから検証はできない。未知とする
+                    NotYetKnown
+
+                Loading ->
+                    -- リモートデータが取得中のため、idから検証はできない。未知とする
+                    NotYetKnown
 
 
 {-| 初期化
 -}
 init : RemoteData e (List BreathingMethod) -> PracticeStyle -> ( Model, Cmd Msg )
 init remote practiceStyle =
-    case remote of
-        NotAsked ->
-            ( ModelLoading practiceStyle, Cmd.none )
+    case validatePracticeStyle remote practiceStyle of
+        Valid valid ->
+            ( initInternal valid
+                |> ModelLoaded
+            , Cmd.none
+            )
 
-        Loading ->
-            ( ModelLoading practiceStyle, Cmd.none )
-
-        Failure _ ->
+        Invalid ->
             ( ModelLoading practiceStyle
-              -- ホーム画面へ遷移する - [ ] TODO: エラーメッセージを表示する
+              -- 存在しない呼吸法のため、ホーム画面へ遷移する - [ ] TODO: エラーメッセージを表示する
             , NavigateToRoute HomeRoute
                 |> always
                 |> Task.perform
                 |> (|>) Time.now
             )
 
-        Success breathingMethods ->
-            case validatePracticeStyle breathingMethods practiceStyle of
-                Just valid ->
-                    ( initInternal valid
-                        |> ModelLoaded
-                    , Cmd.none
-                    )
-
-                Nothing ->
-                    ( ModelLoading practiceStyle
-                      -- 存在しない呼吸法のため、ホーム画面へ遷移する - [ ] TODO: エラーメッセージを表示する
-                    , NavigateToRoute HomeRoute
-                        |> always
-                        |> Task.perform
-                        |> (|>) Time.now
-                    )
+        NotYetKnown ->
+            ( ModelLoading practiceStyle, Cmd.none )
 
 
 {-| 内部で利用される初期化
@@ -200,37 +223,21 @@ update : RemoteData e (List BreathingMethod) -> Nav.Key -> Msg -> Model -> ( Mod
 update remote key msg model =
     case model of
         ModelLoading practiceStyle ->
-            case remote of
-                NotAsked ->
-                    ( model, Cmd.none )
+            case validatePracticeStyle remote practiceStyle of
+                Valid valid ->
+                    updateInternal key msg (initInternal valid)
+                        |> Tuple.mapFirst ModelLoaded
 
-                Loading ->
-                    ( model, Cmd.none )
-
-                Failure _ ->
+                Invalid ->
                     ( model
-                      -- 失敗したのでホーム画面へ遷移する
                     , NavigateToRoute HomeRoute
                         |> always
                         |> Task.perform
                         |> (|>) Time.now
                     )
 
-                Success breathingMethods ->
-                    case validatePracticeStyle breathingMethods practiceStyle of
-                        Just valid ->
-                            ( initInternal valid
-                                |> ModelLoaded
-                            , Cmd.none
-                            )
-
-                        Nothing ->
-                            ( model
-                            , NavigateToRoute HomeRoute
-                                |> always
-                                |> Task.perform
-                                |> (|>) Time.now
-                            )
+                NotYetKnown ->
+                    ( model, Cmd.none )
 
         ModelLoaded internalModel ->
             updateInternal key msg internalModel
