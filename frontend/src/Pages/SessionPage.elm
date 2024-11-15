@@ -374,7 +374,10 @@ handleStop now paused model =
 
         Nothing ->
             -- TODO: セッションより超過するか、短すぎるか。短すぎるときに、時間にならないですよ、というのを追加してあげる。
-            Cmd.none
+            NavigateToRoute HomeRoute
+                |> always
+                |> Task.perform
+                |> (|>) Time.now
     )
 
 

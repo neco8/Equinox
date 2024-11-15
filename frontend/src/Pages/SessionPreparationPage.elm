@@ -506,10 +506,7 @@ view model =
                         ]
                     , div
                         [ attribute "aria-label" "backdrop"
-                        , style "width" "10px"
-                        , style "height" "10px"
-                        , style "background-color" "gray"
-                        , class "cursor-pointer"
+                        , class "cursor-pointer w-[10px] h-[10px] bg-white"
                         ]
                         []
                     ]

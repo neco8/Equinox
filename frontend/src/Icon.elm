@@ -37,6 +37,7 @@ type Icon
     | Users
     | Alert
     | Refresh
+    | Check
 
 
 {-| ビュー
@@ -133,3 +134,8 @@ view icon =
             div
                 []
                 [ text "🔄" ]
+
+        Check ->
+            div
+                []
+                [ text "✓" ]
