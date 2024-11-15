@@ -39,8 +39,8 @@ module Pages.BreathingMethodPage exposing
 import BreathingMethodDurationInput
 import Browser.Navigation as Nav
 import Common.Combobox as Combobox
-import Html exposing (button, div, input, text)
-import Html.Attributes exposing (attribute, class, disabled, value)
+import Html exposing (button, div, h1, input, text)
+import Html.Attributes exposing (attribute, class, disabled, placeholder, value)
 import Html.Events exposing (onClick, onInput)
 import JS.Ports as Ports
 import List.Extra
@@ -416,12 +416,35 @@ updateInternal key registry toMsg msg model =
 -}
 view : RemoteData e (List Category) -> Model -> View Msg
 view remote model =
+    let
+        pageAction =
+            case model of
+                ModelLoading action ->
+                    action
+
+                ModelLoaded loaded ->
+                    loaded.pageAction
+    in
     { nav = False
     , footer = False
     , view =
-        div [ attribute "role" "edit" ]
+        div
+            [ attribute "role" "edit"
+            , class "max-w-2xl mx-auto"
+            ]
             (List.concat
-                [ [ text "呼吸法編集 - ID: " ]
+                [ [ h1 [ class "text-2xl font-medium text-gray-700 mb-8 text-center" ]
+                        [ text <|
+                            "呼吸法"
+                                ++ (case pageAction of
+                                        Edit _ ->
+                                            "編集"
+
+                                        Add _ _ _ _ _ ->
+                                            "追加"
+                                   )
+                        ]
+                  ]
                 , case model of
                     ModelLoading _ ->
                         [ text "loading..." ]
@@ -435,40 +458,48 @@ view remote model =
                                 InputExhaleHoldDuration
                             )
                             loaded
-                        , input
-                            [ attribute "aria-label" "breathing-method-name-input"
-                            , onInput InputName
-                            , value loaded.nameInput
-                            ]
-                            []
-                        , case remote of
-                            Success categories ->
-                                Combobox.view { ariaLabel = "category-combobox" }
-                                    (List.map
-                                        (\c ->
-                                            Combobox.Option c.id (fromTitle c.title)
+                        , div [ class "space-y-4 px-4" ]
+                            [ div [ class "relative" ]
+                                [ input
+                                    [ attribute "aria-label" "breathing-method-name-input"
+                                    , onInput InputName
+                                    , value loaded.nameInput
+                                    , class "w-full py-3 px-4 bg-transparent text-sm text-gray-800 border-b-2n border-gray-200 focus:border-blue-400 focus:outline-none mt-8 border-b-2 "
+                                    , placeholder "呼吸法の名前を入力"
+                                    ]
+                                    []
+                                ]
+                            , case remote of
+                                Success categories ->
+                                    Combobox.view { ariaLabel = "category-combobox" }
+                                        (List.map
+                                            (\c ->
+                                                Combobox.Option c.id (fromTitle c.title)
+                                            )
+                                            categories
                                         )
-                                        categories
-                                    )
-                                    loaded.categoryComboboxModel
+                                        loaded.categoryComboboxModel
 
-                            Failure _ ->
-                                text "category loading failure"
+                                Failure _ ->
+                                    text "category loading failure"
 
-                            Loading ->
-                                text "category loading..."
+                                Loading ->
+                                    text "category loading..."
 
-                            NotAsked ->
-                                text "category not asked"
-                        , button
-                            [ attribute "aria-label" "submit-breathing-method"
-                            , onClick Submit
-                            , createBreathingMethod loaded
-                                |> Maybe.Extra.isNothing
-                                |> disabled
-                            , class "disabled:bg-gray-300"
+                                NotAsked ->
+                                    text "category not asked"
+                            , div [ class "pt-8" ]
+                                [ button
+                                    [ attribute "aria-label" "submit-breathing-method"
+                                    , onClick Submit
+                                    , createBreathingMethod loaded
+                                        |> Maybe.Extra.isNothing
+                                        |> disabled
+                                    , class "w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium text-lg shadow-md hover:from-blue-600 hover:to-purple-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200"
+                                    ]
+                                    [ text "Submit" ]
+                                ]
                             ]
-                            [ text "Submit" ]
                         ]
                 , []
                 ]
