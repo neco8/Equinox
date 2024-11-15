@@ -28,6 +28,7 @@ type Icon
     | Timer
     | Wind
     | Pause
+    | Stop
 
 
 {-| ビュー
@@ -79,3 +80,8 @@ view icon =
             div
                 []
                 [ text "⏸" ]
+
+        Stop ->
+            div
+                []
+                [ text "⏹" ]
