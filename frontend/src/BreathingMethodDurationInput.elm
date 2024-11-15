@@ -153,7 +153,7 @@ view config model =
                         [ toAriaLabel phaseType
                         , onInput (toOnInput phaseType)
                         , value (toValue phaseType)
-                        , class "text-center rounded-lg border bg-transparent focus:ring-4 text-2xl font-semibold"
+                        , class "text-center rounded-lg border bg-transparent focus:ring-4 text-2xl font-semibold w-full"
                         , (toColorClass phaseType).textColorClass
                         , (toColorClass phaseType).borderColorClass
                         , (toColorClass phaseType).ringColorClass
