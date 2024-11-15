@@ -16,7 +16,6 @@ import Html.Attributes exposing (attribute, class, value)
 import Html.Events exposing (onInput)
 import Icon
 import Types.BreathingMethod exposing (PhaseType(..))
-import Html.Attributes exposing (type_)
 import Html.Attributes exposing (placeholder)
 
 
