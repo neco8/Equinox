@@ -47,10 +47,11 @@ module Common.Combobox exposing (Config, Model, Msg, Option, init, update, view)
 
 -}
 
-import Html exposing (Html, button, div, input, option, text)
+import Html exposing (Html, button, div, input, option, span, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Keyed
+import Icon
 import Task
 import Time
 
@@ -123,7 +124,8 @@ view { ariaLabel } options model =
             , onInput (InputChanged >> model.config.toMsg)
             , type_ "text"
             , onClick (OpenDropdown |> model.config.toMsg)
-            , class "w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-transparent focus:ring-2 focus:ring-orange-500 caret-orange-500"
+            , class "w-full py-3 px-4 text-sm text-left text-gray-600 border-b-2 border-gray-200 focus:outline-none focus:border-indigo-400"
+            , placeholder "カテゴリを選択してください"
             ]
             []
         , if model.isOpen then
@@ -144,7 +146,7 @@ viewDropdown options model =
                 options
     in
     Html.Keyed.node "div"
-        [ class "absolute mt-2 w-full bg-white rounded-lg border border-gray-100 overflow-hidden z-50"
+        [ class "absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-100 py-1"
         , attribute "role" "listbox"
         ]
         (List.concat
@@ -167,14 +169,24 @@ viewOption { selectedOption, config } opt =
         [ onClick (OptionSelected opt |> config.toMsg)
         , attribute "role" "option"
         , attribute "data-id" ("option-" ++ config.toString opt.value)
-        , class "px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center" -- TODO: groupってなんだ？
+        , class "px-4 py-2 hover:bg-gray-50 flex items-center justify-between cursor-pointer text-gray-700"
         , if selectedOption == Just opt then
             class "bg-gray-50"
 
           else
             class ""
         ]
-        [ text opt.label ]
+        [ span []
+            [ text opt.label
+            ]
+        , if selectedOption == Just opt then
+            span [ class "text-xs" ]
+                [ Icon.view Icon.Check
+                ]
+
+          else
+            text ""
+        ]
     )
 
 
@@ -185,7 +197,7 @@ viewCreateNew config inputValue =
     button
         [ onClick (ClickCreateNew |> config.toMsg)
         , attribute "role" "create-new-option"
-        , class "px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center disabled:bg-gray-200"
+        , class "px-4 py-2 hover:bg-gray-50 flex items-center justify-between cursor-pointer text-gray-700 w-full disabled:opacity-50 disabled:cursor-not-allowed"
         , disabled (not (config.canCreateNew inputValue))
         ]
         [ text ("新規作成: " ++ inputValue) ]
