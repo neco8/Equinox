@@ -29,6 +29,8 @@ type Icon
     | Wind
     | Pause
     | Stop
+    | Medal
+    | Sparkles
 
 
 {-| ビュー
@@ -85,3 +87,13 @@ view icon =
             div
                 []
                 [ text "⏹" ]
+
+        Medal ->
+            div
+                []
+                [ text "🏅" ]
+
+        Sparkles ->
+            div
+                []
+                [ text "✨" ]
