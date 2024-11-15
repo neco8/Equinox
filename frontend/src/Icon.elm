@@ -25,6 +25,9 @@ type Icon
     | Home
     | Play
     | Statistics
+    | Timer
+    | Wind
+    | Pause
 
 
 {-| ビュー
@@ -61,3 +64,18 @@ view icon =
             div
                 []
                 [ text "📊" ]
+
+        Timer ->
+            div
+                []
+                [ text "⏱" ]
+
+        Wind ->
+            div
+                []
+                [ text "💨" ]
+
+        Pause ->
+            div
+                []
+                [ text "⏸" ]
