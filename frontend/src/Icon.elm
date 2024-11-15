@@ -31,6 +31,12 @@ type Icon
     | Stop
     | Medal
     | Sparkles
+    | Pencil
+    | Globe
+    | Cloud
+    | Users
+    | Alert
+    | Refresh
 
 
 {-| ビュー
@@ -97,3 +103,33 @@ view icon =
             div
                 []
                 [ text "✨" ]
+
+        Pencil ->
+            div
+                []
+                [ text "✏️" ]
+
+        Globe ->
+            div
+                []
+                [ text "🌍" ]
+
+        Cloud ->
+            div
+                []
+                [ text "☁️" ]
+
+        Users ->
+            div
+                []
+                [ text "👥" ]
+
+        Alert ->
+            div
+                []
+                [ text "⚠️" ]
+
+        Refresh ->
+            div
+                []
+                [ text "🔄" ]
