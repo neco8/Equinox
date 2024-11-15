@@ -211,16 +211,16 @@ initializePage model route =
         PresetSessionCompletionRoute id mduration ->
             let
                 ( completionModel, cmd ) =
-                    SessionCompletionPage.init mduration (PresetPracticeStyle id)
+                    SessionCompletionPage.init model.breathingMethods mduration (SessionCompletionPage.PresetPracticeStyle id)
             in
             ( { model | currentPage = PresetSessionCompletionPage completionModel }
             , Cmd.map PresetSessionCompletionPageMsg cmd
             )
 
-        ManualSessionCompletionRoute mduration ->
+        ManualSessionCompletionRoute mduration minhale minhaleHold mexhale mexhaleHold ->
             let
                 ( completionModel, cmd ) =
-                    SessionCompletionPage.init mduration ManualPracticeStyle
+                    SessionCompletionPage.init model.breathingMethods mduration (SessionCompletionPage.ManualPracticeStyle minhale minhaleHold mexhale mexhaleHold)
             in
             ( { model | currentPage = ManualSessionCompletionPage completionModel }
             , Cmd.map ManualSessionCompletionPageMsg cmd
@@ -452,7 +452,7 @@ handlePresetSessionCompletionPageMsg msg model =
         PresetSessionCompletionPage completionModel ->
             let
                 ( newCompletionModel, cmd ) =
-                    SessionCompletionPage.update model.key msg completionModel
+                    SessionCompletionPage.update model.breathingMethods model.key msg completionModel
             in
             ( { model | currentPage = PresetSessionCompletionPage newCompletionModel }
             , Cmd.map (PageMsg << PresetSessionCompletionPageMsg) cmd
@@ -470,7 +470,7 @@ handleManualSessionCompletionPageMsg msg model =
         ManualSessionCompletionPage completionModel ->
             let
                 ( newCompletionModel, cmd ) =
-                    SessionCompletionPage.update model.key msg completionModel
+                    SessionCompletionPage.update model.breathingMethods model.key msg completionModel
             in
             ( { model | currentPage = ManualSessionCompletionPage newCompletionModel }
             , Cmd.map (PageMsg << ManualSessionCompletionPageMsg) cmd

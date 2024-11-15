@@ -39,7 +39,7 @@ module Pages.BreathingMethodPage exposing
 import BreathingMethodDurationInput
 import Browser.Navigation as Nav
 import Common.Combobox as Combobox
-import Html exposing (Html, button, div, input, text)
+import Html exposing (button, div, input, text)
 import Html.Attributes exposing (attribute, class, disabled, value)
 import Html.Events exposing (onClick, onInput)
 import JS.Ports as Ports

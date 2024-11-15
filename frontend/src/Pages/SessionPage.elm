@@ -393,8 +393,12 @@ handleCompletion duration model session =
                 Existing method ->
                     Route.PresetSessionCompletionRoute method.id (Just duration)
 
-                Custom _ ->
+                Custom custom ->
                     Route.ManualSessionCompletionRoute (Just duration)
+                        (Just custom.inhaleDuration)
+                        (Just custom.inhaleHoldDuration)
+                        (Just custom.exhaleDuration)
+                        (Just custom.exhaleHoldDuration)
     in
     Cmd.batch
         [ Task.perform
@@ -844,8 +848,8 @@ viewTimer model =
         , attribute "aria-label" "session-timer"
         , class "text-6xl font-mono z-10 p-8 relative"
         ]
-        [ div [ class "absolute -inset-6 bg-blue-100/20 blur-2xl"] []
-        , span [class "relative"] [text (minutes ++ ":" ++ seconds)]
+        [ div [ class "absolute -inset-6 bg-blue-100/20 blur-2xl" ] []
+        , span [ class "relative" ] [ text (minutes ++ ":" ++ seconds) ]
         ]
 
 
@@ -874,9 +878,9 @@ viewControls : InternalModel -> Html Msg
 viewControls model =
     let
         buttonClass =
-            class "p-4 bg-gray-50 hover:bg-gray-200 rounded-full transition-colors"
+            class "p-4 bg-gray-50/70 hover:bg-gray-200/70 backdrop-blur-sm rounded-full transition-colors"
     in
-    div [ class "flex justify-center gap-8" ] <|
+    div [ class "flex justify-center gap-8 z-10" ] <|
         case model.timerState of
             NotStarted ->
                 [ text "loading..." ]
