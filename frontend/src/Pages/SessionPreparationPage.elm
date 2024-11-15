@@ -2,7 +2,7 @@ module Pages.SessionPreparationPage exposing
     ( Model, init
     , Msg, noOp
     , update
-    , PracticeStyle(..), validatePracticeStyle, ValidPracticeStyle(..), ValidatePracticeStyleResult(..), view
+    , PracticeStyle(..), view
     )
 
 {-|
@@ -30,7 +30,7 @@ module Pages.SessionPreparationPage exposing
 
 ### ビュー
 
-@docs PracticeStyle, validatePracticeStyle, ValidPracticeStyle, ValidatePracticeStyleResult, view
+@docs PracticeStyle, view
 
 -}
 
