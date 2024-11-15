@@ -31,6 +31,7 @@ type Icon
     | Stop
     | Medal
     | Sparkles
+    | Check
 
 
 {-| ビュー
@@ -97,3 +98,8 @@ view icon =
             div
                 []
                 [ text "✨" ]
+
+        Check ->
+            div
+                []
+                [ text "✓" ]
