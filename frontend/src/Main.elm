@@ -551,7 +551,8 @@ handleBreathingMethodAddPageMsg msg model =
         _ ->
             ( model, Cmd.none )
 
-
+{-| 設定画面のメッセージを処理する
+-}
 handleSettingsPageMsg : SettingsPage.Msg -> Model -> ( Model, Cmd Msg )
 handleSettingsPageMsg msg model =
     case model.currentPage of
@@ -1015,9 +1016,68 @@ viewStatistics model =
 
 {-| ページが見つからなかった場合のビュー
 -}
-viewNotFound : Html msg
+viewNotFound : Html Msg
 viewNotFound =
-    div [] [ text "404 - ページが見つかりません" ]
+    div [ class "h-full overflow-scroll bg-gradient-to-b from-blue-50 to-gray-50 flex flex-col" ]
+        [ div [ class "flex-1 flex flex-col items-center justify-center px-6 py-12 text-center" ]
+            [ div [ class "flex space-x-4 text-6xl mb-8" ]
+                [ span [ class "animate-bounce delay-100" ] [ text "👻" ]
+                , span [ class "animate-bounce delay-200" ]
+                    [ text "🔍"
+                    ]
+                , span [ class "animate-bounce delay-300" ] [ text "❓" ]
+                ]
+            , h1 [ class "text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6" ]
+                [ text "404"
+                ]
+            , div [ class "space-y-1 mb-6" ]
+                [ h2 [ class "text-lg font-bold text-gray-900" ]
+                    [ text "迷子になっちゃった…"
+                    ]
+                , p [ class "text-gray-600 text-sm max-w-md mx-auto" ]
+                    [ text "お探しのページはもう掃除してしまったみたいです…🧹"
+                    ]
+                ]
+            , div [ class "bg-white rounded-2xl shadow-sm p-6 mb-8 max-w-md w-full" ]
+                [ h3 [ class "font-medium text-gray-900 mb-4 flex items-center justify-center" ]
+                    [ span [ class "mr-2" ] [ text "よくある可能性" ]
+                    , span [ class "text-xl" ] [ text "🤔" ]
+                    ]
+                , ul [ class "space-y-3 text-left text-gray-600" ]
+                    [ li
+                        [ class "flex items-center" ]
+                        [ span [ class "text-xl mr-3" ] [ text "🧹" ]
+                        , span [] [ text "ちりとりで掃いて捨てちゃった" ]
+                        ]
+                    , li
+                        [ class "flex items-center" ]
+                        [ span [ class "text-xl mr-3" ] [ text "🧺" ]
+                        , span [] [ text "洗って干しちゃった" ]
+                        ]
+                    , li
+                        [ class "flex items-center" ]
+                        [ span [ class "text-xl mr-3" ] [ text "🗑️" ]
+                        , span [] [ text "ゴミ箱に捨てちゃった" ]
+                        ]
+                    ]
+                ]
+            , button
+                [ class "inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200"
+                , onClick (NavigateToRoute HomeRoute)
+                ]
+                [ Icon.view Icon.Home
+                , span []
+                    [ text "ホームに戻る"
+                    ]
+                ]
+            ]
+        , div [ class "text-center pb-6 text-gray-500" ]
+            [ p [ class "flex items-center justify-center space-x-2 text-sm" ]
+                [ span [] [ text "このページを見つけられたあなたはラッキー" ]
+                , span [ class "animate-spin text-lg" ] [ text "🍀" ]
+                ]
+            ]
+        ]
 
 
 {-| ページに応じたビューを返す関数。
