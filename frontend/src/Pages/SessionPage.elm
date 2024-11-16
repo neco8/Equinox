@@ -51,6 +51,7 @@ import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Icon
 import JS.Ports as Ports
 import JS.Storage.StorageQueryDSL exposing (Query(..))
 import List.Extra
@@ -62,6 +63,7 @@ import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration)
 import Types.Session exposing (Duration, Session, fromDuration, toDuration)
 import Uuid exposing (Uuid)
+import View exposing (View)
 
 
 {-| タイマーを管理するための状態
@@ -372,7 +374,10 @@ handleStop now paused model =
 
         Nothing ->
             -- TODO: セッションより超過するか、短すぎるか。短すぎるときに、時間にならないですよ、というのを追加してあげる。
-            Cmd.none
+            NavigateToRoute HomeRoute
+                |> always
+                |> Task.perform
+                |> (|>) Time.now
     )
 
 
@@ -391,8 +396,12 @@ handleCompletion duration model session =
                 Existing method ->
                     Route.PresetSessionCompletionRoute method.id (Just duration)
 
-                Custom _ ->
+                Custom custom ->
                     Route.ManualSessionCompletionRoute (Just duration)
+                        (Just custom.inhaleDuration)
+                        (Just custom.inhaleHoldDuration)
+                        (Just custom.exhaleDuration)
+                        (Just custom.exhaleHoldDuration)
     in
     Cmd.batch
         [ Task.perform
@@ -727,7 +736,7 @@ updateInternal duration key msg model toMsg registry =
 
         ( GotSessionId f id, _ ) ->
             ( model
-            , handleCompletion duration model (f id)
+            , handleCompletion (f id).duration model (f id)
                 |> Cmd.map toMsg
             , registry
             )
@@ -759,26 +768,66 @@ getElapsedMilliseconds timerState displayCurrentTime =
 
 {-| ビュー
 -}
-view : Maybe Duration -> Model -> Html Msg
-view mduration model =
-    case model of
-        ModelLoading _ ->
-            div [] [ text "loading..." ]
+view : Maybe Duration -> Model -> View Msg
+view _ model =
+    { nav = Nothing
+    , footer = False
+    , view =
+        case model of
+            ModelLoading _ ->
+                div [] [ text "breathing method loading..." ]
 
-        ModelLoaded loaded ->
-            div
-                [ attribute "role" "session"
-                ]
-                [ viewTimer loaded
-                , viewInstruction loaded
-                , viewControls loaded
-                , case mduration of
-                    Just duration ->
-                        text <| "総時間: " ++ String.fromInt (fromDuration duration) ++ "秒"
+            ModelLoaded loaded ->
+                let
+                    { inhaleDuration, inhaleHoldDuration, exhaleDuration, exhaleHoldDuration } =
+                        case loaded.selectedBreathingMethod of
+                            Existing m ->
+                                { inhaleDuration = m.inhaleDuration
+                                , inhaleHoldDuration = m.inhaleHoldDuration
+                                , exhaleDuration = m.exhaleDuration
+                                , exhaleHoldDuration = m.exhaleHoldDuration
+                                }
 
-                    Nothing ->
-                        text "redirecting..."
-                ]
+                            Custom m ->
+                                { inhaleDuration = m.inhaleDuration
+                                , inhaleHoldDuration = m.inhaleHoldDuration
+                                , exhaleDuration = m.exhaleDuration
+                                , exhaleHoldDuration = m.exhaleHoldDuration
+                                }
+                in
+                div
+                    [ attribute "role" "session"
+                    , class "relative flex flex-col items-center justify-center h-full bg-white text-gray-900 p-4 gap-60"
+                    ]
+                    [ viewTimer loaded
+                    , div [ class "absolute" ]
+                        [ div [ class "relative flex items-center justify-center mb-4 h-80" ]
+                            [ node "breathing-animation"
+                                [ attribute "inhale" <|
+                                    (String.fromInt <| fromInhaleDuration inhaleDuration)
+                                , attribute "inhale-hold" <|
+                                    (String.fromInt <| fromInhaleHoldDuration inhaleHoldDuration)
+                                , attribute "exhale" <|
+                                    (String.fromInt <| fromExhaleDuration exhaleDuration)
+                                , attribute "exhale-hold" <|
+                                    (String.fromInt <| fromExhaleHoldDuration exhaleHoldDuration)
+                                , attribute "paused" <|
+                                    case loaded.timerState of
+                                        Paused _ ->
+                                            "true"
+
+                                        _ ->
+                                            "false"
+                                ]
+                                []
+                            , viewInstruction loaded
+                                [ class "absolute text-2xl"
+                                ]
+                            ]
+                        ]
+                    , viewControls loaded
+                    ]
+    }
 
 
 {-| タイマーのビュー
@@ -800,62 +849,29 @@ viewTimer model =
     div
         [ attribute "role" "timer"
         , attribute "aria-label" "session-timer"
+        , class "text-6xl font-mono z-10 p-8 relative"
         ]
-        [ text (minutes ++ ":" ++ seconds) ]
-
-
-{-| 時間をフォーマットする
--}
-formatFloat : Int -> Float -> String
-formatFloat digits num =
-    let
-        multiplier =
-            10.0 ^ toFloat digits
-
-        rounded =
-            round (num * multiplier)
-                |> toFloat
-                |> (\n -> n / multiplier)
-
-        formatDecimal n =
-            let
-                parts =
-                    String.split "." (String.fromFloat n)
-
-                intPart =
-                    Maybe.withDefault "0" (List.head parts)
-
-                decPart =
-                    Maybe.withDefault "" (List.head (List.drop 1 parts))
-
-                paddedDecPart =
-                    decPart ++ String.repeat (digits - String.length decPart) "0"
-            in
-            if digits > 0 then
-                intPart ++ "." ++ paddedDecPart
-
-            else
-                intPart
-    in
-    formatDecimal rounded
+        [ div [ class "absolute -inset-6 bg-blue-100/20 blur-2xl" ] []
+        , span [ class "relative" ] [ text (minutes ++ ":" ++ seconds) ]
+        ]
 
 
 {-| 指示文のビュー
 -}
-viewInstruction : InternalModel -> Html Msg
-viewInstruction model =
+viewInstruction : InternalModel -> List (Attribute msg) -> Html msg
+viewInstruction model attr =
     let
         elapsedMilliseconds =
             getElapsedMilliseconds model.timerState model.displayCurrentTime
 
-        { phaseType, elapsedMillisecondsInPhase } =
+        { phaseType } =
             calculatePhase elapsedMilliseconds model.selectedBreathingMethod
     in
     article
-        [ attribute "aria-label" "session-instruction"
-        ]
+        (attribute "aria-label" "session-instruction"
+            :: attr
+        )
         [ text <| instructionText phaseType
-        , text <| (formatFloat 1 << (\n -> n / 1000) << toFloat) elapsedMillisecondsInPhase
         ]
 
 
@@ -863,36 +879,40 @@ viewInstruction model =
 -}
 viewControls : InternalModel -> Html Msg
 viewControls model =
-    case model.timerState of
-        NotStarted ->
-            div []
+    let
+        buttonClass =
+            class "p-4 bg-gray-50/70 hover:bg-gray-200/70 backdrop-blur-sm rounded-full transition-colors"
+    in
+    div [ class "flex justify-center gap-8 z-10" ] <|
+        case model.timerState of
+            NotStarted ->
                 [ text "loading..." ]
 
-        Running _ ->
-            div []
+            Running _ ->
                 [ button
                     [ attribute "aria-label" "pause"
                     , onClick ClickPauseButton
+                    , buttonClass
                     ]
-                    [ text "一時停止" ]
+                    [ Icon.view Icon.Pause ]
                 ]
 
-        Paused _ ->
-            div []
+            Paused _ ->
                 [ button
                     [ attribute "aria-label" "resume"
                     , onClick ClickResumeButton
+                    , buttonClass
                     ]
-                    [ text "再開" ]
+                    [ Icon.view Icon.Play ]
                 , button
                     [ attribute "aria-label" "stop"
                     , onClick ClickStopButton
+                    , buttonClass
                     ]
-                    [ text "停止" ]
+                    [ Icon.view Icon.Stop ]
                 ]
 
-        Completed _ ->
-            div []
+            Completed _ ->
                 []
 
 

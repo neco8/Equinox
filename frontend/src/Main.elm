@@ -32,34 +32,39 @@ import JS.Storage.QueryResult as QueryResult exposing (QueryResult)
 import JS.Storage.StorageQueryDSL as Query
 import Json.Decode as D exposing (Decoder)
 import Json.Decode.Extra as DE
+import Maybe.Extra
+import Nav exposing (NavType(..))
 import Pages.BreathingMethodPage as BreathingMethodPage
 import Pages.SessionCompletionPage as SessionCompletionPage
 import Pages.SessionPage as SessionPage exposing (subscriptions, view)
 import Pages.SessionPreparationPage as SessionPreparationPage exposing (PracticeStyle(..))
+import Pages.SettingsPage as SettingsPage
 import Pages.SourceSelectionPage as SourceSelectionPage
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
 import Time
-import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, PhaseType(..))
+import Types.BreathingMethod exposing (BreathingMethod, PhaseType(..))
 import Types.Category exposing (Category, fromTitle)
 import Types.Session exposing (Duration, Session)
-import Types.Statistics exposing (recentDaysThreshold)
+import Types.Statistics exposing (calculateFromSessions, calculateRecentFromSessions, recentDaysThreshold)
 import Url
 import Uuid
+import View exposing (View)
 
 
 {-| Model
 -}
 type alias Model =
     { key : Nav.Key
+    , now : Time.Posix
     , config : Config
     , currentPage : Page
     , uuidRegistry : Uuid.Registry Msg
     , uuids : List Uuid.Uuid
     , breathingMethods : RemoteData () (List BreathingMethod) -- 暫定的にerrorは()でおく
     , categories : RemoteData () (List Category) -- 暫定的にerrorは()でおく
-    , recentSessions : RemoteData () (List Session) -- 暫定的にerrorは()でおく
+    , sessions : RemoteData () (List Session) -- 暫定的にerrorは()でおく
     }
 
 
@@ -67,14 +72,14 @@ type alias Model =
 -}
 type Page
     = HomePage
-    | PresetSessionPreparationPage BreathingMethodId SessionPreparationPage.Model
+    | PresetSessionPreparationPage SessionPreparationPage.Model
     | ManualSessionPreparationPage SessionPreparationPage.Model
     | PresetSessionPage (Maybe Duration) SessionPage.Model
     | ManualSessionPage (Maybe Duration) SessionPage.Model
     | PresetSessionCompletionPage SessionCompletionPage.Model
     | ManualSessionCompletionPage SessionCompletionPage.Model
     | StatisticsPage
-    | SettingsPage
+    | SettingsPage SettingsPage.Model
     | SourceSelectionPage SourceSelectionPage.Model
     | BreathingMethodEditPage BreathingMethodPage.Model
     | BreathingMethodAddPage BreathingMethodPage.Model
@@ -119,19 +124,20 @@ init flagsValue url key =
         model : Model
         model =
             { key = key
+            , now = flags.now
             , config = Config.config flags.environment
             , currentPage = NotFoundPage
             , uuidRegistry = Uuid.initialRegistry
             , uuids = []
             , breathingMethods = NotAsked
             , categories = NotAsked
-            , recentSessions = NotAsked
+            , sessions = NotAsked
             }
 
         initialQueries =
             [ Query.GetAllBreathingMethods
             , Query.GetAllCategories
-            , Query.GetSessionRecentNDays recentDaysThreshold flags.now
+            , Query.GetAllSessions
             ]
 
         cmd =
@@ -172,7 +178,7 @@ initializePage model route =
                 ( sessionModel, cmd ) =
                     SessionPreparationPage.init model.breathingMethods (PresetPracticeStyle id)
             in
-            ( { model | currentPage = PresetSessionPreparationPage id sessionModel }, Cmd.map PresetSessionPreparationPageMsg cmd )
+            ( { model | currentPage = PresetSessionPreparationPage sessionModel }, Cmd.map PresetSessionPreparationPageMsg cmd )
 
         ManualSessionPreparationRoute ->
             let
@@ -209,16 +215,16 @@ initializePage model route =
         PresetSessionCompletionRoute id mduration ->
             let
                 ( completionModel, cmd ) =
-                    SessionCompletionPage.init mduration (PresetPracticeStyle id)
+                    SessionCompletionPage.init model.breathingMethods mduration (SessionCompletionPage.PresetPracticeStyle id)
             in
             ( { model | currentPage = PresetSessionCompletionPage completionModel }
             , Cmd.map PresetSessionCompletionPageMsg cmd
             )
 
-        ManualSessionCompletionRoute mduration ->
+        ManualSessionCompletionRoute mduration minhale minhaleHold mexhale mexhaleHold ->
             let
                 ( completionModel, cmd ) =
-                    SessionCompletionPage.init mduration ManualPracticeStyle
+                    SessionCompletionPage.init model.breathingMethods mduration (SessionCompletionPage.ManualPracticeStyle minhale minhaleHold mexhale mexhaleHold)
             in
             ( { model | currentPage = ManualSessionCompletionPage completionModel }
             , Cmd.map ManualSessionCompletionPageMsg cmd
@@ -228,7 +234,11 @@ initializePage model route =
             ( { model | currentPage = StatisticsPage }, Cmd.none )
 
         SettingsRoute ->
-            ( { model | currentPage = SettingsPage }, Cmd.none )
+            let
+                ( settingsModel, cmd ) =
+                    SettingsPage.init ()
+            in
+            ( { model | currentPage = SettingsPage settingsModel }, Cmd.map SettingsPageMsg cmd )
 
         SourceSelectionRoute ->
             let
@@ -264,6 +274,7 @@ type PageMsg
     | SourceSelectionPageMsg SourceSelectionPage.Msg
     | BreathingMethodEditPageMsg BreathingMethodPage.Msg
     | BreathingMethodAddPageMsg BreathingMethodPage.Msg
+    | SettingsPageMsg SettingsPage.Msg
 
 
 {-| メッセージ
@@ -279,7 +290,6 @@ type Msg
     | ReceiveQueryError QueryError
       -- Add saving messages for test
     | UuidMsg (Uuid.Msg Msg)
-    | GotUuid Uuid.Uuid
     | CmdMsg (Cmd Msg)
 
 
@@ -318,6 +328,9 @@ noOps =
                     Just (BreathingMethodAddPageMsg BreathingMethodPage.noOp)
 
                 BreathingMethodAddPageMsg _ ->
+                    Just (SettingsPageMsg SettingsPage.noOp)
+
+                SettingsPageMsg _ ->
                     Nothing
 
         generateList acc =
@@ -401,7 +414,7 @@ PresetSessionPreparationPageMsgを処理していることに注意する
 handlePresetSessionPreparationPageMsg : SessionPreparationPage.Msg -> Model -> ( Model, Cmd Msg )
 handlePresetSessionPreparationPageMsg msg model =
     case model.currentPage of
-        PresetSessionPreparationPage id prepareModel ->
+        PresetSessionPreparationPage prepareModel ->
             let
                 ( newPrepareModel, cmd ) =
                     SessionPreparationPage.update
@@ -410,7 +423,7 @@ handlePresetSessionPreparationPageMsg msg model =
                         msg
                         prepareModel
             in
-            ( { model | currentPage = PresetSessionPreparationPage id newPrepareModel }
+            ( { model | currentPage = PresetSessionPreparationPage newPrepareModel }
             , Cmd.map (PageMsg << PresetSessionPreparationPageMsg) cmd
             )
 
@@ -451,7 +464,7 @@ handlePresetSessionCompletionPageMsg msg model =
         PresetSessionCompletionPage completionModel ->
             let
                 ( newCompletionModel, cmd ) =
-                    SessionCompletionPage.update model.key msg completionModel
+                    SessionCompletionPage.update model.breathingMethods model.key msg completionModel
             in
             ( { model | currentPage = PresetSessionCompletionPage newCompletionModel }
             , Cmd.map (PageMsg << PresetSessionCompletionPageMsg) cmd
@@ -469,7 +482,7 @@ handleManualSessionCompletionPageMsg msg model =
         ManualSessionCompletionPage completionModel ->
             let
                 ( newCompletionModel, cmd ) =
-                    SessionCompletionPage.update model.key msg completionModel
+                    SessionCompletionPage.update model.breathingMethods model.key msg completionModel
             in
             ( { model | currentPage = ManualSessionCompletionPage newCompletionModel }
             , Cmd.map (PageMsg << ManualSessionCompletionPageMsg) cmd
@@ -538,6 +551,23 @@ handleBreathingMethodAddPageMsg msg model =
         _ ->
             ( model, Cmd.none )
 
+{-| 設定画面のメッセージを処理する
+-}
+handleSettingsPageMsg : SettingsPage.Msg -> Model -> ( Model, Cmd Msg )
+handleSettingsPageMsg msg model =
+    case model.currentPage of
+        SettingsPage settingsModel ->
+            let
+                ( newSettingsModel, cmd ) =
+                    SettingsPage.update model.key msg settingsModel
+            in
+            ( { model | currentPage = SettingsPage newSettingsModel }
+            , Cmd.map (PageMsg << SettingsPageMsg) cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
 
 {-| Queryの結果を処理する
 -}
@@ -551,7 +581,7 @@ handleReceiveOkQueryResult queryResult model =
             ( { model | breathingMethods = Success breathingMethods }, Cmd.none )
 
         QueryResult.SessionListResult sessions ->
-            ( { model | recentSessions = Success sessions }, Cmd.none )
+            ( { model | sessions = Success sessions }, Cmd.none )
 
         QueryResult.EntitySingleResult _ ->
             ( model, Cmd.none )
@@ -630,6 +660,9 @@ updatePage msg model =
         BreathingMethodAddPageMsg subMsg ->
             handleBreathingMethodAddPageMsg subMsg model
 
+        SettingsPageMsg subMsg ->
+            handleSettingsPageMsg subMsg model
+
 
 {-| モデルの更新
 -}
@@ -671,14 +704,6 @@ update msg model =
         UuidMsg uuidMsg ->
             handleUuidMsg uuidMsg model
 
-        GotUuid uuid ->
-            ( { model
-                | uuids =
-                    model.uuids ++ [ uuid ]
-              }
-            , Cmd.none
-            )
-
         CmdMsg cmd ->
             ( model, cmd )
 
@@ -690,8 +715,6 @@ view model =
     { title = pageTitle model.currentPage
     , body =
         [ viewPage model
-        , Html.map UuidMsg <| button [ onClick (Uuid.uuidGenerate "main" GotUuid) ] [ text "Generate UUID" ]
-        , ul [] <| List.map (\uuid -> li [] [ text <| Uuid.toString uuid ]) model.uuids
         ]
     }
 
@@ -704,7 +727,7 @@ pageTitle page =
         HomePage ->
             "呼吸法アプリ"
 
-        PresetSessionPreparationPage _ _ ->
+        PresetSessionPreparationPage _ ->
             "準備画面"
 
         ManualSessionPreparationPage _ ->
@@ -725,7 +748,7 @@ pageTitle page =
         StatisticsPage ->
             "統計"
 
-        SettingsPage ->
+        SettingsPage _ ->
             "設定"
 
         SourceSelectionPage _ ->
@@ -745,53 +768,54 @@ pageTitle page =
 -}
 viewPage : Model -> Html Msg
 viewPage model =
-    div []
-        [ nav [] [ viewNav ]
-        , main_ [] [ viewContent model ]
-        , viewFooter
+    div
+        [ class "h-screen flex flex-col"
         ]
-
-
-{-| ストリークのビュー
--}
-viewStreak : Int -> Html msg
-viewStreak streak =
-    div []
-        [ Icon.view Icon.Flame
-        , text <| String.fromInt streak
-        ]
-
-
-{-| ナビゲーションのビュー
--}
-viewNav : Html Msg
-viewNav =
-    ul []
-        [ viewStreak 30
-        , button [ attribute "aria-label" "settings" ] [ text "設定" ]
-        ]
+    <|
+        viewContent
+            { viewNav = Nav.view
+            , viewFooter = viewFooter
+            }
+            model
 
 
 {-| フッターのビュー
 -}
 viewFooter : Html Msg
 viewFooter =
-    footer []
-        [ button
-            [ attribute "aria-label" "home-tab"
-            , onClick (NavigateToRoute HomeRoute)
+    let
+        tabClass =
+            class "flex flex-col items-center space-y-1"
+    in
+    footer
+        [ class "bg-white shadow-lg px-4 py-3"
+        ]
+        [ div [ class "max-w-2xl mx-auto flex justify-around" ]
+            [ button
+                [ attribute "aria-label" "home-tab"
+                , onClick (NavigateToRoute HomeRoute)
+                , tabClass
+                ]
+                [ Icon.view Icon.Home
+                , span [ class "text-sm" ] [ text "ホーム" ]
+                ]
+            , button
+                [ attribute "aria-label" "start-session-prepare"
+                , onClick (NavigateToRoute ManualSessionPreparationRoute)
+                , tabClass
+                ]
+                [ Icon.view Icon.Play
+                , span [ class "text-sm" ] [ text "セッション開始" ]
+                ]
+            , button
+                [ attribute "aria-label" "statistics-tab"
+                , onClick (NavigateToRoute StatisticsRoute)
+                , tabClass
+                ]
+                [ Icon.view Icon.Statistics
+                , span [ class "text-sm" ] [ text "統計" ]
+                ]
             ]
-            [ text "ホーム" ]
-        , button
-            [ attribute "aria-label" "start-session-prepare"
-            , onClick (NavigateToRoute ManualSessionPreparationRoute)
-            ]
-            [ text "セッション開始" ]
-        , button
-            [ attribute "aria-label" "statistics-tab"
-            , onClick (NavigateToRoute StatisticsRoute)
-            ]
-            [ text "統計" ]
         ]
 
 
@@ -806,215 +830,331 @@ viewBreathingMethodCard breathingMethod =
             (NavigateToRoute <|
                 PresetSessionPreparationRoute breathingMethod.id
             )
+        , class "p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
         ]
-        [ text <| Types.BreathingMethod.fromName breathingMethod.name ]
+        [ h3
+            [ class "text-lg font-medium"
+            ]
+            [ text <| Types.BreathingMethod.fromName breathingMethod.name
+            ]
+        ]
 
 
 {-| 呼吸法リストのビュー
 -}
 viewBreathingMethodList : Category -> List (Html Msg) -> Html Msg
 viewBreathingMethodList category children =
-    ul
+    section
         [ attribute "aria-label" "category"
         , attribute "data-id" <| Uuid.toString category.id
+        , class "mb-6"
         ]
-    <|
-        span [ attribute "role" "category-title" ] [ text <| fromTitle category.title ]
-            :: children
+        [ h2
+            [ attribute "role" "category-title"
+            , class "text-xl font-bold mb-3"
+            ]
+            [ text <| fromTitle category.title ]
+        , ul
+            [ class "space-y-3" ]
+            children
+        ]
 
 
 {-| ホーム画面のビュー
 -}
-viewHome : { model | categories : RemoteData e (List Category), breathingMethods : RemoteData e (List BreathingMethod) } -> Html Msg
+viewHome : { model | categories : RemoteData e (List Category), breathingMethods : RemoteData e (List BreathingMethod) } -> View Msg
 viewHome model =
-    case ( model.categories, model.breathingMethods ) of
-        ( Success cs, Success ms ) ->
-            div [ attribute "role" "home" ]
-                [ text "ホーム画面"
-                , div [] <|
-                    List.map
-                        (\category ->
-                            viewBreathingMethodList
-                                category
-                            <|
-                                List.filterMap
-                                    (\method ->
-                                        if method.categoryId == category.id then
-                                            Just (viewBreathingMethodCard method)
-
-                                        else
-                                            Nothing
-                                    )
-                                    ms
-                        )
-                        cs
-                , button
-                    [ attribute "aria-label" "add-new-breathing-method"
-                    , onClick (NavigateToRoute SourceSelectionRoute)
+    { nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
+    , footer = True
+    , view =
+        case ( model.categories, model.breathingMethods ) of
+            ( Success cs, Success ms ) ->
+                div
+                    [ attribute "role" "home"
+                    , class "max-w-2xl mx-auto space-y-6"
                     ]
-                    [ text "新しい呼吸法を追加" ]
-                ]
+                    [ div [] <|
+                        List.map
+                            (\category ->
+                                viewBreathingMethodList
+                                    category
+                                <|
+                                    List.filterMap
+                                        (\method ->
+                                            if method.categoryId == category.id then
+                                                Just (viewBreathingMethodCard method)
 
-        ( _, _ ) ->
-            text "Loading or failure..."
+                                            else
+                                                Nothing
+                                        )
+                                        ms
+                            )
+                            cs
+                    , button
+                        [ attribute "aria-label" "add-new-breathing-method"
+                        , onClick (NavigateToRoute SourceSelectionRoute)
+                        , class "w-full py-3 px-4 bg-blue-500 text-white rounded-lg flex items-center justify-center space-x-2 hover:bg-blue-600 transition-colors"
+                        ]
+                        [ Icon.view Icon.Plus
+                        , text "新しい呼吸法を追加"
+                        ]
+                    ]
 
-
-{-| 既存セッション準備画面のビュー
--}
-viewPresetSessionPreparation : SessionPreparationPage.Model -> BreathingMethodId -> Html SessionPreparationPage.Msg
-viewPresetSessionPreparation model id =
-    let
-        txt =
-            "準備画面 - ID: " ++ Uuid.toString id
-    in
-    SessionPreparationPage.view
-        { txt = txt
-        }
-        model
-
-
-{-| カスタムセッション準備画面のビュー
--}
-viewManualSessionPreparation : SessionPreparationPage.Model -> Html SessionPreparationPage.Msg
-viewManualSessionPreparation model =
-    let
-        txt =
-            "カスタム準備画面"
-    in
-    SessionPreparationPage.view
-        { txt = txt
-        }
-        model
-
-
-{-| 既存セッション完了画面のビュー
--}
-viewPresetSessionCompletion : SessionCompletionPage.Model -> Html Msg
-viewPresetSessionCompletion model =
-    SessionCompletionPage.view model
-        |> Html.map (PresetSessionCompletionPageMsg >> PageMsg)
-
-
-{-| カスタムセッション完了画面のビュー
--}
-viewManualSessionCompletion : SessionCompletionPage.Model -> Html Msg
-viewManualSessionCompletion model =
-    SessionCompletionPage.view model
-        |> Html.map (ManualSessionCompletionPageMsg >> PageMsg)
+            ( _, _ ) ->
+                text "Loading or failure..."
+    }
 
 
 {-| 統計画面のビュー
 -}
-viewStatistics : Html Msg
-viewStatistics =
-    div [ attribute "role" "statistics" ]
-        [ text "統計画面"
-        , button
-            [ attribute "aria-label" "home"
-            , onClick (NavigateToRoute HomeRoute)
-            ]
-            [ text "ホーム" ]
-        , div [ attribute "aria-label" "streak-display" ] [ text "この中でアニメーションなどが表示されます。" ]
-        , section [ attribute "aria-label" "recent-7-days" ]
-            [ span [ attribute "aria-label" "recent-sets" ] [ text "10 セット" ]
-            , span [ attribute "aria-label" "recent-minutes" ] [ text "30 分" ]
-            ]
-        , section [ attribute "aria-label" "total" ]
-            [ span [ attribute "aria-label" "total-sets" ] [ text "100 セット" ]
-            , span [ attribute "aria-label" "total-minutes" ] [ text "300 分" ]
-            ]
-        , section [ attribute "aria-label" "practice-days" ]
-            [ span [] []
-            , span [ attribute "aria-label" "total-practice-days" ] [ text "30 日" ]
-            ]
-        ]
+viewStatistics : Model -> Html Msg
+viewStatistics model =
+    case model.sessions of
+        NotAsked ->
+            text "NotAsked"
 
+        Loading ->
+            text "Loading..."
 
-{-| 設定画面のビュー
--}
-viewSettings : Html Msg
-viewSettings =
-    div [ attribute "role" "settings" ] [ text "設定画面" ]
+        Failure _ ->
+            text "Failure"
 
+        Success sessions ->
+            let
+                statistics =
+                    calculateFromSessions sessions
 
-{-| ソース選択画面のビュー
--}
-viewSourceSelection : SourceSelectionPage.Model -> Html Msg
-viewSourceSelection model =
-    SourceSelectionPage.view model
-        |> Html.map (SourceSelectionPageMsg >> PageMsg)
-
-
-{-| 呼吸法編集画面のビュー
--}
-viewBreathingMethodEdit : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
-viewBreathingMethodEdit categories model =
-    BreathingMethodPage.view categories model
-        |> Html.map (BreathingMethodEditPageMsg >> PageMsg)
-
-
-{-| 呼吸法追加画面のビュー
--}
-viewBreathingMethodAdd : RemoteData e (List Category) -> BreathingMethodPage.Model -> Html Msg
-viewBreathingMethodAdd categories model =
-    BreathingMethodPage.view categories model
-        |> Html.map (BreathingMethodAddPageMsg >> PageMsg)
+                recentStatistics =
+                    calculateRecentFromSessions recentDaysThreshold model.now sessions
+            in
+            div
+                [ attribute "role" "statistics"
+                , class "max-w-2xl mx-auto"
+                ]
+                [ div [ attribute "aria-label" "streak-display" ] [ text "" ]
+                , section
+                    [ attribute "aria-label" "recent-7-days"
+                    , class "p-4 rounded-lg shadow"
+                    ]
+                    [ h2 [ class "text-lg font-semibold mb-4" ] [ text "過去7日間" ]
+                    , div [ class "grid grid-cols-2 gap-4" ]
+                        [ div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "🎯" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "recent-sets"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt recentStatistics.totalSets ]
+                                , span [ class "text-sm text-gray-500" ] [ text "セット数" ]
+                                ]
+                            ]
+                        , div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "⏱️" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "recent-minutes"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt <| floor <| (\s -> s / 60) <| toFloat recentStatistics.totalSeconds ]
+                                , span [ class "text-sm text-gray-500" ] [ text "練習時間(分)" ]
+                                ]
+                            ]
+                        ]
+                    ]
+                , section
+                    [ attribute "aria-label" "total"
+                    , class "p-4 rounded-lg shadow mt-4"
+                    ]
+                    [ h2 [ class "text-lg font-semibold mb-4" ] [ text "累計" ]
+                    , div [ class "grid grid-cols-2 gap-4" ]
+                        [ div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "📊" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "total-sets"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt statistics.totalSets ]
+                                , span [ class "text-sm text-gray-500" ] [ text "総セット数" ]
+                                ]
+                            ]
+                        , div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "⏱️" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "total-minutes"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt <| floor <| (\s -> s / 60) <| toFloat statistics.totalSeconds ]
+                                , span [ class "text-sm text-gray-500" ] [ text "総練習時間(秒)" ]
+                                ]
+                            ]
+                        ]
+                    ]
+                , section
+                    [ attribute "aria-label" "practice-days"
+                    , class "p-4 rounded-lg shadow mt-4"
+                    ]
+                    [ h2 [ class "text-lg font-semibold mb-4" ] [ text "練習記録" ]
+                    , div [ class "grid grid-cols-2 gap-4" ]
+                        [ div [ class "flex items-center gap-3" ]
+                            [ span [ class "text-2xl" ] [ text "📅" ]
+                            , div [ class "grid grid-flow-col gap-1 items-baseline" ]
+                                [ span
+                                    [ attribute "aria-label" "total-practice-days"
+                                    , class "text-2xl font-bold"
+                                    ]
+                                    [ text <| String.fromInt statistics.totalPracticeDays ]
+                                , span [ class "text-sm text-gray-500" ] [ text "練習日数" ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
 
 
 {-| ページが見つからなかった場合のビュー
 -}
-viewNotFound : Html msg
+viewNotFound : Html Msg
 viewNotFound =
-    div [] [ text "404 - ページが見つかりません" ]
+    div [ class "h-full overflow-scroll bg-gradient-to-b from-blue-50 to-gray-50 flex flex-col" ]
+        [ div [ class "flex-1 flex flex-col items-center justify-center px-6 py-12 text-center" ]
+            [ div [ class "flex space-x-4 text-6xl mb-8" ]
+                [ span [ class "animate-bounce delay-100" ] [ text "👻" ]
+                , span [ class "animate-bounce delay-200" ]
+                    [ text "🔍"
+                    ]
+                , span [ class "animate-bounce delay-300" ] [ text "❓" ]
+                ]
+            , h1 [ class "text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6" ]
+                [ text "404"
+                ]
+            , div [ class "space-y-1 mb-6" ]
+                [ h2 [ class "text-lg font-bold text-gray-900" ]
+                    [ text "迷子になっちゃった…"
+                    ]
+                , p [ class "text-gray-600 text-sm max-w-md mx-auto" ]
+                    [ text "お探しのページはもう掃除してしまったみたいです…🧹"
+                    ]
+                ]
+            , div [ class "bg-white rounded-2xl shadow-sm p-6 mb-8 max-w-md w-full" ]
+                [ h3 [ class "font-medium text-gray-900 mb-4 flex items-center justify-center" ]
+                    [ span [ class "mr-2" ] [ text "よくある可能性" ]
+                    , span [ class "text-xl" ] [ text "🤔" ]
+                    ]
+                , ul [ class "space-y-3 text-left text-gray-600" ]
+                    [ li
+                        [ class "flex items-center" ]
+                        [ span [ class "text-xl mr-3" ] [ text "🧹" ]
+                        , span [] [ text "ちりとりで掃いて捨てちゃった" ]
+                        ]
+                    , li
+                        [ class "flex items-center" ]
+                        [ span [ class "text-xl mr-3" ] [ text "🧺" ]
+                        , span [] [ text "洗って干しちゃった" ]
+                        ]
+                    , li
+                        [ class "flex items-center" ]
+                        [ span [ class "text-xl mr-3" ] [ text "🗑️" ]
+                        , span [] [ text "ゴミ箱に捨てちゃった" ]
+                        ]
+                    ]
+                ]
+            , button
+                [ class "inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200"
+                , onClick (NavigateToRoute HomeRoute)
+                ]
+                [ Icon.view Icon.Home
+                , span []
+                    [ text "ホームに戻る"
+                    ]
+                ]
+            ]
+        , div [ class "text-center pb-6 text-gray-500" ]
+            [ p [ class "flex items-center justify-center space-x-2 text-sm" ]
+                [ span [] [ text "このページを見つけられたあなたはラッキー" ]
+                , span [ class "animate-spin text-lg" ] [ text "🍀" ]
+                ]
+            ]
+        ]
 
 
 {-| ページに応じたビューを返す関数。
 -}
-viewContent : Model -> Html Msg
-viewContent model =
-    case model.currentPage of
-        HomePage ->
-            viewHome model
+viewContent : { viewNav : NavType Msg -> Html Msg, viewFooter : Html Msg } -> Model -> List (Html Msg)
+viewContent views model =
+    (\opt ->
+        List.filterMap identity
+            [ opt.nav
+                |> Maybe.map Nav.view
+            , Just
+                (main_
+                    [ class "flex-1 px-4 py-6 overflow-scroll"
+                    ]
+                    [ opt.view
+                    ]
+                )
+            , Maybe.Extra.filter (always opt.footer)
+                (Just views.viewFooter)
+            ]
+    )
+    <|
+        case model.currentPage of
+            HomePage ->
+                viewHome model
 
-        PresetSessionPreparationPage id prepareModel ->
-            viewPresetSessionPreparation prepareModel id
-                |> Html.map (PresetSessionPreparationPageMsg >> PageMsg)
+            PresetSessionPreparationPage prepareModel ->
+                SessionPreparationPage.view prepareModel
+                    |> View.map (PresetSessionPreparationPageMsg >> PageMsg)
 
-        ManualSessionPreparationPage prepareModel ->
-            viewManualSessionPreparation prepareModel
-                |> Html.map (ManualSessionPreparationPageMsg >> PageMsg)
+            ManualSessionPreparationPage prepareModel ->
+                SessionPreparationPage.view prepareModel
+                    |> View.map (ManualSessionPreparationPageMsg >> PageMsg)
 
-        PresetSessionPage duration sessionModel ->
-            SessionPage.view duration sessionModel
-                |> Html.map (PresetSessionPageMsg >> PageMsg)
+            PresetSessionPage duration sessionModel ->
+                SessionPage.view duration sessionModel
+                    |> View.map (PresetSessionPageMsg >> PageMsg)
 
-        ManualSessionPage duration sessionModel ->
-            SessionPage.view duration sessionModel
-                |> Html.map (ManualSessionPageMsg >> PageMsg)
+            ManualSessionPage duration sessionModel ->
+                SessionPage.view duration sessionModel
+                    |> View.map (ManualSessionPageMsg >> PageMsg)
 
-        PresetSessionCompletionPage completionModel ->
-            viewPresetSessionCompletion completionModel
+            PresetSessionCompletionPage completionModel ->
+                SessionCompletionPage.view completionModel
+                    |> View.map (PresetSessionCompletionPageMsg >> PageMsg)
 
-        ManualSessionCompletionPage completionModel ->
-            viewManualSessionCompletion completionModel
+            ManualSessionCompletionPage completionModel ->
+                SessionCompletionPage.view completionModel
+                    |> View.map (ManualSessionCompletionPageMsg >> PageMsg)
 
-        StatisticsPage ->
-            viewStatistics
+            StatisticsPage ->
+                { view = viewStatistics model
+                , nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
+                , footer = True
+                }
 
-        SettingsPage ->
-            viewSettings
+            SettingsPage settingsModel ->
+                SettingsPage.view settingsModel
+                    |> View.map (SettingsPageMsg >> PageMsg)
 
-        SourceSelectionPage sourceSelectionModel ->
-            viewSourceSelection sourceSelectionModel
+            SourceSelectionPage sourceSelectionModel ->
+                SourceSelectionPage.view sourceSelectionModel
+                    |> View.map (SourceSelectionPageMsg >> PageMsg)
 
-        BreathingMethodEditPage editModel ->
-            viewBreathingMethodEdit model.categories editModel
+            BreathingMethodEditPage editModel ->
+                BreathingMethodPage.view model.categories editModel
+                    |> View.map (BreathingMethodEditPageMsg >> PageMsg)
 
-        BreathingMethodAddPage addModel ->
-            viewBreathingMethodAdd model.categories addModel
+            BreathingMethodAddPage addModel ->
+                BreathingMethodPage.view model.categories addModel
+                    |> View.map (BreathingMethodAddPageMsg >> PageMsg)
 
-        NotFoundPage ->
-            viewNotFound
+            NotFoundPage ->
+                { view = viewNotFound
+                , nav = Nothing
+                , footer = False
+                }
 
 
 {-| ホーム画面のサブスクリプション
@@ -1111,7 +1251,7 @@ pageSubscriptions page =
         HomePage ->
             homeSubscriptions
 
-        PresetSessionPreparationPage _ _ ->
+        PresetSessionPreparationPage _ ->
             presetSessionPreparationSubscriptions
 
         ManualSessionPreparationPage _ ->
@@ -1132,7 +1272,7 @@ pageSubscriptions page =
         StatisticsPage ->
             statisticsSubscriptions
 
-        SettingsPage ->
+        SettingsPage _ ->
             settingsSubscriptions
 
         SourceSelectionPage _ ->
