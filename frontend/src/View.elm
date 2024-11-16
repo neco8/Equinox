@@ -14,12 +14,13 @@ module View exposing (View, map)
 -}
 
 import Html exposing (Html)
+import Nav exposing (NavType(..))
 
 
 {-| ビューの型エイリアス
 -}
 type alias View msg =
-    { view : Html msg, nav : Bool, footer : Bool }
+    { view : Html msg, nav : Maybe (NavType msg), footer : Bool }
 
 
 {-| ビューをマップする関数
@@ -27,6 +28,6 @@ type alias View msg =
 map : (a -> b) -> View a -> View b
 map f view =
     { view = Html.map f view.view
-    , nav = view.nav
+    , nav = Maybe.map (Nav.map f) view.nav
     , footer = view.footer
     }
