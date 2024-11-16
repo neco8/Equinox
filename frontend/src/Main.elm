@@ -33,10 +33,12 @@ import JS.Storage.StorageQueryDSL as Query
 import Json.Decode as D exposing (Decoder)
 import Json.Decode.Extra as DE
 import Maybe.Extra
+import Nav exposing (NavType(..))
 import Pages.BreathingMethodPage as BreathingMethodPage
 import Pages.SessionCompletionPage as SessionCompletionPage
 import Pages.SessionPage as SessionPage exposing (subscriptions, view)
 import Pages.SessionPreparationPage as SessionPreparationPage exposing (PracticeStyle(..))
+import Pages.SettingsPage as SettingsPage
 import Pages.SourceSelectionPage as SourceSelectionPage
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
@@ -77,7 +79,7 @@ type Page
     | PresetSessionCompletionPage SessionCompletionPage.Model
     | ManualSessionCompletionPage SessionCompletionPage.Model
     | StatisticsPage
-    | SettingsPage
+    | SettingsPage SettingsPage.Model
     | SourceSelectionPage SourceSelectionPage.Model
     | BreathingMethodEditPage BreathingMethodPage.Model
     | BreathingMethodAddPage BreathingMethodPage.Model
@@ -232,7 +234,11 @@ initializePage model route =
             ( { model | currentPage = StatisticsPage }, Cmd.none )
 
         SettingsRoute ->
-            ( { model | currentPage = SettingsPage }, Cmd.none )
+            let
+                ( settingsModel, cmd ) =
+                    SettingsPage.init ()
+            in
+            ( { model | currentPage = SettingsPage settingsModel }, Cmd.map SettingsPageMsg cmd )
 
         SourceSelectionRoute ->
             let
@@ -268,6 +274,7 @@ type PageMsg
     | SourceSelectionPageMsg SourceSelectionPage.Msg
     | BreathingMethodEditPageMsg BreathingMethodPage.Msg
     | BreathingMethodAddPageMsg BreathingMethodPage.Msg
+    | SettingsPageMsg SettingsPage.Msg
 
 
 {-| メッセージ
@@ -321,6 +328,9 @@ noOps =
                     Just (BreathingMethodAddPageMsg BreathingMethodPage.noOp)
 
                 BreathingMethodAddPageMsg _ ->
+                    Just (SettingsPageMsg SettingsPage.noOp)
+
+                SettingsPageMsg _ ->
                     Nothing
 
         generateList acc =
@@ -542,6 +552,22 @@ handleBreathingMethodAddPageMsg msg model =
             ( model, Cmd.none )
 
 
+handleSettingsPageMsg : SettingsPage.Msg -> Model -> ( Model, Cmd Msg )
+handleSettingsPageMsg msg model =
+    case model.currentPage of
+        SettingsPage settingsModel ->
+            let
+                ( newSettingsModel, cmd ) =
+                    SettingsPage.update model.key msg settingsModel
+            in
+            ( { model | currentPage = SettingsPage newSettingsModel }
+            , Cmd.map (PageMsg << SettingsPageMsg) cmd
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
 {-| Queryの結果を処理する
 -}
 handleReceiveOkQueryResult : QueryResult -> Model -> ( Model, Cmd Msg )
@@ -633,6 +659,9 @@ updatePage msg model =
         BreathingMethodAddPageMsg subMsg ->
             handleBreathingMethodAddPageMsg subMsg model
 
+        SettingsPageMsg subMsg ->
+            handleSettingsPageMsg subMsg model
+
 
 {-| モデルの更新
 -}
@@ -718,7 +747,7 @@ pageTitle page =
         StatisticsPage ->
             "統計"
 
-        SettingsPage ->
+        SettingsPage _ ->
             "設定"
 
         SourceSelectionPage _ ->
@@ -742,36 +771,11 @@ viewPage model =
         [ class "h-screen flex flex-col"
         ]
     <|
-        viewContent { viewNav = viewNav, viewFooter = viewFooter } model
-
-
-{-| ストリークのビュー
--}
-viewStreak : Int -> Html msg
-viewStreak streak =
-    div [ class "flex items-center space-x-2" ]
-        [ Icon.view Icon.Flame
-        , span
-            [ class "font-medium text-xs"
-            ]
-            [ text <| String.fromInt streak
-            ]
-        ]
-
-
-{-| ナビゲーションのビュー
--}
-viewNav : Html Msg
-viewNav =
-    nav [ class "bg-white shadow-sm px-4 py-3 flex justify-end items-center space-x-4" ]
-        [ viewStreak 30
-        , button
-            [ attribute "aria-label" "settings"
-            , class "p-2 hover:bg-gray-200 rounded-full"
-            , onClick (NavigateToRoute SettingsRoute)
-            ]
-            [ Icon.view Icon.Settings ]
-        ]
+        viewContent
+            { viewNav = Nav.view
+            , viewFooter = viewFooter
+            }
+            model
 
 
 {-| フッターのビュー
@@ -859,7 +863,7 @@ viewBreathingMethodList category children =
 -}
 viewHome : { model | categories : RemoteData e (List Category), breathingMethods : RemoteData e (List BreathingMethod) } -> View Msg
 viewHome model =
-    { nav = True
+    { nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
     , footer = True
     , view =
         case ( model.categories, model.breathingMethods ) of
@@ -922,7 +926,10 @@ viewStatistics model =
                 recentStatistics =
                     calculateRecentFromSessions recentDaysThreshold model.now sessions
             in
-            div [ attribute "role" "statistics" ]
+            div
+                [ attribute "role" "statistics"
+                , class "max-w-2xl mx-auto"
+                ]
                 [ div [ attribute "aria-label" "streak-display" ] [ text "" ]
                 , section
                     [ attribute "aria-label" "recent-7-days"
@@ -1006,13 +1013,6 @@ viewStatistics model =
                 ]
 
 
-{-| 設定画面のビュー
--}
-viewSettings : Html Msg
-viewSettings =
-    div [ attribute "role" "settings" ] [ text "設定画面" ]
-
-
 {-| ページが見つからなかった場合のビュー
 -}
 viewNotFound : Html msg
@@ -1022,12 +1022,12 @@ viewNotFound =
 
 {-| ページに応じたビューを返す関数。
 -}
-viewContent : { viewNav : Html Msg, viewFooter : Html Msg } -> Model -> List (Html Msg)
+viewContent : { viewNav : NavType Msg -> Html Msg, viewFooter : Html Msg } -> Model -> List (Html Msg)
 viewContent views model =
     (\opt ->
         List.filterMap identity
-            [ Maybe.Extra.filter (always opt.nav)
-                (Just views.viewNav)
+            [ opt.nav
+                |> Maybe.map Nav.view
             , Just
                 (main_
                     [ class "flex-1 px-4 py-6 overflow-scroll"
@@ -1070,15 +1070,13 @@ viewContent views model =
 
             StatisticsPage ->
                 { view = viewStatistics model
-                , nav = True
+                , nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
                 , footer = True
                 }
 
-            SettingsPage ->
-                { nav = False
-                , footer = False
-                , view = viewSettings
-                }
+            SettingsPage settingsModel ->
+                SettingsPage.view settingsModel
+                    |> View.map (SettingsPageMsg >> PageMsg)
 
             SourceSelectionPage sourceSelectionModel ->
                 SourceSelectionPage.view sourceSelectionModel
@@ -1094,7 +1092,7 @@ viewContent views model =
 
             NotFoundPage ->
                 { view = viewNotFound
-                , nav = False
+                , nav = Nothing
                 , footer = False
                 }
 
@@ -1214,7 +1212,7 @@ pageSubscriptions page =
         StatisticsPage ->
             statisticsSubscriptions
 
-        SettingsPage ->
+        SettingsPage _ ->
             settingsSubscriptions
 
         SourceSelectionPage _ ->
