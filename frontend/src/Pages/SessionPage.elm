@@ -770,7 +770,7 @@ getElapsedMilliseconds timerState displayCurrentTime =
 -}
 view : Maybe Duration -> Model -> View Msg
 view _ model =
-    { nav = False
+    { nav = Nothing
     , footer = False
     , view =
         case model of

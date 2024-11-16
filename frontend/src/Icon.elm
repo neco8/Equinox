@@ -38,6 +38,8 @@ type Icon
     | Alert
     | Refresh
     | Check
+    | ChevronLeft
+    | ChevronRight
 
 
 {-| ビュー
@@ -139,3 +141,13 @@ view icon =
             div
                 []
                 [ text "✓" ]
+
+        ChevronLeft ->
+            div
+                []
+                [ text "←" ]
+
+        ChevronRight ->
+            div
+                []
+                [ text "→" ]

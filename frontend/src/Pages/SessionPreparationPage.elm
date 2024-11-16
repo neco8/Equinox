@@ -37,11 +37,12 @@ module Pages.SessionPreparationPage exposing
 import BreathingMethodDurationInput
 import Browser.Navigation as Nav
 import Html exposing (button, div, h1, input, p, span, text)
-import Html.Attributes exposing (attribute, class, disabled, placeholder, style, type_)
+import Html.Attributes exposing (attribute, class, disabled, placeholder, type_)
 import Html.Events exposing (onClick, onInput)
 import Icon
 import List.Extra
 import Maybe.Extra
+import Nav exposing (NavType(..))
 import Pages.SessionPage as SessionPage
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
@@ -323,7 +324,7 @@ validateInput { sessionDurationInput, practiceStyle } =
 -}
 view : Model -> View Msg
 view model =
-    { nav = True
+    { nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
     , footer = True
     , view =
         case model of
@@ -458,7 +459,10 @@ view model =
                             Preset method ->
                                 PresetSessionRoute method.id (Just duration)
                 in
-                div [ attribute "role" "preparation" ]
+                div
+                    [ attribute "role" "preparation"
+                    , class "max-w-2xl mx-auto"
+                    ]
                     [ div
                         [ class "text-center mb-8"
                         ]
@@ -468,7 +472,7 @@ view model =
                             ]
                         ]
                     , breathingMethodControls
-                    , div [ class "space-y-4" ]
+                    , div [ class "space-y-8 mt-4" ]
                         [ div [ class "flex items-center space-x-3 bg-gray-50 p-4 rounded-lg" ]
                             [ Icon.view Icon.Timer
                             , input

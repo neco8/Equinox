@@ -425,7 +425,7 @@ view remote model =
                 ModelLoaded loaded ->
                     loaded.pageAction
     in
-    { nav = False
+    { nav = Nothing
     , footer = False
     , view =
         div
