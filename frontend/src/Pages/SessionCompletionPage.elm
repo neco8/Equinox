@@ -242,7 +242,7 @@ init remote mduration practiceStyle =
 -}
 view : Model -> View Msg
 view model =
-    { nav = False
+    { nav = Nothing
     , footer = False
     , view =
         case model of
