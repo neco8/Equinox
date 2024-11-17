@@ -31,8 +31,9 @@ import Html exposing (Html, button, div, h1, h2, header, p, span, text, ul)
 import Html.Attributes exposing (attribute, class, disabled)
 import Html.Events exposing (onClick)
 import Icon
+import Nav exposing (NavType(..))
 import RemoteData exposing (RemoteData(..))
-import Route exposing (Route)
+import Route exposing (Route(..))
 import Task
 import Time
 import Types.BreathingMethod exposing (fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName)
@@ -71,6 +72,7 @@ type Msg
     | OpenManualInput
     | GotOnlineBreathingMethods (Result API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
     | NavigateToRoute Route
+    | GoBack
     | NoOp
 
 
@@ -121,6 +123,9 @@ update config key msg model =
 
         NavigateToRoute route ->
             ( model, Nav.pushUrl key (Route.toString route) )
+
+        GoBack ->
+            ( model, Nav.back key 1 )
 
         NoOp ->
             ( model, Cmd.none )
@@ -283,7 +288,7 @@ viewSourceSelection =
 -}
 view : Model -> View Msg
 view model =
-    { nav = Nothing
+    { nav = Just (BackNav { goBack = GoBack, title = "ソース選択" })
     , footer = False
     , view =
         case model.sourceSelection of
