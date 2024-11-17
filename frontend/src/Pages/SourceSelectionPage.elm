@@ -186,13 +186,6 @@ viewOnlineList m =
         , class "h-full flex flex-col"
         ]
     <|
-        --               <header className="mb-6">
-        --     <div className="flex items-center gap-2 mb-2">
-        --       <Globe className="h-5 w-5 text-blue-500" />
-        --       <h1 className="text-xl font-semibold">オンライン呼吸法ライブラリ</h1>
-        --     </div>
-        --     <p className="text-gray-600">世界中のユーザーが実践している呼吸法を探索できます</p>
-        --   </header>
         header [ class "mb-6" ]
             [ div [ class "flex items-center gap-2 mb-2" ]
                 [ Icon.view Icon.Globe
