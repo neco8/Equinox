@@ -51,6 +51,7 @@ import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Html.Keyed
 import Icon
 import JS.Ports as Ports
 import JS.Storage.StorageQueryDSL exposing (Query(..))
@@ -883,33 +884,39 @@ viewControls model =
         buttonClass =
             class "p-4 bg-gray-50/70 hover:bg-gray-200/70 backdrop-blur-sm rounded-full transition-colors"
     in
-    div [ class "flex justify-center gap-8 z-10" ] <|
+    Html.Keyed.node "div" [ class "flex justify-center gap-8 z-10" ] <|
         case model.timerState of
             NotStarted ->
-                [ text "loading..." ]
+                [ ( "loading", text "loading..." ) ]
 
             Running _ ->
-                [ button
-                    [ attribute "aria-label" "pause"
-                    , onClick ClickPauseButton
-                    , buttonClass
-                    ]
-                    [ Icon.view Icon.Pause ]
+                [ ( "pause"
+                  , button
+                        [ attribute "aria-label" "pause"
+                        , onClick ClickPauseButton
+                        , buttonClass
+                        ]
+                        [ Icon.view Icon.Pause ]
+                  )
                 ]
 
             Paused _ ->
-                [ button
-                    [ attribute "aria-label" "resume"
-                    , onClick ClickResumeButton
-                    , buttonClass
-                    ]
-                    [ Icon.view Icon.Play ]
-                , button
-                    [ attribute "aria-label" "stop"
-                    , onClick ClickStopButton
-                    , buttonClass
-                    ]
-                    [ Icon.view Icon.Stop ]
+                [ ( "resume"
+                  , button
+                        [ attribute "aria-label" "resume"
+                        , onClick ClickResumeButton
+                        , buttonClass
+                        ]
+                        [ Icon.view Icon.Play ]
+                  )
+                , ( "stop"
+                  , button
+                        [ attribute "aria-label" "stop"
+                        , onClick ClickStopButton
+                        , buttonClass
+                        ]
+                        [ Icon.view Icon.Stop ]
+                  )
                 ]
 
             Completed _ ->
