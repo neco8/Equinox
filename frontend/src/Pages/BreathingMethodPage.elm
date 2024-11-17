@@ -497,7 +497,7 @@ view remote model =
                                         |> disabled
                                     , class "w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium text-lg shadow-md hover:from-blue-600 hover:to-purple-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200"
                                     ]
-                                    [ text "Submit" ]
+                                    [ text "保存" ]
                                 ]
                             ]
                         ]
