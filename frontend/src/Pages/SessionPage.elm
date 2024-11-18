@@ -852,7 +852,7 @@ viewTimer model =
         , attribute "aria-label" "session-timer"
         , class "text-6xl font-mono z-10 p-8 relative"
         ]
-        [ div [ class "absolute -inset-6 bg-blue-100/20 blur-2xl" ] []
+        [ div [ class "absolute -inset-6 bg-white/60 blur-xl" ] []
         , span [ class "relative" ] [ text (minutes ++ ":" ++ seconds) ]
         ]
 
