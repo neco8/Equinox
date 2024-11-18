@@ -212,7 +212,7 @@ viewOnlineList m =
                     Loading ->
                         [ text "Loading..." ]
 
-                    Failure error ->
+                    Failure _ ->
                         [ div [ class "border border-red-100 bg-red-50 rounded-lg p-4 mb-6" ]
                             [ div [ class "flex gap-2 items-start" ]
                                 [ Icon.view Icon.Alert
