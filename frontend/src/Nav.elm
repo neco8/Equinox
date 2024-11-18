@@ -87,7 +87,7 @@ viewBackNav : { goBack : msg, title : String } -> Html msg
 viewBackNav { goBack, title } =
     nav []
         [ header [ class "bg-white shadow-sm" ]
-            [ div [ class "px-6 h-16 flex items-center max-w-2xl mx-auto" ]
+            [ div [ class "h-16 flex items-center max-w-2xl mx-auto" ]
                 [ button
                     [ class "mr-4 p-2 h-10 hover:bg-gray-100 rounded-full aspect-square transition-colors duration-200"
                     , onClick goBack

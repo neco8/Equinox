@@ -67,8 +67,8 @@ class BreathingAnimation extends HTMLElement {
 
     // Inhale
     this.timeline.to(this.circle, {
-      width: "400px",
-      height: "400px",
+      width: "250px",
+      height: "250px",
       borderRadius: "50%",
       duration: inhale,
     });
@@ -77,7 +77,7 @@ class BreathingAnimation extends HTMLElement {
     if (inhaleHold > 0) {
       this.timeline
         .to(this.circle, {
-          borderRadius: "2%",
+          borderRadius: "3%",
           duration: SHAPE_CHANGE_DURATION,
           ease: "power1.in",
         })

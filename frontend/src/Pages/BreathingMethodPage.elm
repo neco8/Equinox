@@ -45,6 +45,7 @@ import Html.Events exposing (onClick, onInput)
 import JS.Ports as Ports
 import List.Extra
 import Maybe.Extra
+import Nav exposing (NavType(..))
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
@@ -195,6 +196,7 @@ type Msg
     | GotCreatedAt Time.Posix
     | GotNewBreathingMethodId (Uuid -> BreathingMethod) Uuid
     | NavigateToRoute Route
+    | GoBack
 
 
 {-| メッセージ: NoOp
@@ -411,6 +413,9 @@ updateInternal key registry toMsg msg model =
         NavigateToRoute route ->
             ( model, Nav.pushUrl key (Route.toString route), registry )
 
+        GoBack ->
+            ( model, Nav.back key 1, registry )
+
 
 {-| ビュー
 -}
@@ -425,7 +430,21 @@ view remote model =
                 ModelLoaded loaded ->
                     loaded.pageAction
     in
-    { nav = Nothing
+    { nav =
+        Just
+            (BackNav
+                { goBack = GoBack
+                , title =
+                    "呼吸法"
+                        ++ (case pageAction of
+                                Edit _ ->
+                                    "編集"
+
+                                Add _ _ _ _ _ ->
+                                    "追加"
+                           )
+                }
+            )
     , footer = False
     , view =
         div
@@ -497,7 +516,7 @@ view remote model =
                                         |> disabled
                                     , class "w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium text-lg shadow-md hover:from-blue-600 hover:to-purple-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200"
                                     ]
-                                    [ text "Submit" ]
+                                    [ text "保存" ]
                                 ]
                             ]
                         ]

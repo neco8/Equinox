@@ -68,6 +68,7 @@ type Msg
     = NavigateToRoute Route
     | GoToNotYetImplemented { title : String }
     | GoBackToSettings
+    | GoBack
     | NoOp
 
 
@@ -104,6 +105,9 @@ update key msg model =
 
         GoBackToSettings ->
             ( { model | step = Settings }, Cmd.none )
+
+        GoBack ->
+            ( model, Nav.back key 1 )
 
 
 {-| 設定項目のビュー
@@ -210,7 +214,7 @@ view model =
                 { goBack =
                     case model.step of
                         Settings ->
-                            NavigateToRoute HomeRoute
+                            GoBack
 
                         _ ->
                             GoBackToSettings

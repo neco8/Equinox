@@ -215,7 +215,13 @@ initializePage model route =
         PresetSessionCompletionRoute id mduration ->
             let
                 ( completionModel, cmd ) =
-                    SessionCompletionPage.init model.breathingMethods mduration (SessionCompletionPage.PresetPracticeStyle id)
+                    SessionCompletionPage.init
+                        (Success (\methods sessions -> { breathingMethods = methods, sessions = sessions })
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.sessions
+                        )
+                        mduration
+                        (SessionCompletionPage.PresetPracticeStyle id)
             in
             ( { model | currentPage = PresetSessionCompletionPage completionModel }
             , Cmd.map PresetSessionCompletionPageMsg cmd
@@ -224,14 +230,20 @@ initializePage model route =
         ManualSessionCompletionRoute mduration minhale minhaleHold mexhale mexhaleHold ->
             let
                 ( completionModel, cmd ) =
-                    SessionCompletionPage.init model.breathingMethods mduration (SessionCompletionPage.ManualPracticeStyle minhale minhaleHold mexhale mexhaleHold)
+                    SessionCompletionPage.init
+                        (Success (\methods sessions -> { breathingMethods = methods, sessions = sessions })
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.sessions
+                        )
+                        mduration
+                        (SessionCompletionPage.ManualPracticeStyle minhale minhaleHold mexhale mexhaleHold)
             in
             ( { model | currentPage = ManualSessionCompletionPage completionModel }
             , Cmd.map ManualSessionCompletionPageMsg cmd
             )
 
         StatisticsRoute ->
-            ( { model | currentPage = StatisticsPage }, Cmd.none )
+            ( { model | currentPage = StatisticsPage }, Task.perform (GotTime >> StatisticsPageMsg) Time.now )
 
         SettingsRoute ->
             let
@@ -275,6 +287,7 @@ type PageMsg
     | BreathingMethodEditPageMsg BreathingMethodPage.Msg
     | BreathingMethodAddPageMsg BreathingMethodPage.Msg
     | SettingsPageMsg SettingsPage.Msg
+    | StatisticsPageMsg Msg
 
 
 {-| メッセージ
@@ -283,6 +296,7 @@ type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | NavigateToRoute Route
+    | GotTime Time.Posix
       -- Page
     | PageMsg PageMsg
       -- Add these messages
@@ -291,6 +305,7 @@ type Msg
       -- Add saving messages for test
     | UuidMsg (Uuid.Msg Msg)
     | CmdMsg (Cmd Msg)
+    | NoOp
 
 
 {-| 画面を更新するためのNoOpのリスト
@@ -331,6 +346,9 @@ noOps =
                     Just (SettingsPageMsg SettingsPage.noOp)
 
                 SettingsPageMsg _ ->
+                    Just (StatisticsPageMsg NoOp)
+
+                StatisticsPageMsg _ ->
                     Nothing
 
         generateList acc =
@@ -464,7 +482,14 @@ handlePresetSessionCompletionPageMsg msg model =
         PresetSessionCompletionPage completionModel ->
             let
                 ( newCompletionModel, cmd ) =
-                    SessionCompletionPage.update model.breathingMethods model.key msg completionModel
+                    SessionCompletionPage.update
+                        (Success (\methods sessions -> { breathingMethods = methods, sessions = sessions })
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.sessions
+                        )
+                        model.key
+                        msg
+                        completionModel
             in
             ( { model | currentPage = PresetSessionCompletionPage newCompletionModel }
             , Cmd.map (PageMsg << PresetSessionCompletionPageMsg) cmd
@@ -482,7 +507,14 @@ handleManualSessionCompletionPageMsg msg model =
         ManualSessionCompletionPage completionModel ->
             let
                 ( newCompletionModel, cmd ) =
-                    SessionCompletionPage.update model.breathingMethods model.key msg completionModel
+                    SessionCompletionPage.update
+                        (Success (\methods sessions -> { breathingMethods = methods, sessions = sessions })
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.sessions
+                        )
+                        model.key
+                        msg
+                        completionModel
             in
             ( { model | currentPage = ManualSessionCompletionPage newCompletionModel }
             , Cmd.map (PageMsg << ManualSessionCompletionPageMsg) cmd
@@ -551,6 +583,7 @@ handleBreathingMethodAddPageMsg msg model =
         _ ->
             ( model, Cmd.none )
 
+
 {-| 設定画面のメッセージを処理する
 -}
 handleSettingsPageMsg : SettingsPage.Msg -> Model -> ( Model, Cmd Msg )
@@ -564,6 +597,18 @@ handleSettingsPageMsg msg model =
             ( { model | currentPage = SettingsPage newSettingsModel }
             , Cmd.map (PageMsg << SettingsPageMsg) cmd
             )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+{-| 統計画面のメッセージを処理する
+-}
+handleStatisticsPageMsg : Msg -> Model -> ( Model, Cmd Msg )
+handleStatisticsPageMsg msg model =
+    case model.currentPage of
+        StatisticsPage ->
+            update msg model
 
         _ ->
             ( model, Cmd.none )
@@ -663,6 +708,9 @@ updatePage msg model =
         SettingsPageMsg subMsg ->
             handleSettingsPageMsg subMsg model
 
+        StatisticsPageMsg subMsg ->
+            handleStatisticsPageMsg subMsg model
+
 
 {-| モデルの更新
 -}
@@ -677,6 +725,9 @@ update msg model =
 
         NavigateToRoute route ->
             ( model, Nav.pushUrl model.key (Route.toString route) )
+
+        GotTime posix ->
+            ( { model | now = posix }, Cmd.none )
 
         PageMsg pageMsg ->
             updatePage pageMsg model
@@ -706,6 +757,9 @@ update msg model =
 
         CmdMsg cmd ->
             ( model, cmd )
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 {-| ビュー
