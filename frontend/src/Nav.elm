@@ -119,7 +119,7 @@ view { goBackMsg, title, rightTop } =
                  , title
                     |> Maybe.map
                         (\t ->
-                            h1 [ class "text-xl font-semibold text-gray-900" ]
+                            h1 [ class "text-xl font-semibold text-gray-900 whitespace-nowrap" ]
                                 [ text t ]
                         )
                  ]
@@ -169,7 +169,7 @@ viewSettings config =
 viewHamburger : msg -> Html msg
 viewHamburger clickHamburger =
     button
-        [ class "aspect-square h-10 p-2 hover:bg-gray-200 rounded-full"
+        [ class "aspect-square h-10 p-2 hover:bg-gray-200 rounded-full grid items-center"
         , onClick clickHamburger
         ]
         [ Icon.view Icon.Hamburger ]

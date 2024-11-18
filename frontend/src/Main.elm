@@ -262,14 +262,34 @@ initializePage model route =
         BreathingMethodEditRoute id ->
             let
                 ( newModel, cmd ) =
-                    BreathingMethodPage.init model.breathingMethods (BreathingMethodPage.Edit id)
+                    BreathingMethodPage.init
+                        (Success
+                            (\methods categories ->
+                                { categories = categories
+                                , breathingMethods = methods
+                                }
+                            )
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.categories
+                        )
+                        (BreathingMethodPage.Edit id)
             in
             ( { model | currentPage = BreathingMethodEditPage newModel }, Cmd.map BreathingMethodEditPageMsg cmd )
 
         BreathingMethodAddRoute name inhale inhaleHold exhale exhaleHold ->
             let
                 ( newModel, cmd ) =
-                    BreathingMethodPage.init model.breathingMethods (BreathingMethodPage.Add name inhale inhaleHold exhale exhaleHold)
+                    BreathingMethodPage.init
+                        (Success
+                            (\methods categories ->
+                                { categories = categories
+                                , breathingMethods = methods
+                                }
+                            )
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.categories
+                        )
+                        (BreathingMethodPage.Add name inhale inhaleHold exhale exhaleHold)
             in
             ( { model | currentPage = BreathingMethodAddPage newModel }, Cmd.map BreathingMethodAddPageMsg cmd )
 
@@ -550,7 +570,21 @@ handleBreathingMethodEditPageMsg msg model =
         BreathingMethodEditPage editModel ->
             let
                 ( newEditModel, cmd, newRegistry ) =
-                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry (PageMsg << BreathingMethodEditPageMsg) msg editModel
+                    BreathingMethodPage.update
+                        (Success
+                            (\methods categories ->
+                                { categories = categories
+                                , breathingMethods = methods
+                                }
+                            )
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.categories
+                        )
+                        model.key
+                        model.uuidRegistry
+                        (PageMsg << BreathingMethodEditPageMsg)
+                        msg
+                        editModel
             in
             ( { model
                 | currentPage = BreathingMethodEditPage newEditModel
@@ -571,7 +605,21 @@ handleBreathingMethodAddPageMsg msg model =
         BreathingMethodAddPage addModel ->
             let
                 ( newAddModel, cmd, newRegistry ) =
-                    BreathingMethodPage.update model.breathingMethods model.key model.uuidRegistry (PageMsg << BreathingMethodAddPageMsg) msg addModel
+                    BreathingMethodPage.update
+                        (Success
+                            (\methods categories ->
+                                { categories = categories
+                                , breathingMethods = methods
+                                }
+                            )
+                            |> RemoteData.andMap model.breathingMethods
+                            |> RemoteData.andMap model.categories
+                        )
+                        model.key
+                        model.uuidRegistry
+                        (PageMsg << BreathingMethodAddPageMsg)
+                        msg
+                        addModel
             in
             ( { model
                 | currentPage = BreathingMethodAddPage newAddModel
