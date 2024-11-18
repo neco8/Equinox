@@ -187,7 +187,7 @@ viewOnlineList : RemoteData API.OnlineBreathingMethod.Error (List OnlineBreathin
 viewOnlineList m =
     div
         [ attribute "role" "online-list"
-        , class "h-full flex flex-col"
+        , class "h-full flex flex-col mx-auto max-w-2xl"
         ]
     <|
         header [ class "mb-6" ]
@@ -258,7 +258,7 @@ viewSourceSelection =
         [ attribute "role" "source-selection"
         , class "h-full flex items-center justify-center"
         ]
-        [ div [ class "w-full max-w-md space-y-4 px-4" ]
+        [ div [ class "w-full max-w-2xl space-y-4 px-4" ]
             [ button
                 [ attribute "aria-label" "manual-source-selection-button"
                 , onClick OpenManualInput
