@@ -33,7 +33,7 @@ import JS.Storage.StorageQueryDSL as Query
 import Json.Decode as D exposing (Decoder)
 import Json.Decode.Extra as DE
 import Maybe.Extra
-import Nav exposing (NavType(..))
+import Nav
 import Pages.BreathingMethodPage as BreathingMethodPage
 import Pages.SessionCompletionPage as SessionCompletionPage
 import Pages.SessionPage as SessionPage exposing (subscriptions, view)
@@ -918,7 +918,12 @@ viewBreathingMethodList category children =
 -}
 viewHome : { model | categories : RemoteData e (List Category), breathingMethods : RemoteData e (List BreathingMethod) } -> View Msg
 viewHome model =
-    { nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
+    { nav =
+        Nav.initialConfig
+            |> Nav.withSettings
+                (NavigateToRoute SettingsRoute)
+                (Just 30)
+            |> Just
     , footer = True
     , view =
         case ( model.categories, model.breathingMethods ) of
@@ -1136,7 +1141,7 @@ viewNotFound =
 
 {-| ページに応じたビューを返す関数。
 -}
-viewContent : { viewNav : NavType Msg -> Html Msg, viewFooter : Html Msg } -> Model -> List (Html Msg)
+viewContent : { viewNav : Nav.Config Msg -> Html Msg, viewFooter : Html Msg } -> Model -> List (Html Msg)
 viewContent views model =
     (\opt ->
         List.filterMap identity
@@ -1184,7 +1189,10 @@ viewContent views model =
 
             StatisticsPage ->
                 { view = viewStatistics model
-                , nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
+                , nav =
+                    Nav.initialConfig
+                        |> Nav.withSettings (NavigateToRoute SettingsRoute) (Just 30)
+                        |> Just
                 , footer = True
                 }
 

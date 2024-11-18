@@ -42,7 +42,7 @@ import Html.Events exposing (onClick, onInput)
 import Icon
 import List.Extra
 import Maybe.Extra
-import Nav exposing (NavType(..))
+import Nav
 import Pages.SessionPage as SessionPage
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
@@ -324,7 +324,10 @@ validateInput { sessionDurationInput, practiceStyle } =
 -}
 view : Model -> View Msg
 view model =
-    { nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
+    { nav =
+        Nav.initialConfig
+            |> Nav.withSettings (NavigateToRoute SettingsRoute) (Just 30)
+            |> Just
     , footer = True
     , view =
         case model of
