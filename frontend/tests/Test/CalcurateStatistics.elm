@@ -1,4 +1,4 @@
-module Test.Statistics exposing (suite)
+module Test.CalcurateStatistics exposing (suite)
 
 {-|
 
