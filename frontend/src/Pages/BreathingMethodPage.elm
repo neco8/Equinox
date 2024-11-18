@@ -45,7 +45,7 @@ import Html.Events exposing (onClick, onInput)
 import JS.Ports as Ports
 import List.Extra
 import Maybe.Extra
-import Nav exposing (NavType(..))
+import Nav
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
@@ -431,20 +431,19 @@ view remote model =
                     loaded.pageAction
     in
     { nav =
-        Just
-            (BackNav
-                { goBack = GoBack
-                , title =
-                    "呼吸法"
-                        ++ (case pageAction of
-                                Edit _ ->
-                                    "編集"
+        Nav.initialConfig
+            |> Nav.withGoBack GoBack
+            |> Nav.withTitle
+                ("呼吸法"
+                    ++ (case pageAction of
+                            Edit _ ->
+                                "編集"
 
-                                Add _ _ _ _ _ ->
-                                    "追加"
-                           )
-                }
-            )
+                            Add _ _ _ _ _ ->
+                                "追加"
+                       )
+                )
+            |> Just
     , footer = False
     , view =
         div

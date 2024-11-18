@@ -209,24 +209,24 @@ settingGroups =
 view : Model -> View Msg
 view model =
     { nav =
-        Just
-            (Nav.BackNav
-                { goBack =
-                    case model.step of
-                        Settings ->
-                            GoBack
+        Nav.initialConfig
+            |> Nav.withGoBack
+                (case model.step of
+                    Settings ->
+                        GoBack
 
-                        _ ->
-                            GoBackToSettings
-                , title =
-                    case model.step of
-                        Settings ->
-                            "設定"
+                    _ ->
+                        GoBackToSettings
+                )
+            |> Nav.withTitle
+                (case model.step of
+                    Settings ->
+                        "設定"
 
-                        NotYetImplemented { title } ->
-                            title
-                }
-            )
+                    NotYetImplemented { title } ->
+                        title
+                )
+            |> Just
     , footer = False
     , view =
         div

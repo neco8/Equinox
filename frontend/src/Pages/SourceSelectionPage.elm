@@ -31,7 +31,7 @@ import Html exposing (Html, button, div, h1, h2, header, p, span, text, ul)
 import Html.Attributes exposing (attribute, class, disabled)
 import Html.Events exposing (onClick)
 import Icon
-import Nav exposing (NavType(..))
+import Nav
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
 import Task
@@ -286,18 +286,17 @@ viewSourceSelection =
 view : Model -> View Msg
 view model =
     { nav =
-        Just
-            (BackNav
-                { goBack =
-                    case model.sourceSelection of
-                        OnlineList _ ->
-                            GoBackToSourceSelection
+        Nav.initialConfig
+            |> Nav.withGoBack
+                (case model.sourceSelection of
+                    OnlineList _ ->
+                        GoBackToSourceSelection
 
-                        SourceSelection ->
-                            GoBack
-                , title = "ソース選択"
-                }
-            )
+                    SourceSelection ->
+                        GoBack
+                )
+            |> Nav.withTitle "ソース選択"
+            |> Just
     , footer = False
     , view =
         case model.sourceSelection of
