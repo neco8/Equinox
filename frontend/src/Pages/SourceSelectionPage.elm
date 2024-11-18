@@ -73,6 +73,7 @@ type Msg
     | GotOnlineBreathingMethods (Result API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
     | NavigateToRoute Route
     | GoBack
+    | GoBackToSourceSelection
     | NoOp
 
 
@@ -126,6 +127,9 @@ update config key msg model =
 
         GoBack ->
             ( model, Nav.back key 1 )
+
+        GoBackToSourceSelection ->
+            ( { model | sourceSelection = SourceSelection }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -281,7 +285,19 @@ viewSourceSelection =
 -}
 view : Model -> View Msg
 view model =
-    { nav = Just (BackNav { goBack = GoBack, title = "ソース選択" })
+    { nav =
+        Just
+            (BackNav
+                { goBack =
+                    case model.sourceSelection of
+                        OnlineList _ ->
+                            GoBackToSourceSelection
+
+                        SourceSelection ->
+                            GoBack
+                , title = "ソース選択"
+                }
+            )
     , footer = False
     , view =
         case model.sourceSelection of
