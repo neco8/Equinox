@@ -1,7 +1,8 @@
 module Nav exposing
-    ( StreakModel, Config, view
-    , initialConfig, withSettings, withTitle, withGoBack, withHamburger
+    ( StreakModel, Config
+    , initialConfig, withSettings, withTitle, withGoBack, withRightTop
     , map
+    , view, viewHamburger
     )
 
 {-|
@@ -16,17 +17,22 @@ module Nav exposing
 
 ### 基本型
 
-@docs StreakModel, Config, view
+@docs StreakModel, Config
 
 
 ### config
 
-@docs initialConfig, withSettings, withTitle, withGoBack, withHamburger
+@docs initialConfig, withSettings, withTitle, withGoBack, withRightTop
 
 
 ### ヘルパー関数
 
 @docs map
+
+
+### ビュー
+
+@docs view, viewHamburger
 
 -}
 
@@ -76,11 +82,11 @@ withGoBack goBack config =
     { config | goBackMsg = Just goBack }
 
 
-{-| ハンバーガーボタンを追加する
+{-| 右上を追加する
 -}
-withHamburger : msg -> Config msg -> Config msg
-withHamburger clickHamburger config =
-    { config | rightTop = viewHamburger clickHamburger }
+withRightTop : List (Html msg) -> Config msg -> Config msg
+withRightTop rightTop config =
+    { config | rightTop = rightTop }
 
 
 {-| map関数
@@ -160,13 +166,10 @@ viewSettings config =
     ]
 
 
-viewHamburger : msg -> List (Html msg)
+viewHamburger : msg -> Html msg
 viewHamburger clickHamburger =
-    [ div [ class "flex justify-end items-center w-full" ]
-        [ button
-            [ class "aspect-square h-10 p-2 hover:bg-gray-200 rounded-full"
-            , onClick clickHamburger
-            ]
-            [ Icon.view Icon.Hamburger ]
+    button
+        [ class "aspect-square h-10 p-2 hover:bg-gray-200 rounded-full"
+        , onClick clickHamburger
         ]
-    ]
+        [ Icon.view Icon.Hamburger ]
