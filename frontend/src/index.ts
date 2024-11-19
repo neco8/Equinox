@@ -15,6 +15,7 @@ import {
 import { applyUuid } from "./typescript/uuid";
 import "./typescript/breathing-animation";
 import "./typescript/streak-animation";
+import "./typescript/lock-screen";
 
 // ストレージインスタンスの初期化
 const storage = new WebTestStorage();

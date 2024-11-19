@@ -42,6 +42,9 @@ type Icon
     | ChevronRight
     | Hamburger
     | Trash
+    | Sets
+    | Calendar
+    | Close
 
 
 {-| ビュー
@@ -163,3 +166,18 @@ view icon =
             div
                 []
                 [ text "🗑️" ]
+
+        Sets ->
+            div
+                []
+                [ text "📚" ]
+
+        Calendar ->
+            div
+                []
+                [ text "📅" ]
+
+        Close ->
+            div
+                []
+                [ text "x" ]

@@ -25,6 +25,7 @@ module Modal exposing
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Icon
 
 
 {-| モーダルの設定
@@ -84,7 +85,7 @@ view config =
                         [ onClick config.onClose
                         , class "text-gray-500 hover:text-gray-700 transition-colors"
                         ]
-                        [ text "×" ]
+                        [ Icon.view Icon.Close ]
                     ]
                 , div [ class "overflow-y-auto" ] [ config.content ]
                 ]
