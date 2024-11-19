@@ -946,6 +946,12 @@ view mduration model =
                             ]
                         ]
                     , viewControls loaded consentrationMode
+                    , case loaded.timerState of
+                        Running _ ->
+                            node "lock-screen" [ class "hidden" ] []
+
+                        _ ->
+                            text ""
                     ]
     }
 

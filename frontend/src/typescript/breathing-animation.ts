@@ -128,7 +128,7 @@ class BreathingAnimation extends HTMLElement {
 
     this.timeline = gsap.timeline({
       repeat: -1,
-      defaults: { ease: "power1.inOut" },
+      defaults: { ease: "power3.inOut" },
     });
 
     // Inhale
