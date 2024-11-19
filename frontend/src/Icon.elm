@@ -40,6 +40,8 @@ type Icon
     | Check
     | ChevronLeft
     | ChevronRight
+    | Hamburger
+    | Trash
 
 
 {-| ビュー
@@ -151,3 +153,13 @@ view icon =
             div
                 []
                 [ text "→" ]
+
+        Hamburger ->
+            div
+                []
+                [ text "☰" ]
+
+        Trash ->
+            div
+                []
+                [ text "🗑️" ]

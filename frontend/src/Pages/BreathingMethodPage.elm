@@ -4,6 +4,7 @@ module Pages.BreathingMethodPage exposing
     , init
     , update
     , view
+    , subscriptions
     )
 
 {-|
@@ -39,12 +40,15 @@ module Pages.BreathingMethodPage exposing
 import BreathingMethodDurationInput
 import Browser.Navigation as Nav
 import Common.Combobox as Combobox
-import Html exposing (button, div, h1, input, text)
+import Html exposing (Html, button, div, h1, input, li, text)
 import Html.Attributes exposing (attribute, class, disabled, placeholder, value)
 import Html.Events exposing (onClick, onInput)
+import Icon exposing (Icon(..))
 import JS.Ports as Ports
 import List.Extra
 import Maybe.Extra
+import Modal
+import Monocle.Lens
 import Nav
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
@@ -76,15 +80,87 @@ type alias InternalModel =
     , exhaleHoldDurationInput : String
     , nameInput : String
     , selectedCategory : Maybe CategoryId
-    , categoryComboboxModel : Combobox.Model Msg CategoryId
+    , categoryComboboxModel : Combobox.Model InternalMsg CategoryId
+    }
+
+
+{-| ハンバーガーメニューモデル
+-}
+type alias HamburgerModel =
+    { isOpen : Bool
+    }
+
+
+{-| モーダルのモデル
+-}
+type alias ModalModel =
+    { isOpen : Bool
     }
 
 
 {-| モデル
 -}
 type Model
-    = ModelLoading PageAction
-    | ModelLoaded InternalModel
+    = ModelLoading PageAction { hamburger : HamburgerModel, modal : ModalModel }
+    | ModelLoaded InternalModel { hamburger : HamburgerModel, modal : ModalModel }
+
+
+{-| モデルからハンバーガーモデルを取得するLens
+-}
+modelHamburegerModel : Monocle.Lens.Lens Model HamburgerModel
+modelHamburegerModel =
+    Monocle.Lens.Lens
+        (\model ->
+            case model of
+                ModelLoading _ sub ->
+                    sub.hamburger
+
+                ModelLoaded _ sub ->
+                    sub.hamburger
+        )
+        (\h m ->
+            case m of
+                ModelLoading pageAction sub ->
+                    ModelLoading pageAction { sub | hamburger = h }
+
+                ModelLoaded internal sub ->
+                    ModelLoaded internal { sub | hamburger = h }
+        )
+
+
+{-| モデルからモーダルモデルを取得するLens
+-}
+modelModalmmodel : Monocle.Lens.Lens Model ModalModel
+modelModalmmodel =
+    Monocle.Lens.Lens
+        (\model ->
+            case model of
+                ModelLoading _ { modal } ->
+                    modal
+
+                ModelLoaded _ { modal } ->
+                    modal
+        )
+        (\m model ->
+            case model of
+                ModelLoading pageAction { hamburger } ->
+                    ModelLoading pageAction { hamburger = hamburger, modal = m }
+
+                ModelLoaded internal { hamburger } ->
+                    ModelLoaded internal { hamburger = hamburger, modal = m }
+        )
+
+
+{-| ハンバーガーメニューモデルの初期値
+-}
+initHamburgerModel : HamburgerModel
+initHamburgerModel =
+    { isOpen = False }
+
+
+initModalModel : ModalModel
+initModalModel =
+    { isOpen = False }
 
 
 {-| 初期化関数
@@ -92,30 +168,49 @@ type Model
 呼吸法が取得済みなら、initしてよい。だが、取得が後からになる場合はupdateの中でも初期化する必要がある。
 
 -}
-init : RemoteData e (List BreathingMethod) -> PageAction -> ( Model, Cmd Msg )
-init remote pageAction =
+init : RemoteData e { categories : List Category, breathingMethods : List BreathingMethod } -> Nav.Key -> PageAction -> ( Model, Cmd Msg )
+init remote key pageAction =
     case remote of
         NotAsked ->
-            ( ModelLoading pageAction, Cmd.none )
+            ( ModelLoading pageAction
+                { hamburger = initHamburgerModel
+                , modal = initModalModel
+                }
+            , Cmd.none
+            )
 
         Loading ->
-            ( ModelLoading pageAction, Cmd.none )
+            ( ModelLoading pageAction
+                { hamburger = initHamburgerModel
+                , modal = initModalModel
+                }
+            , Cmd.none
+            )
 
         Failure _ ->
             -- ホーム画面へ戻る。 - [ ] TODO: エラーメッセージを表示する
             ( ModelLoading pageAction
+                { hamburger = initHamburgerModel
+                , modal = initModalModel
+                }
             , NavigateToRoute Route.HomeRoute
+                |> InternalMsg
                 |> always
                 |> Task.perform
                 |> (|>) Time.now
             )
 
-        Success breathingMethods ->
+        Success data ->
             let
                 ( newModel, cmd ) =
-                    initInternal breathingMethods pageAction
+                    initInternal data.breathingMethods data.categories key pageAction
             in
-            ( ModelLoaded newModel, cmd )
+            ( ModelLoaded newModel
+                { hamburger = initHamburgerModel
+                , modal = initModalModel
+                }
+            , cmd
+            )
 
 
 {-| 初期化関数
@@ -123,11 +218,10 @@ init remote pageAction =
 内部で実際に行っているもの
 
 -}
-initInternal : List BreathingMethod -> PageAction -> ( InternalModel, Cmd Msg )
-initInternal breathingMethods pageAction =
+initInternal : List BreathingMethod -> List Category -> Nav.Key -> PageAction -> ( InternalModel, Cmd Msg )
+initInternal breathingMethods categories key pageAction =
     let
-        breathingMethod : { inhale : String, inhaleHold : String, exhale : String, exhaleHold : String, name : String }
-        breathingMethod =
+        mbreathingMethod =
             case pageAction of
                 Edit id ->
                     List.Extra.find (\bm -> bm.id == id) breathingMethods
@@ -138,23 +232,19 @@ initInternal breathingMethods pageAction =
                                 , inhaleHold = String.fromInt <| fromInhaleHoldDuration bm.inhaleHoldDuration
                                 , exhale = String.fromInt <| fromExhaleDuration bm.exhaleDuration
                                 , exhaleHold = String.fromInt <| fromExhaleHoldDuration bm.exhaleHoldDuration
+                                , categoryId = Just bm.categoryId
                                 }
                             )
-                        |> Maybe.withDefault
-                            { name = ""
-                            , inhale = ""
-                            , inhaleHold = ""
-                            , exhale = ""
-                            , exhaleHold = ""
-                            }
 
                 Add name inhale inhaleHold exhale exhaleHold ->
-                    { name = Maybe.withDefault "" <| Maybe.map fromName name
-                    , inhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleDuration) inhale
-                    , inhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleHoldDuration) inhaleHold
-                    , exhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleDuration) exhale
-                    , exhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleHoldDuration) exhaleHold
-                    }
+                    Just
+                        { name = Maybe.withDefault "" <| Maybe.map fromName name
+                        , inhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleDuration) inhale
+                        , inhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleHoldDuration) inhaleHold
+                        , exhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleDuration) exhale
+                        , exhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleHoldDuration) exhaleHold
+                        , categoryId = Nothing
+                        }
 
         categoryComboboxModel =
             Combobox.init
@@ -164,24 +254,67 @@ initInternal breathingMethods pageAction =
                     (toTitle >> Maybe.Extra.isJust)
                     CreateNewCategory
                     CategoryComboboxMsg
+                    (case pageAction of
+                        Edit id ->
+                            List.Extra.find (.id >> (==) id) breathingMethods
+                                |> Maybe.map .categoryId
+                                |> Maybe.andThen (\cid -> List.Extra.find (.id >> (==) cid) categories)
+                                |> Maybe.map (\c -> Combobox.Option c.id (fromTitle c.title))
+
+                        Add _ _ _ _ _ ->
+                            Nothing
+                    )
                 )
     in
-    ( { pageAction = pageAction
-      , inhaleDurationInput = breathingMethod.inhale
-      , inhaleHoldDurationInput = breathingMethod.inhaleHold
-      , exhaleDurationInput = breathingMethod.exhale
-      , exhaleHoldDurationInput = breathingMethod.exhaleHold
-      , nameInput = breathingMethod.name
-      , selectedCategory = Nothing
-      , categoryComboboxModel = categoryComboboxModel
-      }
-    , Cmd.none
-    )
+    case mbreathingMethod of
+        Just breathingMethod ->
+            ( { pageAction = pageAction
+              , inhaleDurationInput = breathingMethod.inhale
+              , inhaleHoldDurationInput = breathingMethod.inhaleHold
+              , exhaleDurationInput = breathingMethod.exhale
+              , exhaleHoldDurationInput = breathingMethod.exhaleHold
+              , nameInput = breathingMethod.name
+              , selectedCategory = breathingMethod.categoryId
+              , categoryComboboxModel = categoryComboboxModel
+              }
+            , Cmd.none
+            )
+
+        Nothing ->
+            ( { pageAction = pageAction
+              , inhaleDurationInput = ""
+              , inhaleHoldDurationInput = ""
+              , exhaleDurationInput = ""
+              , exhaleHoldDurationInput = ""
+              , nameInput = ""
+              , selectedCategory = Nothing
+              , categoryComboboxModel = categoryComboboxModel
+              }
+            , HomeRoute
+                |> Route.toString
+                |> Nav.replaceUrl key
+            )
+
+
+type HamburgerMenuMsg
+    = ToggleHamburgerMenu
+    | CloseHamburgerMenu
+
+
+type ModalMsg
+    = OpenDeleteBreathingMethodModal
+    | CloseDeleteBreathingMethodModal
 
 
 {-| メッセージ
 -}
 type Msg
+    = HamburgerMenuMsg HamburgerMenuMsg
+    | ModalMsg ModalMsg
+    | InternalMsg InternalMsg
+
+
+type InternalMsg
     = NoOp
     | InputInhaleDuration String
     | InputInhaleHoldDuration String
@@ -197,6 +330,9 @@ type Msg
     | GotNewBreathingMethodId (Uuid -> BreathingMethod) Uuid
     | NavigateToRoute Route
     | GoBack
+    | ClickOpenDeleteBreathingMethodModal
+    | DeleteBreathingMethod
+    | ReceiveDeleteBreathingMethodResult Bool
 
 
 {-| メッセージ: NoOp
@@ -206,46 +342,74 @@ type Msg
 -}
 noOp : Msg
 noOp =
-    NoOp
+    InternalMsg NoOp
+
+
+updateHamburgerModel : HamburgerMenuMsg -> Model -> Model
+updateHamburgerModel msg model =
+    case msg of
+        ToggleHamburgerMenu ->
+            Monocle.Lens.modify modelHamburegerModel (\m -> { m | isOpen = not m.isOpen }) model
+
+        CloseHamburgerMenu ->
+            Monocle.Lens.modify modelHamburegerModel (\m -> { m | isOpen = False }) model
+
+
+updateModalModel : ModalMsg -> Model -> Model
+updateModalModel msg model =
+    case msg of
+        OpenDeleteBreathingMethodModal ->
+            Monocle.Lens.modify modelModalmmodel (\m -> { m | isOpen = True }) model
+
+        CloseDeleteBreathingMethodModal ->
+            Monocle.Lens.modify modelModalmmodel (\m -> { m | isOpen = False }) model
 
 
 {-| アップデート関数
 -}
-update : RemoteData e (List BreathingMethod) -> Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> Model -> ( Model, Cmd msg, Uuid.Registry msg )
+update : RemoteData e { categories : List Category, breathingMethods : List BreathingMethod } -> Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> Model -> ( Model, Cmd msg, Uuid.Registry msg )
 update remote key registry toMsg msg model =
-    case model of
-        ModelLoading pageAction ->
-            case remote of
-                Success breathingMethods ->
+    case msg of
+        HamburgerMenuMsg subMsg ->
+            ( updateHamburgerModel subMsg model, Cmd.none, registry )
+
+        ModalMsg subMsg ->
+            ( updateModalModel subMsg model, Cmd.none, registry )
+
+        InternalMsg subMsg ->
+            case model of
+                ModelLoading pageAction hamburgerModel ->
+                    case remote of
+                        Success data ->
+                            let
+                                ( newModel, cmd ) =
+                                    initInternal data.breathingMethods data.categories key pageAction
+                            in
+                            ( ModelLoaded newModel hamburgerModel, Cmd.map toMsg cmd, registry )
+
+                        Failure _ ->
+                            ( model
+                              -- ホームへ遷移する。 - [ ] TODO: エラーメッセージを表示する
+                            , NavigateToRoute HomeRoute
+                                |> (InternalMsg >> toMsg)
+                                |> always
+                                |> Task.perform
+                                |> (|>) Time.now
+                            , registry
+                            )
+
+                        Loading ->
+                            ( model, Cmd.none, registry )
+
+                        NotAsked ->
+                            ( model, Cmd.none, registry )
+
+                ModelLoaded internal hamburgerModel ->
                     let
-                        ( newModel, cmd ) =
-                            initInternal breathingMethods pageAction
+                        ( newInternal, cmd, newRegistry ) =
+                            updateInternal key registry toMsg subMsg internal
                     in
-                    ( ModelLoaded newModel, Cmd.map toMsg cmd, registry )
-
-                Failure _ ->
-                    ( model
-                      -- ホームへ遷移する。 - [ ] TODO: エラーメッセージを表示する
-                    , NavigateToRoute HomeRoute
-                        |> toMsg
-                        |> always
-                        |> Task.perform
-                        |> (|>) Time.now
-                    , registry
-                    )
-
-                Loading ->
-                    ( model, Cmd.none, registry )
-
-                NotAsked ->
-                    ( model, Cmd.none, registry )
-
-        ModelLoaded internal ->
-            let
-                ( newInternal, cmd, newRegistry ) =
-                    updateInternal key registry toMsg msg internal
-            in
-            ( ModelLoaded newInternal, cmd, newRegistry )
+                    ( ModelLoaded newInternal hamburgerModel, cmd, newRegistry )
 
 
 {-| 呼吸法を作成する関数
@@ -273,7 +437,7 @@ createBreathingMethod model =
 
 {-| 内部で利用されているアップデート関数
 -}
-updateInternal : Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> Msg -> InternalModel -> ( InternalModel, Cmd msg, Uuid.Registry msg )
+updateInternal : Nav.Key -> Uuid.Registry msg -> (Msg -> msg) -> InternalMsg -> InternalModel -> ( InternalModel, Cmd msg, Uuid.Registry msg )
 updateInternal key registry toMsg msg model =
     case msg of
         NoOp ->
@@ -305,7 +469,7 @@ updateInternal key registry toMsg msg model =
                             "breathing-method-edit/breathing-method"
 
                         handler =
-                            GotNewBreathingMethodId fn >> toMsg
+                            GotNewBreathingMethodId fn >> InternalMsg >> toMsg
 
                         uuidMsg =
                             Uuid.uuidGenerate tag handler
@@ -336,7 +500,7 @@ updateInternal key registry toMsg msg model =
         Submit ->
             ( model
             , Task.perform GotCreatedAt Time.now
-                |> Cmd.map toMsg
+                |> Cmd.map (InternalMsg >> toMsg)
             , registry
             )
 
@@ -347,7 +511,7 @@ updateInternal key registry toMsg msg model =
             in
             ( { model | categoryComboboxModel = newComboboxModel }
             , cmd
-                |> Cmd.map toMsg
+                |> Cmd.map (InternalMsg >> toMsg)
             , registry
             )
 
@@ -360,7 +524,7 @@ updateInternal key registry toMsg msg model =
                             "breathing-method/category"
 
                         handler =
-                            GotNewCategoryId title >> toMsg
+                            GotNewCategoryId title >> InternalMsg >> toMsg
 
                         uuidMsg =
                             Uuid.uuidGenerate tag handler
@@ -406,7 +570,7 @@ updateInternal key registry toMsg msg model =
                     |> Task.perform
                     |> (|>) Time.now
                 ]
-                |> Cmd.map toMsg
+                |> Cmd.map (InternalMsg >> toMsg)
             , registry
             )
 
@@ -416,6 +580,53 @@ updateInternal key registry toMsg msg model =
         GoBack ->
             ( model, Nav.back key 1, registry )
 
+        ClickOpenDeleteBreathingMethodModal ->
+            ( model
+            , [ ModalMsg OpenDeleteBreathingMethodModal
+              , HamburgerMenuMsg CloseHamburgerMenu
+              ]
+                |> List.map (toMsg >> always >> Task.perform >> (|>) Time.now)
+                |> Cmd.batch
+            , registry
+            )
+
+        DeleteBreathingMethod ->
+            case model.pageAction of
+                Edit id ->
+                    ( model
+                    , Ports.deleteBreathingMethodValue id
+                    , registry
+                    )
+
+                Add _ _ _ _ _ ->
+                    ( model, Cmd.none, registry )
+
+        ReceiveDeleteBreathingMethodResult isSuccess ->
+            if isSuccess then
+                ( model
+                , NavigateToRoute Route.HomeRoute
+                    |> InternalMsg
+                    |> toMsg
+                    |> always
+                    |> Task.perform
+                    |> (|>) Time.now
+                , registry
+                )
+
+            else
+                ( model, Cmd.none, registry )
+
+
+{-| メニューアイテム
+-}
+menuItem : String -> Msg -> Html Msg
+menuItem label msg =
+    li
+        [ class "block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+        , onClick msg
+        ]
+        [ text label ]
+
 
 {-| ビュー
 -}
@@ -424,15 +635,15 @@ view remote model =
     let
         pageAction =
             case model of
-                ModelLoading action ->
+                ModelLoading action _ ->
                     action
 
-                ModelLoaded loaded ->
+                ModelLoaded loaded _ ->
                     loaded.pageAction
     in
     { nav =
         Nav.initialConfig
-            |> Nav.withGoBack GoBack
+            |> Nav.withGoBack (InternalMsg GoBack)
             |> Nav.withTitle
                 ("呼吸法"
                     ++ (case pageAction of
@@ -443,6 +654,43 @@ view remote model =
                                 "追加"
                        )
                 )
+            |> (case pageAction of
+                    Edit _ ->
+                        Nav.withRightTop
+                            [ div [ class "w-full justify-end flex relative" ]
+                                [ Nav.viewHamburger (HamburgerMenuMsg ToggleHamburgerMenu)
+
+                                -- 背景オーバーレイ
+                                , if (modelHamburegerModel.get model).isOpen then
+                                    div
+                                        [ class "fixed inset-0 z-10"
+                                        , onClick (HamburgerMenuMsg CloseHamburgerMenu)
+                                        ]
+                                        []
+
+                                  else
+                                    text ""
+
+                                -- メニュー本体
+                                , div
+                                    [ class "absolute right-0 top-full mt-2 w-48 rounded-xl bg-white shadow-lg ring-1 ring-gray-200 transition-all duration-200 z-20"
+                                    , if (modelHamburegerModel.get model).isOpen then
+                                        class "opacity-100 transform scale-100"
+
+                                      else
+                                        class "opacity-0 transform scale-95 pointer-events-none"
+                                    ]
+                                    [ div [ class "py-1" ]
+                                        [ menuItem "削除する"
+                                            (InternalMsg ClickOpenDeleteBreathingMethodModal)
+                                        ]
+                                    ]
+                                ]
+                            ]
+
+                    Add _ _ _ _ _ ->
+                        identity
+               )
             |> Just
     , footer = False
     , view =
@@ -464,39 +712,42 @@ view remote model =
                         ]
                   ]
                 , case model of
-                    ModelLoading _ ->
+                    ModelLoading _ _ ->
                         [ text "loading..." ]
 
-                    ModelLoaded loaded ->
-                        [ BreathingMethodDurationInput.view
-                            (BreathingMethodDurationInput.Config
-                                InputInhaleDuration
-                                InputInhaleHoldDuration
-                                InputExhaleDuration
-                                InputExhaleHoldDuration
-                            )
-                            loaded
+                    ModelLoaded loaded _ ->
+                        [ Html.map InternalMsg <|
+                            BreathingMethodDurationInput.view
+                                (BreathingMethodDurationInput.Config
+                                    InputInhaleDuration
+                                    InputInhaleHoldDuration
+                                    InputExhaleDuration
+                                    InputExhaleHoldDuration
+                                )
+                                loaded
                         , div [ class "space-y-4 px-4" ]
                             [ div [ class "relative" ]
-                                [ input
-                                    [ attribute "aria-label" "breathing-method-name-input"
-                                    , onInput InputName
-                                    , value loaded.nameInput
-                                    , class "w-full py-3 px-4 bg-transparent text-sm text-gray-800 border-b-2n border-gray-200 focus:border-blue-400 focus:outline-none mt-8 border-b-2 "
-                                    , placeholder "呼吸法の名前を入力"
-                                    ]
-                                    []
+                                [ Html.map InternalMsg <|
+                                    input
+                                        [ attribute "aria-label" "breathing-method-name-input"
+                                        , onInput InputName
+                                        , value loaded.nameInput
+                                        , class "w-full py-3 px-4 bg-transparent text-sm text-gray-800 border-b-2n border-gray-200 focus:border-blue-400 focus:outline-none mt-8 border-b-2 "
+                                        , placeholder "呼吸法の名前を入力"
+                                        ]
+                                        []
                                 ]
                             , case remote of
                                 Success categories ->
-                                    Combobox.view { ariaLabel = "category-combobox" }
-                                        (List.map
-                                            (\c ->
-                                                Combobox.Option c.id (fromTitle c.title)
+                                    Html.map InternalMsg <|
+                                        Combobox.view { ariaLabel = "category-combobox" }
+                                            (List.map
+                                                (\c ->
+                                                    Combobox.Option c.id (fromTitle c.title)
+                                                )
+                                                categories
                                             )
-                                            categories
-                                        )
-                                        loaded.categoryComboboxModel
+                                            loaded.categoryComboboxModel
 
                                 Failure _ ->
                                     text "category loading failure"
@@ -507,19 +758,51 @@ view remote model =
                                 NotAsked ->
                                     text "category not asked"
                             , div [ class "pt-8" ]
-                                [ button
-                                    [ attribute "aria-label" "submit-breathing-method"
-                                    , onClick Submit
-                                    , createBreathingMethod loaded
-                                        |> Maybe.Extra.isNothing
-                                        |> disabled
-                                    , class "w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium text-lg shadow-md hover:from-blue-600 hover:to-purple-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200"
-                                    ]
-                                    [ text "保存" ]
+                                [ Html.map InternalMsg <|
+                                    button
+                                        [ attribute "aria-label" "submit-breathing-method"
+                                        , onClick Submit
+                                        , createBreathingMethod loaded
+                                            |> Maybe.Extra.isNothing
+                                            |> disabled
+                                        , class "w-full py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium text-lg shadow-md hover:from-blue-600 hover:to-purple-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200"
+                                        ]
+                                        [ text "保存" ]
                                 ]
                             ]
                         ]
-                , []
+                , [ Modal.view
+                        (Modal.Config
+                            (modelModalmmodel.get model).isOpen
+                            (ModalMsg CloseDeleteBreathingMethodModal)
+                            (div [ class "" ]
+                                [ text "呼吸法を削除しますか？"
+                                , div [ class "mt-6 flex justify-end space-x-2" ]
+                                    [ button
+                                        [ class "px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                                        , onClick (ModalMsg CloseDeleteBreathingMethodModal)
+                                        ]
+                                        [ text "キャンセル"
+                                        ]
+                                    , button
+                                        [ class "px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                        , onClick (InternalMsg DeleteBreathingMethod)
+                                        ]
+                                        [ text "削除する"
+                                        ]
+                                    ]
+                                ]
+                            )
+                            "呼吸法削除"
+                            Modal.Medium
+                        )
+                  ]
                 ]
             )
     }
+
+
+subscriptions : Sub Msg
+subscriptions =
+    Ports.subscribeToDeleteBreathingMethodResult
+        (ReceiveDeleteBreathingMethodResult >> InternalMsg)

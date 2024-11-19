@@ -770,7 +770,7 @@ getElapsedMilliseconds timerState displayCurrentTime =
 {-| ビュー
 -}
 view : Maybe Duration -> Model -> View Msg
-view _ model =
+view mduration model =
     { nav = Nothing
     , footer = False
     , view =
@@ -798,10 +798,10 @@ view _ model =
                 in
                 div
                     [ attribute "role" "session"
-                    , class "relative flex flex-col items-center justify-center h-full bg-white text-gray-900 p-4 gap-60"
+                    , class "relative grid items-center justify-center place-content-center h-full bg-white text-gray-900 p-4 gap-60"
                     ]
                     [ viewTimer loaded
-                    , div [ class "absolute" ]
+                    , div [ class "absolute place-self-center" ]
                         [ div [ class "relative flex items-center justify-center mb-4 h-80" ]
                             [ node "breathing-animation"
                                 [ attribute "inhale" <|
@@ -819,6 +819,10 @@ view _ model =
 
                                         _ ->
                                             "false"
+                                , attribute "duration" <|
+                                    Maybe.withDefault "" <|
+                                        Maybe.map (String.fromInt << fromDuration) <|
+                                            mduration
                                 ]
                                 []
                             , viewInstruction loaded
@@ -850,7 +854,7 @@ viewTimer model =
     div
         [ attribute "role" "timer"
         , attribute "aria-label" "session-timer"
-        , class "text-6xl font-mono z-10 p-8 relative"
+        , class "text-6xl font-mono z-10 px-8 relative"
         ]
         [ div [ class "absolute -inset-6 bg-white/60 blur-xl" ] []
         , span [ class "relative" ] [ text (minutes ++ ":" ++ seconds) ]

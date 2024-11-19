@@ -1,7 +1,8 @@
 module Nav exposing
-    ( StreakModel, Config, view
-    , initialConfig, withSettings, withTitle, withGoBack
+    ( StreakModel, Config
+    , initialConfig, withSettings, withTitle, withGoBack, withRightTop
     , map
+    , view, viewHamburger
     )
 
 {-|
@@ -16,21 +17,26 @@ module Nav exposing
 
 ### 基本型
 
-@docs StreakModel, Config, view
+@docs StreakModel, Config
 
 
 ### config
 
-@docs initialConfig, withSettings, withTitle, withGoBack
+@docs initialConfig, withSettings, withTitle, withGoBack, withRightTop
 
 
 ### ヘルパー関数
 
 @docs map
 
+
+### ビュー
+
+@docs view, viewHamburger
+
 -}
 
-import Html exposing (Html, button, div, h1, header, nav, span, text)
+import Html exposing (Html, button, div, h1, nav, span, text)
 import Html.Attributes exposing (attribute, class)
 import Html.Events exposing (onClick)
 import Icon
@@ -76,6 +82,13 @@ withGoBack goBack config =
     { config | goBackMsg = Just goBack }
 
 
+{-| 右上を追加する
+-}
+withRightTop : List (Html msg) -> Config msg -> Config msg
+withRightTop rightTop config =
+    { config | rightTop = rightTop }
+
+
 {-| map関数
 -}
 map : (a -> b) -> Config a -> Config b
@@ -106,7 +119,7 @@ view { goBackMsg, title, rightTop } =
                  , title
                     |> Maybe.map
                         (\t ->
-                            h1 [ class "text-xl font-semibold text-gray-900" ]
+                            h1 [ class "text-xl font-semibold text-gray-900 whitespace-nowrap" ]
                                 [ text t ]
                         )
                  ]
@@ -151,3 +164,12 @@ viewSettings config =
                     [ Icon.view Icon.Settings ]
             ]
     ]
+
+
+viewHamburger : msg -> Html msg
+viewHamburger clickHamburger =
+    button
+        [ class "aspect-square h-10 p-2 hover:bg-gray-200 rounded-full grid items-center"
+        , onClick clickHamburger
+        ]
+        [ Icon.view Icon.Hamburger ]

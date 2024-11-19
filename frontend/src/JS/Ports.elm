@@ -5,7 +5,8 @@ port module JS.Ports exposing
     , saveSessionValue
     , subscribeToQueryResults, subscribeToQueryErrors
     , subscribeToUuid
-    , generateUuidValue
+    , deleteBreathingMethodValue
+    , generateUuidValue, subscribeToDeleteBreathingMethodResult
     )
 
 {-|
@@ -48,6 +49,11 @@ port module JS.Ports exposing
 
 @docs receiveUuid, subscribeToUuid
 
+
+#### 削除
+
+@docs deleteBreathingMethodValue, subscribeDeleteResult
+
 -}
 
 import JS.Codec exposing (encodeBreathingMethod, encodeCategory, encodeSession)
@@ -56,9 +62,10 @@ import JS.Storage.QueryResult as QueryResult exposing (QueryResult)
 import JS.Storage.StorageQueryDSL as Query exposing (Query)
 import Json.Decode as D
 import Json.Encode as E
-import Types.BreathingMethod exposing (BreathingMethod)
+import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId)
 import Types.Category exposing (Category)
 import Types.Session exposing (Session)
+import Uuid
 
 
 {-| JS.Storage.StorageQueryDSL.Queryによるクエリをストレージ層に送信します。
@@ -188,3 +195,25 @@ port receiveUuid : (( String, String ) -> msg) -> Sub msg
 subscribeToUuid : (( String, String ) -> msg) -> Sub msg
 subscribeToUuid toMsg =
     receiveUuid toMsg
+
+
+{-| 呼吸法を削除します。
+-}
+port deleteBreathingMethod : E.Value -> Cmd msg
+
+
+{-| 呼吸法を削除するラッパーです。
+-}
+deleteBreathingMethodValue : BreathingMethodId -> Cmd msg
+deleteBreathingMethodValue breathingMethodId =
+    deleteBreathingMethod (Uuid.encode breathingMethodId)
+
+
+{-| 呼吸法を削除した結果を受け取るポートです。
+-}
+port receiveDeleteBreathingMethodResult : (Bool -> msg) -> Sub msg
+
+
+subscribeToDeleteBreathingMethodResult : (Bool -> msg) -> Sub msg
+subscribeToDeleteBreathingMethodResult toMsg =
+    receiveDeleteBreathingMethodResult toMsg

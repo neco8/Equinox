@@ -156,4 +156,13 @@ if (elem) {
       conditions: [],
     });
   });
+
+  app.ports.deleteBreathingMethod.subscribe(async (id: string) => {
+    try {
+      await storage.delete("EQUINOX_breathing-methods", id);
+    } catch (error) {
+      app.ports.receiveDeleteBreathingMethodResult.send(false);
+    }
+    app.ports.receiveDeleteBreathingMethodResult.send(true);
+  });
 }
