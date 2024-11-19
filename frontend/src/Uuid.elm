@@ -5,7 +5,8 @@ module Uuid exposing
     , decoder, encode
     , Msg
     , update
-    , subscriptions, map
+    , subscriptions
+    , map
     )
 
 {-|

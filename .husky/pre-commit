@@ -1,0 +1,7 @@
+cd frontend
+
+pnpm test
+
+pnpm review
+
+pnpm elm-format src --yes
