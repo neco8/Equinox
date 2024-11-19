@@ -63,6 +63,14 @@ init _ =
 
 
 {-| メッセージ
+
+    type Msg
+        = NavigateToRoute Route
+        | GoToNotYetImplemented { title : String }
+        | GoBackToSettings
+        | GoBack
+        | NoOp
+
 -}
 type Msg
     = NavigateToRoute Route
@@ -73,6 +81,11 @@ type Msg
 
 
 {-| ステップ
+
+    type Step
+        = Settings
+        | NotYetImplemented { title : String }
+
 -}
 type Step
     = Settings

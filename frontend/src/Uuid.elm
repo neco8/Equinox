@@ -68,6 +68,9 @@ import Parser exposing ((|.), (|=), Parser, Step(..), chompIf, getChompedString,
 
 Opaque Typesとなっているため、fromStringでのみ生成可能
 
+    type Uuid
+        = Uuid String
+
 -}
 type Uuid
     = Uuid String
@@ -89,6 +92,11 @@ map f registry =
 
 
 {-| いずれCmdへと変換される効果
+
+    type Effect
+        = GenerateUuid String
+        | NoEffect
+
 -}
 type Effect
     = GenerateUuid String
@@ -107,6 +115,10 @@ type alias Tag =
 {-| メッセージ
 
 UUIDを生成するために出力するMsgと、UUIDを生成した後に受け取るためのMsgが存在する
+
+    type Msg msg
+        = GotUuid Tag String
+        | RequestUuid Tag (Uuid -> msg)
 
 -}
 type Msg msg

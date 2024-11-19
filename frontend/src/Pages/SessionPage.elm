@@ -68,6 +68,25 @@ import View exposing (View)
 
 
 {-| タイマーを管理するための状態
+
+    type TimerState
+        = NotStarted
+        | Running
+            { startTime : Time.Posix
+            , totalPausedMilliseconds : Int
+            , lastClickedTime : Time.Posix
+            }
+        | Paused
+            { startTime : Time.Posix
+            , totalPausedMilliseconds : Int
+            , pauseStartTime : Time.Posix
+            }
+        | Completed
+            { startTime : Time.Posix
+            , totalPausedMilliseconds : Int
+            , endTime : Time.Posix
+            }
+
 -}
 type TimerState
     = NotStarted
@@ -89,6 +108,11 @@ type TimerState
 
 
 {-| タイマーの集中モード
+
+    type ConsentrationMode
+        = Consentration
+        | Control
+
 -}
 type ConsentrationMode
     = Consentration
@@ -119,6 +143,11 @@ toConsentrationMode now timerState =
 
 
 {-| モデル
+
+    type Model
+        = ModelLoading SelectedBreathingMethod
+        | ModelLoaded InternalModel
+
 -}
 type Model
     = ModelLoading SelectedBreathingMethod
@@ -212,6 +241,22 @@ instructionText phaseType =
 
 
 {-| メッセージ
+
+    type Msg
+        = Start Time.Posix
+        | ClickPauseButton
+        | Pause Time.Posix
+        | ClickResumeButton
+        | Resume Time.Posix
+        | ClickStopButton
+        | Stop Time.Posix
+        | TickDisplayTime Time.Posix
+        | NavigateToRoute Route
+        | GetSessionId (Uuid -> Session)
+        | GotSessionId (Uuid -> Session) Uuid
+        | ClickSomeWhere
+        | NoOp
+
 -}
 type Msg
     = Start Time.Posix
@@ -243,6 +288,15 @@ noOp =
 
 ただし、まだ指定された呼吸法などが正しいか否かが不明なため、後々ValidSelectedBreathingMethodに変換する必要がある。
 
+    type SelectedBreathingMethod
+        = PresetBreathingMethod BreathingMethodId
+        | CustomBreathingMethod
+            { inhaleDuration : Maybe InhaleDuration
+            , inhaleHoldDuration : Maybe InhaleHoldDuration
+            , exhaleDuration : Maybe ExhaleDuration
+            , exhaleHoldDuration : Maybe ExhaleHoldDuration
+            }
+
 -}
 type SelectedBreathingMethod
     = PresetBreathingMethod BreathingMethodId
@@ -265,6 +319,11 @@ type alias CustomValidBreathingMethod =
 
 
 {-| 選択された呼吸法
+
+    type ValidSelectedBreathingMethod
+        = Existing BreathingMethod
+        | Custom CustomValidBreathingMethod
+
 -}
 type ValidSelectedBreathingMethod
     = Existing BreathingMethod
@@ -456,6 +515,13 @@ handleCompletion duration model session =
 
 
 {-| ストレージの呼吸法がロード中なのか、それとも不正な状態なのかを表す型
+
+    type BreathingMethodState
+        = BreathingMethodLoading
+        | InvalidBreathingMethodId
+        | InvalidCustomBreathingMethodDuration
+        | Valid ValidSelectedBreathingMethod
+
 -}
 type BreathingMethodState
     = BreathingMethodLoading

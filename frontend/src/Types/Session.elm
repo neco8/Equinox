@@ -36,6 +36,10 @@ type alias SessionId =
 
 
 {-| セッション全体の合計時間（秒単位）。計算されます。
+
+    type Duration
+        = Duration Int
+
 -}
 type Duration
     = Duration Int

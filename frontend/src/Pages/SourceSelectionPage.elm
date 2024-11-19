@@ -42,6 +42,11 @@ import View exposing (View)
 
 
 {-| ソース選択の状態を表す型
+
+    type SourceSelection
+        = SourceSelection
+        | OnlineList (RemoteData API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
+
 -}
 type SourceSelection
     = SourceSelection
@@ -66,6 +71,16 @@ init _ =
 
 
 {-| メッセージ
+
+    type Msg
+        = OpenOnlineList
+        | OpenManualInput
+        | GotOnlineBreathingMethods (Result API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
+        | NavigateToRoute Route
+        | GoBack
+        | GoBackToSourceSelection
+        | NoOp
+
 -}
 type Msg
     = OpenOnlineList

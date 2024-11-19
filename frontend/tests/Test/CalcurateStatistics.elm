@@ -55,6 +55,11 @@ referenceTime =
 
 
 {-| 日付の範囲を表す型
+
+    type DateRange
+        = WithinRecent
+        | MoreThanWeekAgo
+
 -}
 type DateRange
     = WithinRecent -- 直近以内

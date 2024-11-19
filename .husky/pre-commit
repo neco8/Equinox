@@ -5,3 +5,5 @@ pnpm test
 pnpm review
 
 pnpm elm-format src --yes
+pnpm elm-format tests --yes
+pnpm elm-format review --yes

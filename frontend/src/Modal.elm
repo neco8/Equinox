@@ -40,6 +40,12 @@ type alias Config msg =
 
 
 {-| モーダルのサイズ
+
+    type Size
+        = Small
+        | Medium
+        | Large
+
 -}
 type Size
     = Small

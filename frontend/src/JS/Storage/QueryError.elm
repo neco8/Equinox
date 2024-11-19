@@ -26,10 +26,11 @@ import Json.Decode as D
 
 {-| `QueryError`は、ストレージ操作中に発生する可能性があるエラーを表す型です。
 
-  - `NotFound`: データが見つからないエラーを表します。
-  - `DecodingError`: JSONデコード中に発生したエラーを表し、詳細なエラーメッセージが含まれます。
-  - `QueryError`: クエリに関連するエラーで、原因を示すメッセージが含まれます。
-  - `UnknownError`: 未知のエラーで、追加の情報がメッセージとして提供されます。
+    type QueryError
+        = NotFound
+        | DecodingError String
+        | QueryError String
+        | UnknownError String
 
 -}
 type QueryError
