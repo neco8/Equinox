@@ -214,6 +214,8 @@ deleteBreathingMethodValue breathingMethodId =
 port receiveDeleteBreathingMethodResult : (Bool -> msg) -> Sub msg
 
 
+{-| 呼吸法を削除した結果を受け取るSubを生成するラッパーです。
+-}
 subscribeToDeleteBreathingMethodResult : (Bool -> msg) -> Sub msg
 subscribeToDeleteBreathingMethodResult toMsg =
     receiveDeleteBreathingMethodResult toMsg

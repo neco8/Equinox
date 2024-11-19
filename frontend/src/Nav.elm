@@ -166,6 +166,8 @@ viewSettings config =
     ]
 
 
+{-| ハンバーガーメニューのビュー
+-}
 viewHamburger : msg -> Html msg
 viewHamburger clickHamburger =
     button
