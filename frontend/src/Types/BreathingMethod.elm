@@ -63,6 +63,13 @@ import Uuid exposing (Uuid)
 
 
 {-| 呼吸法のフェーズのタイプを表します。各フェーズは、呼吸サイクル内の特定のアクション（吸う、止めるなど）を表します。
+
+    type PhaseType
+        = Inhale
+        | InhaleHold
+        | Exhale
+        | ExhaleHold
+
 -}
 type PhaseType
     = Inhale
@@ -72,6 +79,10 @@ type PhaseType
 
 
 {-| 吸気フェーズの期間（秒単位）。
+
+    type InhaleDuration
+        = InhaleDuration Int
+
 -}
 type InhaleDuration
     = InhaleDuration Int
@@ -96,6 +107,10 @@ fromInhaleDuration (InhaleDuration duration) =
 
 
 {-| 吸気保持フェーズの期間（秒単位）。
+
+    type InhaleHoldDuration
+        = InhaleHoldDuration Int
+
 -}
 type InhaleHoldDuration
     = InhaleHoldDuration Int
@@ -120,6 +135,10 @@ fromInhaleHoldDuration (InhaleHoldDuration duration) =
 
 
 {-| 呼気フェーズの期間（秒単位）。
+
+    type ExhaleDuration
+        = ExhaleDuration Int
+
 -}
 type ExhaleDuration
     = ExhaleDuration Int
@@ -144,6 +163,10 @@ fromExhaleDuration (ExhaleDuration duration) =
 
 
 {-| 呼気保持フェーズの期間（秒単位）。
+
+    type ExhaleHoldDuration
+        = ExhaleHoldDuration Int
+
 -}
 type ExhaleHoldDuration
     = ExhaleHoldDuration Int
@@ -232,6 +255,10 @@ type alias BreathingMethodId =
 
 
 {-| 呼吸法の名前。
+
+    type Name
+        = Name String
+
 -}
 type Name
     = Name String

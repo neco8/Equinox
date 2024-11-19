@@ -41,6 +41,12 @@ referenceTime =
 
 
 {-| 日付生成戦略
+
+    type DateStrategy
+        = ConsecutiveDays
+        | RandomDays
+        | SameDay
+
 -}
 type DateStrategy
     = ConsecutiveDays

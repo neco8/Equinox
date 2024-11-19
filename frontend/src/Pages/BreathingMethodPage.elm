@@ -64,6 +64,10 @@ import View exposing (View)
 
 呼吸法を編集もしくは追加するためのアクションを表します。
 
+    type PageAction
+        = Edit BreathingMethodId
+        | Add (Maybe Name) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
+
 -}
 type PageAction
     = Edit BreathingMethodId
@@ -99,6 +103,11 @@ type alias ModalModel =
 
 
 {-| モデル
+
+    type Model
+        = ModelLoading PageAction { hamburger : HamburgerModel, modal : ModalModel }
+        | ModelLoaded InternalModel { hamburger : HamburgerModel, modal : ModalModel }
+
 -}
 type Model
     = ModelLoading PageAction { hamburger : HamburgerModel, modal : ModalModel }
@@ -299,6 +308,11 @@ initInternal breathingMethods categories key pageAction =
 
 
 {-| ハンバーガーメニューメッセージ
+
+    type HamburgerMenuMsg
+        = ToggleHamburgerMenu
+        | CloseHamburgerMenu
+
 -}
 type HamburgerMenuMsg
     = ToggleHamburgerMenu
@@ -306,6 +320,11 @@ type HamburgerMenuMsg
 
 
 {-| モーダルメッセージ
+
+    type ModalMsg
+        = OpenDeleteBreathingMethodModal
+        | CloseDeleteBreathingMethodModal
+
 -}
 type ModalMsg
     = OpenDeleteBreathingMethodModal
@@ -313,6 +332,12 @@ type ModalMsg
 
 
 {-| メッセージ
+
+    type Msg
+        = HamburgerMenuMsg HamburgerMenuMsg
+        | ModalMsg ModalMsg
+        | InternalMsg InternalMsg
+
 -}
 type Msg
     = HamburgerMenuMsg HamburgerMenuMsg
@@ -321,6 +346,27 @@ type Msg
 
 
 {-| 内部メッセージ
+
+    type InternalMsg
+        = NoOp
+        | InputInhaleDuration String
+        | InputInhaleHoldDuration String
+        | InputExhaleDuration String
+        | InputExhaleHoldDuration String
+        | InputName String
+        | Submit
+        | CategoryComboboxMsg (Combobox.Msg CategoryId)
+        | CreateNewCategory String
+        | GotNewCategoryId Title Uuid
+        | SelectCategory CategoryId
+        | GotCreatedAt Time.Posix
+        | GotNewBreathingMethodId (Uuid -> BreathingMethod) Uuid
+        | NavigateToRoute Route
+        | GoBack
+        | ClickOpenDeleteBreathingMethodModal
+        | DeleteBreathingMethod
+        | ReceiveDeleteBreathingMethodResult Bool
+
 -}
 type InternalMsg
     = NoOp

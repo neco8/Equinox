@@ -69,6 +69,22 @@ type alias Model =
 
 
 {-| ページの種類
+
+    type Page
+        = HomePage
+        | PresetSessionPreparationPage SessionPreparationPage.Model
+        | ManualSessionPreparationPage SessionPreparationPage.Model
+        | PresetSessionPage (Maybe Duration) SessionPage.Model
+        | ManualSessionPage (Maybe Duration) SessionPage.Model
+        | PresetSessionCompletionPage SessionCompletionPage.Model
+        | ManualSessionCompletionPage SessionCompletionPage.Model
+        | StatisticsPage
+        | SettingsPage SettingsPage.Model
+        | SourceSelectionPage SourceSelectionPage.Model
+        | BreathingMethodEditPage BreathingMethodPage.Model
+        | BreathingMethodAddPage BreathingMethodPage.Model
+        | NotFoundPage
+
 -}
 type Page
     = HomePage
@@ -297,6 +313,20 @@ initializePage model route =
 
 
 {-| ページのメッセージ
+
+    type PageMsg
+        = PresetSessionPageMsg SessionPage.Msg
+        | ManualSessionPageMsg SessionPage.Msg
+        | PresetSessionPreparationPageMsg SessionPreparationPage.Msg
+        | ManualSessionPreparationPageMsg SessionPreparationPage.Msg
+        | PresetSessionCompletionPageMsg SessionCompletionPage.Msg
+        | ManualSessionCompletionPageMsg SessionCompletionPage.Msg
+        | SourceSelectionPageMsg SourceSelectionPage.Msg
+        | BreathingMethodEditPageMsg BreathingMethodPage.Msg
+        | BreathingMethodAddPageMsg BreathingMethodPage.Msg
+        | SettingsPageMsg SettingsPage.Msg
+        | StatisticsPageMsg Msg
+
 -}
 type PageMsg
     = PresetSessionPageMsg SessionPage.Msg
@@ -313,6 +343,19 @@ type PageMsg
 
 
 {-| メッセージ
+
+    type Msg
+        = LinkClicked Browser.UrlRequest
+        | UrlChanged Url.Url
+        | NavigateToRoute Route
+        | GotTime Time.Posix
+        | PageMsg PageMsg
+        | ReceiveQueryResult (Result QueryError QueryResult)
+        | ReceiveQueryError QueryError
+        | UuidMsg (Uuid.Msg Msg)
+        | CmdMsg (Cmd Msg)
+        | NoOp
+
 -}
 type Msg
     = LinkClicked Browser.UrlRequest

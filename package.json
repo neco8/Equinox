@@ -1,0 +1,21 @@
+{
+  "name": "Equinox",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "cd frontend && pnpm review && pnpm test"
+    }
+  }
+}

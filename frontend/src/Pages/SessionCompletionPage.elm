@@ -50,6 +50,12 @@ import View exposing (View)
 
 
 {-| メッセージ
+
+    type Msg
+        = NavigateToRoute Route
+        | NextStep
+        | NoOp
+
 -}
 type Msg
     = NavigateToRoute Route
@@ -71,6 +77,10 @@ noOp =
 
 手動で設定したBreathingMethodかもしくは既存のBreathingMethodかを選択する
 
+    type PracticeStyle
+        = ManualPracticeStyle (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
+        | PresetPracticeStyle BreathingMethodId
+
 -}
 type PracticeStyle
     = ManualPracticeStyle (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
@@ -91,6 +101,11 @@ type alias ValidManualPracticeStyle =
 
 
 {-| 正常な練習スタイル
+
+    type ValidPracticeStyle
+        = Manual ValidManualPracticeStyle
+        | Preset BreathingMethod
+
 -}
 type ValidPracticeStyle
     = Manual ValidManualPracticeStyle
@@ -168,6 +183,15 @@ validatePracticeStyle remote practiceStyle =
 
 
 {-| Model
+
+    type Model
+        = ModelInvalid PracticeStyle
+        | ModelLoading
+            { duration : Duration
+            , practiceStyle : PracticeStyle
+            }
+        | ModelValid InternalModel
+
 -}
 type Model
     = ModelInvalid PracticeStyle

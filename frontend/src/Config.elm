@@ -18,9 +18,10 @@ import Json.Decode
 
 環境は以下の3つの値を取ります。
 
-  - Production
-  - Development
-  - Test
+    type Environment
+        = Production
+        | Development
+        | Test
 
 -}
 type Environment

@@ -12,11 +12,10 @@ ManualSessionPreparationPageとBreathingMethodAddPageの間で共通化を図り
 -}
 
 import Html exposing (Html, div, input, span, text)
-import Html.Attributes exposing (attribute, class, value)
+import Html.Attributes exposing (attribute, class, placeholder, value)
 import Html.Events exposing (onInput)
 import Icon
 import Types.BreathingMethod exposing (PhaseType(..))
-import Html.Attributes exposing (placeholder)
 
 
 {-| BreathingMethodDurationInputを使用する際に必要な設定を定義します。

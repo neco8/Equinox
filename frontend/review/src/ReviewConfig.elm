@@ -11,13 +11,15 @@ when inside the directory containing this file.
 
 -}
 
-import Review.Rule exposing (Rule)
 import DocumentationRule
 import NoMainReplaceUrl
+import Review.Rule exposing (Rule)
+import TypeDocumentationComment
 
 
 config : List Rule
 config =
     [ DocumentationRule.rule
     , NoMainReplaceUrl.rule
+    , TypeDocumentationComment.rule
     ]

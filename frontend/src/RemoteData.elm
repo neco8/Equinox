@@ -24,6 +24,13 @@ module RemoteData exposing
 
 
 {-| APIによって取得するデータを表現する型です。
+
+    type RemoteData e a
+        = NotAsked
+        | Loading
+        | Failure e
+        | Success a
+
 -}
 type RemoteData e a
     = NotAsked

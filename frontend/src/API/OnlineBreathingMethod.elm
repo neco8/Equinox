@@ -74,6 +74,15 @@ duplicateDecoder =
 
   - [ ] TODO: 後でこちらを共通のエラー型に変更する
 
+エラー型は以下のようになっています。
+
+    type Error
+        = HttpError Http.Error
+        | DecodeError String
+        | NetworkError
+        | ServerError Int -- Status code
+        | Timeout
+
 -}
 type Error
     = HttpError Http.Error

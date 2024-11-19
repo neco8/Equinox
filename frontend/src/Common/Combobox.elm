@@ -86,6 +86,14 @@ init config =
 
 
 {-| Combobox で発生するメッセージです。
+
+    type Msg a
+        = InputChanged String
+        | OptionSelected (Option a)
+        | OpenDropdown
+        | CloseDropdown
+        | ClickCreateNew
+
 -}
 type Msg a
     = InputChanged String

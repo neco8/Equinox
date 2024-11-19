@@ -1,15 +1,17 @@
 module NoMainReplaceUrl exposing (rule)
 
+import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Node as Node exposing (Node)
-import Elm.Syntax.Exposing as Exposing
 import Review.Rule as Rule exposing (Rule)
+
 
 type alias Context =
     { replaceUrlInScope : Bool
     , navigationModules : List (List String)
     }
+
 
 rule : Rule
 rule =
@@ -19,11 +21,13 @@ rule =
         |> Rule.fromModuleRuleSchema
         |> Rule.filterErrorsForFiles (\path -> path == "src/Main.elm")
 
+
 initialContext : Context
 initialContext =
     { replaceUrlInScope = False
     , navigationModules = [ [ "Browser", "Navigation" ] ]
     }
+
 
 importVisitor : Node Import -> Context -> ( List (Rule.Error {}), Context )
 importVisitor node context =
@@ -79,8 +83,10 @@ importVisitor node context =
             , navigationModules = aliasModules ++ context.navigationModules
           }
         )
+
     else
         ( [], context )
+
 
 expressionVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionVisitor node context =
@@ -88,13 +94,16 @@ expressionVisitor node context =
         Expression.FunctionOrValue moduleName "replaceUrl" ->
             if moduleName == [] && context.replaceUrlInScope then
                 ( [ error node ], context )
+
             else if List.member moduleName context.navigationModules then
                 ( [ error node ], context )
+
             else
                 ( [], context )
 
         _ ->
             ( [], context )
+
 
 error : Node Expression -> Rule.Error {}
 error node =
