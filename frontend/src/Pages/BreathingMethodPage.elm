@@ -4,6 +4,7 @@ module Pages.BreathingMethodPage exposing
     , init
     , update
     , view
+    , subscriptions
     )
 
 {-|
@@ -42,6 +43,7 @@ import Common.Combobox as Combobox
 import Html exposing (Html, button, div, h1, input, li, text)
 import Html.Attributes exposing (attribute, class, disabled, placeholder, value)
 import Html.Events exposing (onClick, onInput)
+import Icon exposing (Icon(..))
 import JS.Ports as Ports
 import List.Extra
 import Maybe.Extra
@@ -166,8 +168,8 @@ initModalModel =
 呼吸法が取得済みなら、initしてよい。だが、取得が後からになる場合はupdateの中でも初期化する必要がある。
 
 -}
-init : RemoteData e { categories : List Category, breathingMethods : List BreathingMethod } -> PageAction -> ( Model, Cmd Msg )
-init remote pageAction =
+init : RemoteData e { categories : List Category, breathingMethods : List BreathingMethod } -> Nav.Key -> PageAction -> ( Model, Cmd Msg )
+init remote key pageAction =
     case remote of
         NotAsked ->
             ( ModelLoading pageAction
@@ -201,7 +203,7 @@ init remote pageAction =
         Success data ->
             let
                 ( newModel, cmd ) =
-                    initInternal data.breathingMethods data.categories pageAction
+                    initInternal data.breathingMethods data.categories key pageAction
             in
             ( ModelLoaded newModel
                 { hamburger = initHamburgerModel
@@ -216,11 +218,10 @@ init remote pageAction =
 内部で実際に行っているもの
 
 -}
-initInternal : List BreathingMethod -> List Category -> PageAction -> ( InternalModel, Cmd Msg )
-initInternal breathingMethods categories pageAction =
+initInternal : List BreathingMethod -> List Category -> Nav.Key -> PageAction -> ( InternalModel, Cmd Msg )
+initInternal breathingMethods categories key pageAction =
     let
-        breathingMethod : { inhale : String, inhaleHold : String, exhale : String, exhaleHold : String, name : String }
-        breathingMethod =
+        mbreathingMethod =
             case pageAction of
                 Edit id ->
                     List.Extra.find (\bm -> bm.id == id) breathingMethods
@@ -231,23 +232,19 @@ initInternal breathingMethods categories pageAction =
                                 , inhaleHold = String.fromInt <| fromInhaleHoldDuration bm.inhaleHoldDuration
                                 , exhale = String.fromInt <| fromExhaleDuration bm.exhaleDuration
                                 , exhaleHold = String.fromInt <| fromExhaleHoldDuration bm.exhaleHoldDuration
+                                , categoryId = Just bm.categoryId
                                 }
                             )
-                        |> Maybe.withDefault
-                            { name = ""
-                            , inhale = ""
-                            , inhaleHold = ""
-                            , exhale = ""
-                            , exhaleHold = ""
-                            }
 
                 Add name inhale inhaleHold exhale exhaleHold ->
-                    { name = Maybe.withDefault "" <| Maybe.map fromName name
-                    , inhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleDuration) inhale
-                    , inhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleHoldDuration) inhaleHold
-                    , exhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleDuration) exhale
-                    , exhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleHoldDuration) exhaleHold
-                    }
+                    Just
+                        { name = Maybe.withDefault "" <| Maybe.map fromName name
+                        , inhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleDuration) inhale
+                        , inhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromInhaleHoldDuration) inhaleHold
+                        , exhale = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleDuration) exhale
+                        , exhaleHold = Maybe.withDefault "" <| Maybe.map (String.fromInt << fromExhaleHoldDuration) exhaleHold
+                        , categoryId = Nothing
+                        }
 
         categoryComboboxModel =
             Combobox.init
@@ -269,17 +266,34 @@ initInternal breathingMethods categories pageAction =
                     )
                 )
     in
-    ( { pageAction = pageAction
-      , inhaleDurationInput = breathingMethod.inhale
-      , inhaleHoldDurationInput = breathingMethod.inhaleHold
-      , exhaleDurationInput = breathingMethod.exhale
-      , exhaleHoldDurationInput = breathingMethod.exhaleHold
-      , nameInput = breathingMethod.name
-      , selectedCategory = Nothing
-      , categoryComboboxModel = categoryComboboxModel
-      }
-    , Cmd.none
-    )
+    case mbreathingMethod of
+        Just breathingMethod ->
+            ( { pageAction = pageAction
+              , inhaleDurationInput = breathingMethod.inhale
+              , inhaleHoldDurationInput = breathingMethod.inhaleHold
+              , exhaleDurationInput = breathingMethod.exhale
+              , exhaleHoldDurationInput = breathingMethod.exhaleHold
+              , nameInput = breathingMethod.name
+              , selectedCategory = breathingMethod.categoryId
+              , categoryComboboxModel = categoryComboboxModel
+              }
+            , Cmd.none
+            )
+
+        Nothing ->
+            ( { pageAction = pageAction
+              , inhaleDurationInput = ""
+              , inhaleHoldDurationInput = ""
+              , exhaleDurationInput = ""
+              , exhaleHoldDurationInput = ""
+              , nameInput = ""
+              , selectedCategory = Nothing
+              , categoryComboboxModel = categoryComboboxModel
+              }
+            , HomeRoute
+                |> Route.toString
+                |> Nav.replaceUrl key
+            )
 
 
 type HamburgerMenuMsg
@@ -317,6 +331,8 @@ type InternalMsg
     | NavigateToRoute Route
     | GoBack
     | ClickOpenDeleteBreathingMethodModal
+    | DeleteBreathingMethod
+    | ReceiveDeleteBreathingMethodResult Bool
 
 
 {-| メッセージ: NoOp
@@ -367,7 +383,7 @@ update remote key registry toMsg msg model =
                         Success data ->
                             let
                                 ( newModel, cmd ) =
-                                    initInternal data.breathingMethods data.categories pageAction
+                                    initInternal data.breathingMethods data.categories key pageAction
                             in
                             ( ModelLoaded newModel hamburgerModel, Cmd.map toMsg cmd, registry )
 
@@ -574,6 +590,32 @@ updateInternal key registry toMsg msg model =
             , registry
             )
 
+        DeleteBreathingMethod ->
+            case model.pageAction of
+                Edit id ->
+                    ( model
+                    , Ports.deleteBreathingMethodValue id
+                    , registry
+                    )
+
+                Add _ _ _ _ _ ->
+                    ( model, Cmd.none, registry )
+
+        ReceiveDeleteBreathingMethodResult isSuccess ->
+            if isSuccess then
+                ( model
+                , NavigateToRoute Route.HomeRoute
+                    |> InternalMsg
+                    |> toMsg
+                    |> always
+                    |> Task.perform
+                    |> (|>) Time.now
+                , registry
+                )
+
+            else
+                ( model, Cmd.none, registry )
+
 
 {-| メニューアイテム
 -}
@@ -733,7 +775,24 @@ view remote model =
                         (Modal.Config
                             (modelModalmmodel.get model).isOpen
                             (ModalMsg CloseDeleteBreathingMethodModal)
-                            (div [] [ text "削除モーダル" ])
+                            (div [ class "" ]
+                                [ text "呼吸法を削除しますか？"
+                                , div [ class "mt-6 flex justify-end space-x-2" ]
+                                    [ button
+                                        [ class "px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                                        , onClick (ModalMsg CloseDeleteBreathingMethodModal)
+                                        ]
+                                        [ text "キャンセル"
+                                        ]
+                                    , button
+                                        [ class "px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                        , onClick (InternalMsg DeleteBreathingMethod)
+                                        ]
+                                        [ text "削除する"
+                                        ]
+                                    ]
+                                ]
+                            )
                             "呼吸法削除"
                             Modal.Medium
                         )
@@ -741,3 +800,9 @@ view remote model =
                 ]
             )
     }
+
+
+subscriptions : Sub Msg
+subscriptions =
+    Ports.subscribeToDeleteBreathingMethodResult
+        (ReceiveDeleteBreathingMethodResult >> InternalMsg)

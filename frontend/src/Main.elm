@@ -272,6 +272,7 @@ initializePage model route =
                             |> RemoteData.andMap model.breathingMethods
                             |> RemoteData.andMap model.categories
                         )
+                        model.key
                         (BreathingMethodPage.Edit id)
             in
             ( { model | currentPage = BreathingMethodEditPage newModel }, Cmd.map BreathingMethodEditPageMsg cmd )
@@ -289,6 +290,7 @@ initializePage model route =
                             |> RemoteData.andMap model.breathingMethods
                             |> RemoteData.andMap model.categories
                         )
+                        model.key
                         (BreathingMethodPage.Add name inhale inhaleHold exhale exhaleHold)
             in
             ( { model | currentPage = BreathingMethodAddPage newModel }, Cmd.map BreathingMethodAddPageMsg cmd )
@@ -1343,14 +1345,16 @@ sourceSelectionSubscriptions =
 -}
 breathingMethodEditSubscriptions : Sub Msg
 breathingMethodEditSubscriptions =
-    Sub.none
+    BreathingMethodPage.subscriptions
+        |> Sub.map (BreathingMethodEditPageMsg >> PageMsg)
 
 
 {-| 呼吸法追加画面のサブスクリプション
 -}
 breathingMethodAddSubscriptions : Sub Msg
 breathingMethodAddSubscriptions =
-    Sub.none
+    BreathingMethodPage.subscriptions
+        |> Sub.map (BreathingMethodAddPageMsg >> PageMsg)
 
 
 {-| ページに応じたサブスクリプションを返す関数。
