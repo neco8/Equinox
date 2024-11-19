@@ -1,10 +1,34 @@
-module Modal exposing (Config, view, Size(..))
+module Modal exposing
+    ( Config, Size(..)
+    , view
+    )
+
+{-|
+
+
+## Modal
+
+このモジュールは、モーダルを表示するためのモジュールです。
+
+
+### 基本型
+
+@docs Config, Size
+
+
+### ビュー
+
+@docs view
+
+-}
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 
 
+{-| モーダルの設定
+-}
 type alias Config msg =
     { isOpen : Bool
     , onClose : msg
@@ -14,12 +38,16 @@ type alias Config msg =
     }
 
 
+{-| モーダルのサイズ
+-}
 type Size
     = Small
     | Medium
     | Large
 
 
+{-| モーダルのサイズを指定するクラス
+-}
 sizeToClass : Size -> Attribute msg
 sizeToClass size =
     case size of
@@ -33,6 +61,8 @@ sizeToClass size =
             class "max-w-2xl"
 
 
+{-| モーダルを表示する
+-}
 view : Config msg -> Html msg
 view config =
     if config.isOpen then

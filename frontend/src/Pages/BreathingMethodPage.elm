@@ -158,6 +158,8 @@ initHamburgerModel =
     { isOpen = False }
 
 
+{-| モーダルの初期値
+-}
 initModalModel : ModalModel
 initModalModel =
     { isOpen = False }
@@ -296,11 +298,15 @@ initInternal breathingMethods categories key pageAction =
             )
 
 
+{-| ハンバーガーメニューメッセージ
+-}
 type HamburgerMenuMsg
     = ToggleHamburgerMenu
     | CloseHamburgerMenu
 
 
+{-| モーダルメッセージ
+-}
 type ModalMsg
     = OpenDeleteBreathingMethodModal
     | CloseDeleteBreathingMethodModal
@@ -314,6 +320,8 @@ type Msg
     | InternalMsg InternalMsg
 
 
+{-| 内部メッセージ
+-}
 type InternalMsg
     = NoOp
     | InputInhaleDuration String
@@ -345,6 +353,8 @@ noOp =
     InternalMsg NoOp
 
 
+{-| ハンバーガーメニューのアップデート関数
+-}
 updateHamburgerModel : HamburgerMenuMsg -> Model -> Model
 updateHamburgerModel msg model =
     case msg of
@@ -355,6 +365,8 @@ updateHamburgerModel msg model =
             Monocle.Lens.modify modelHamburegerModel (\m -> { m | isOpen = False }) model
 
 
+{-| モーダルのアップデート関数
+-}
 updateModalModel : ModalMsg -> Model -> Model
 updateModalModel msg model =
     case msg of
@@ -802,6 +814,8 @@ view remote model =
     }
 
 
+{-| サブスクリプション
+-}
 subscriptions : Sub Msg
 subscriptions =
     Ports.subscribeToDeleteBreathingMethodResult
