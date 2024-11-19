@@ -165,4 +165,9 @@ if (elem) {
     }
     app.ports.receiveDeleteBreathingMethodResult.send(true);
   });
+
+  app.ports.playSound.subscribe((fileName) => {
+    const audio = new Audio(`${fileName}`);
+    audio.play();
+  });
 }

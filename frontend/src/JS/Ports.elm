@@ -6,6 +6,7 @@ port module JS.Ports exposing
     , subscribeToQueryResults, subscribeToQueryErrors
     , subscribeToUuid
     , deleteBreathingMethodValue
+    , playSound
     , generateUuidValue, subscribeToDeleteBreathingMethodResult
     )
 
@@ -53,6 +54,11 @@ port module JS.Ports exposing
 #### 削除
 
 @docs deleteBreathingMethodValue, subscribeDeleteResult
+
+
+#### サウンド
+
+@docs playSound, vibration
 
 -}
 
@@ -219,3 +225,12 @@ port receiveDeleteBreathingMethodResult : (Bool -> msg) -> Sub msg
 subscribeToDeleteBreathingMethodResult : (Bool -> msg) -> Sub msg
 subscribeToDeleteBreathingMethodResult toMsg =
     receiveDeleteBreathingMethodResult toMsg
+
+
+{-| サウンドを再生します。
+-}
+port playSound : String -> Cmd msg
+
+
+
+-- port vibration [ ] TODO

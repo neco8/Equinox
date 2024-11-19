@@ -331,7 +331,16 @@ handleStart now model =
             Running { startTime = now, totalPausedMilliseconds = 0, lastClickedTime = now }
         , displayCurrentTime = now
       }
-    , Cmd.none
+    , let
+        after =
+            (calculatePhase
+                (getElapsedMilliseconds model.timerState now)
+                model.selectedBreathingMethod
+            ).phaseType
+      in
+      Cmd.batch
+        [ Ports.playSound <| phaseTypeToFileName after
+        ]
     )
 
 
@@ -744,7 +753,26 @@ updateInternal duration key msg model toMsg registry =
 
             else
                 ( { model | displayCurrentTime = posix }
-                , Cmd.none
+                , Cmd.batch <|
+                    let
+                        before =
+                            (calculatePhase
+                                (getElapsedMilliseconds model.timerState model.displayCurrentTime)
+                                model.selectedBreathingMethod
+                            ).phaseType
+
+                        after =
+                            (calculatePhase
+                                (getElapsedMilliseconds model.timerState posix)
+                                model.selectedBreathingMethod
+                            ).phaseType
+                    in
+                    [ if before /= after then
+                        Ports.playSound <| phaseTypeToFileName after
+
+                      else
+                        Cmd.none
+                    ]
                 , registry
                 )
 
@@ -786,6 +814,27 @@ updateInternal duration key msg model toMsg registry =
 
         ( ClickSomeWhere, _ ) ->
             ( model, Cmd.none, registry )
+
+
+{-| フェーズからファイル名を取得する
+-}
+phaseTypeToFileName : PhaseType -> String
+phaseTypeToFileName phaseType =
+    "/sounds/"
+        ++ (case phaseType of
+                Inhale ->
+                    "inhale"
+
+                InhaleHold ->
+                    "inhale-hold"
+
+                Exhale ->
+                    "exhale"
+
+                ExhaleHold ->
+                    "exhale-hold"
+           )
+        ++ ".mp3"
 
 
 {-| 経過時間をミリ秒で取得する
