@@ -37,4 +37,6 @@ export interface Storage {
   save(key: StorageKey, value: unknown): Promise<SaveResult>;
   queryAll(key: StorageKey, query: StorageQuerySDL): Promise<QueryListResult>;
   queryOne(key: StorageKey, query: StorageQuerySDL): Promise<QuerySingleResult>;
+
+  delete(key: StorageKey, id: string): Promise<void>;
 }
