@@ -74,6 +74,7 @@ type TimerState
     | Running
         { startTime : Time.Posix
         , totalPausedMilliseconds : Int
+        , lastClickedTime : Time.Posix -- これは、集中モードを発動するためのもととなる値
         }
     | Paused
         { startTime : Time.Posix
@@ -85,6 +86,36 @@ type TimerState
         , totalPausedMilliseconds : Int
         , endTime : Time.Posix
         }
+
+
+{-| タイマーの集中モード
+-}
+type ConsentrationMode
+    = Consentration
+    | Control
+
+
+{-| タイマーの集中モードに移行する秒数
+-}
+consentrationSeconds : Int
+consentrationSeconds =
+    10
+
+
+{-| 集中モードかどうかを判定する
+-}
+toConsentrationMode : Time.Posix -> TimerState -> ConsentrationMode
+toConsentrationMode now timerState =
+    case timerState of
+        Running { lastClickedTime } ->
+            if Time.posixToMillis now - Time.posixToMillis lastClickedTime > 1000 * consentrationSeconds then
+                Consentration
+
+            else
+                Control
+
+        _ ->
+            Control
 
 
 {-| モデル
@@ -194,6 +225,7 @@ type Msg
     | NavigateToRoute Route
     | GetSessionId (Uuid -> Session)
     | GotSessionId (Uuid -> Session) Uuid
+    | ClickSomeWhere
     | NoOp
 
 
@@ -296,7 +328,7 @@ handleStart : Time.Posix -> InternalModel -> ( InternalModel, Cmd Msg )
 handleStart now model =
     ( { model
         | timerState =
-            Running { startTime = now, totalPausedMilliseconds = 0 }
+            Running { startTime = now, totalPausedMilliseconds = 0, lastClickedTime = now }
         , displayCurrentTime = now
       }
     , Cmd.none
@@ -305,7 +337,7 @@ handleStart now model =
 
 {-| 一時停止に関する処理
 -}
-handlePause : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int } -> InternalModel -> ( InternalModel, Cmd Msg )
+handlePause : Time.Posix -> { running | startTime : Time.Posix, totalPausedMilliseconds : Int } -> InternalModel -> ( InternalModel, Cmd Msg )
 handlePause now running model =
     ( { model
         | timerState =
@@ -333,6 +365,7 @@ handleResume now paused model =
             Running
                 { startTime = paused.startTime
                 , totalPausedMilliseconds = paused.totalPausedMilliseconds + pauseDuration
+                , lastClickedTime = now
                 }
       }
     , Cmd.none
@@ -710,7 +743,10 @@ updateInternal duration key msg model toMsg registry =
                 )
 
             else
-                ( { model | displayCurrentTime = posix }, Cmd.none, registry )
+                ( { model | displayCurrentTime = posix }
+                , Cmd.none
+                , registry
+                )
 
         ( NavigateToRoute route, _ ) ->
             ( model, Nav.pushUrl key <| Route.toString route, registry )
@@ -742,6 +778,15 @@ updateInternal duration key msg model toMsg registry =
             , registry
             )
 
+        ( ClickSomeWhere, Running running ) ->
+            ( { model | timerState = Running { running | lastClickedTime = model.displayCurrentTime } }
+            , Cmd.none
+            , registry
+            )
+
+        ( ClickSomeWhere, _ ) ->
+            ( model, Cmd.none, registry )
+
 
 {-| 経過時間をミリ秒で取得する
 -}
@@ -767,6 +812,21 @@ getElapsedMilliseconds timerState displayCurrentTime =
                 - state.totalPausedMilliseconds
 
 
+{-| 集中モードへの遷移
+-}
+consentrationAnimationClass : ConsentrationMode -> { durationClass : Attribute msg, opacityClass : Attribute msg }
+consentrationAnimationClass consentrationMode =
+    { durationClass = class "transition-opacity duration-1000 ease-in-out"
+    , opacityClass =
+        case consentrationMode of
+            Consentration ->
+                class "opacity-0 pointer-events-none"
+
+            Control ->
+                class "opacity-100"
+    }
+
+
 {-| ビュー
 -}
 view : Maybe Duration -> Model -> View Msg
@@ -780,6 +840,9 @@ view mduration model =
 
             ModelLoaded loaded ->
                 let
+                    consentrationMode =
+                        toConsentrationMode loaded.displayCurrentTime loaded.timerState
+
                     { inhaleDuration, inhaleHoldDuration, exhaleDuration, exhaleHoldDuration } =
                         case loaded.selectedBreathingMethod of
                             Existing m ->
@@ -799,8 +862,9 @@ view mduration model =
                 div
                     [ attribute "role" "session"
                     , class "relative grid items-center justify-center place-content-center h-full bg-white text-gray-900 p-4 gap-60"
+                    , onClick ClickSomeWhere
                     ]
-                    [ viewTimer loaded
+                    [ viewTimer loaded consentrationMode
                     , div [ class "absolute place-self-center" ]
                         [ div [ class "relative flex items-center justify-center mb-4 h-80" ]
                             [ node "breathing-animation"
@@ -827,18 +891,20 @@ view mduration model =
                                 []
                             , viewInstruction loaded
                                 [ class "absolute text-2xl"
+                                , (consentrationAnimationClass consentrationMode).durationClass
+                                , (consentrationAnimationClass consentrationMode).opacityClass
                                 ]
                             ]
                         ]
-                    , viewControls loaded
+                    , viewControls loaded consentrationMode
                     ]
     }
 
 
 {-| タイマーのビュー
 -}
-viewTimer : InternalModel -> Html Msg
-viewTimer model =
+viewTimer : InternalModel -> ConsentrationMode -> Html Msg
+viewTimer model consentrationMode =
     let
         elapsedSeconds =
             getElapsedMilliseconds model.timerState model.displayCurrentTime // 1000
@@ -855,6 +921,8 @@ viewTimer model =
         [ attribute "role" "timer"
         , attribute "aria-label" "session-timer"
         , class "text-6xl font-mono z-10 px-8 relative"
+        , (consentrationAnimationClass consentrationMode).durationClass
+        , (consentrationAnimationClass consentrationMode).opacityClass
         ]
         [ div [ class "absolute -inset-6 bg-white/60 blur-xl" ] []
         , span [ class "relative" ] [ text (minutes ++ ":" ++ seconds) ]
@@ -882,13 +950,18 @@ viewInstruction model attr =
 
 {-| コントロールのビュー
 -}
-viewControls : InternalModel -> Html Msg
-viewControls model =
+viewControls : InternalModel -> ConsentrationMode -> Html Msg
+viewControls model consentrationMode =
     let
         buttonClass =
             class "p-4 bg-gray-50/70 hover:bg-gray-200/70 backdrop-blur-sm rounded-full transition-colors"
     in
-    Html.Keyed.node "div" [ class "flex justify-center gap-8 z-10" ] <|
+    Html.Keyed.node "div"
+        [ class "flex justify-center gap-8 z-10"
+        , (consentrationAnimationClass consentrationMode).durationClass
+        , (consentrationAnimationClass consentrationMode).opacityClass
+        ]
+    <|
         case model.timerState of
             NotStarted ->
                 [ ( "loading", text "loading..." ) ]

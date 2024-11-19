@@ -282,7 +282,7 @@ view model =
                                                 [ attribute "aria-label" "finish-duration"
                                                 , value (String.fromInt <| fromDuration duration)
                                                 ]
-                                                [ text <| String.fromInt <| floor <| (/) 60 <| toFloat <| fromDuration duration ]
+                                                [ text <| String.fromInt <| floor <| (\s -> s / 60) <| toFloat <| fromDuration duration ]
                                             , span [ class "text-4xl" ] [ text "分" ]
                                             ]
                                         ]

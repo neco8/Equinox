@@ -124,7 +124,7 @@ class BreathingAnimation extends HTMLElement {
     const exhale = parseInt(this.getAttribute("exhale")) ?? 8;
     const exhaleHold = parseInt(this.getAttribute("exhale-hold")) ?? 0;
 
-    const SHAPE_CHANGE_DURATION = 0.25;
+    const SHAPE_CHANGE_DURATION = 0.3;
 
     this.timeline = gsap.timeline({
       repeat: -1,
@@ -160,16 +160,16 @@ class BreathingAnimation extends HTMLElement {
           {
             borderRadius: "8px",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale
         )
         .to(
           this.background,
           {
-            borderRadius: "3px",
+            borderRadius: "3.5px",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale
         )
@@ -181,7 +181,7 @@ class BreathingAnimation extends HTMLElement {
           {
             borderRadius: "50%",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale + inhaleHold - SHAPE_CHANGE_DURATION
         )
@@ -190,7 +190,7 @@ class BreathingAnimation extends HTMLElement {
           {
             borderRadius: "50%",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale + inhaleHold - SHAPE_CHANGE_DURATION
         );
@@ -222,16 +222,16 @@ class BreathingAnimation extends HTMLElement {
           {
             borderRadius: "8px",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale + inhaleHold + exhale
         )
         .to(
           this.background,
           {
-            borderRadius: "3px",
+            borderRadius: "3.5px",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale + inhaleHold + exhale
         )
@@ -243,7 +243,7 @@ class BreathingAnimation extends HTMLElement {
           {
             borderRadius: "50%",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale + inhaleHold + exhale + exhaleHold - SHAPE_CHANGE_DURATION
         )
@@ -252,7 +252,7 @@ class BreathingAnimation extends HTMLElement {
           {
             borderRadius: "50%",
             duration: SHAPE_CHANGE_DURATION,
-            ease: "power1.in",
+            ease: "power3.inOut",
           },
           inhale + inhaleHold + exhale + exhaleHold - SHAPE_CHANGE_DURATION
         );
