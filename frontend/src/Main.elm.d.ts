@@ -104,6 +104,8 @@ export interface Ports {
   // 削除
   deleteBreathingMethod: Cmd<string>;
   receiveDeleteBreathingMethodResult: Sub<boolean>;
+  // 効果音
+  playSound: Cmd<string>;
 }
 
 // Elm App Interface
