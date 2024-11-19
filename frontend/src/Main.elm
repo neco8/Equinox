@@ -1048,7 +1048,7 @@ viewStatistics model =
                     [ h2 [ class "text-lg font-semibold mb-4" ] [ text "過去7日間" ]
                     , div [ class "grid grid-cols-2 gap-4" ]
                         [ div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ text "🎯" ]
+                            [ span [ class "text-2xl" ] [ Icon.view Icon.Sets ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "recent-sets"
@@ -1059,7 +1059,7 @@ viewStatistics model =
                                 ]
                             ]
                         , div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ text "⏱️" ]
+                            [ span [ class "text-2xl" ] [ Icon.view Icon.Timer ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "recent-minutes"
@@ -1078,7 +1078,7 @@ viewStatistics model =
                     [ h2 [ class "text-lg font-semibold mb-4" ] [ text "累計" ]
                     , div [ class "grid grid-cols-2 gap-4" ]
                         [ div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ text "📊" ]
+                            [ span [ class "text-2xl" ] [ Icon.view Icon.Sets ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "total-sets"
@@ -1089,14 +1089,14 @@ viewStatistics model =
                                 ]
                             ]
                         , div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ text "⏱️" ]
+                            [ span [ class "text-2xl" ] [ Icon.view Icon.Timer ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "total-minutes"
                                     , class "text-2xl font-bold"
                                     ]
                                     [ text <| String.fromInt <| floor <| (\s -> s / 60) <| toFloat statistics.totalSeconds ]
-                                , span [ class "text-sm text-gray-500" ] [ text "総練習時間(秒)" ]
+                                , span [ class "text-sm text-gray-500" ] [ text "総練習時間(分)" ]
                                 ]
                             ]
                         ]
@@ -1108,7 +1108,7 @@ viewStatistics model =
                     [ h2 [ class "text-lg font-semibold mb-4" ] [ text "練習記録" ]
                     , div [ class "grid grid-cols-2 gap-4" ]
                         [ div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ text "📅" ]
+                            [ span [ class "text-2xl" ] [ Icon.view Icon.Calendar ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "total-practice-days"
