@@ -78,14 +78,22 @@ type alias Model msg a =
 -}
 init : Config msg a -> Model msg a
 init config =
-    { inputValue = ""
+    { inputValue = config.initialValue |> Maybe.map .label |> Maybe.withDefault ""
     , isOpen = False
-    , selectedOption = Nothing
+    , selectedOption = config.initialValue
     , config = config
     }
 
 
 {-| Combobox で発生するメッセージです。
+
+    type Msg a
+        = InputChanged String
+        | OptionSelected (Option a)
+        | OpenDropdown
+        | CloseDropdown
+        | ClickCreateNew
+
 -}
 type Msg a
     = InputChanged String
@@ -105,6 +113,7 @@ type alias Config msg a =
         String
         -> msg -- 親コンポーネントが新規作成をハンドルする
     , toMsg : Msg a -> msg
+    , initialValue : Maybe (Option a)
     }
 
 

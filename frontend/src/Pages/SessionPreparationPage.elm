@@ -42,7 +42,7 @@ import Html.Events exposing (onClick, onInput)
 import Icon
 import List.Extra
 import Maybe.Extra
-import Nav exposing (NavType(..))
+import Nav
 import Pages.SessionPage as SessionPage
 import RemoteData exposing (RemoteData(..))
 import Route exposing (Route(..))
@@ -54,6 +54,11 @@ import View exposing (View)
 
 
 {-| Model
+
+    type Model
+        = ModelLoading PracticeStyle
+        | ModelLoaded InternalModel
+
 -}
 type Model
     = ModelLoading PracticeStyle
@@ -162,6 +167,13 @@ initInternal m =
 
 
 {-| カスタム練習のときのみ利用される入力メッセージ
+
+    type ManualInputMsg
+        = InputInhaleDuration String
+        | InputInhaleHoldDuration String
+        | InputExhaleDuration String
+        | InputExhaleHoldDuration String
+
 -}
 type ManualInputMsg
     = InputInhaleDuration String
@@ -171,6 +183,13 @@ type ManualInputMsg
 
 
 {-| メッセージ
+
+    type Msg
+        = InputSessionDuration String
+        | ManualInputMsg ManualInputMsg
+        | NavigateToRoute Route
+        | NoOp
+
 -}
 type Msg
     = InputSessionDuration String
@@ -274,6 +293,10 @@ updateInternal key msg model =
 
 手動で設定したBreathingMethodかもしくは既存のBreathingMethodかを選択する
 
+    type PracticeStyle
+        = ManualPracticeStyle
+        | PresetPracticeStyle BreathingMethodId
+
 -}
 type PracticeStyle
     = ManualPracticeStyle
@@ -281,6 +304,16 @@ type PracticeStyle
 
 
 {-| 正常な練習スタイル
+
+    type ValidPracticeStyle
+        = Manual
+            { inhaleDurationInput : String
+            , inhaleHoldDurationInput : String
+            , exhaleDurationInput : String
+            , exhaleHoldDurationInput : String
+            }
+        | Preset BreathingMethod
+
 -}
 type ValidPracticeStyle
     = Manual
@@ -324,7 +357,10 @@ validateInput { sessionDurationInput, practiceStyle } =
 -}
 view : Model -> View Msg
 view model =
-    { nav = Just (Nav { goToSettings = NavigateToRoute SettingsRoute })
+    { nav =
+        Nav.initialConfig
+            |> Nav.withSettings (NavigateToRoute SettingsRoute) (Just 30)
+            |> Just
     , footer = True
     , view =
         case model of

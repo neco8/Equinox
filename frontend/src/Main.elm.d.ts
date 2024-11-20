@@ -101,6 +101,11 @@ export interface Ports {
   // UUID
   generateUuid: Cmd<string>; // callbackを識別するtag
   receiveUuid: Sub<[string, string]>; // [tag, uuid] tagによって識別されるcallbackにuuidを渡す
+  // 削除
+  deleteBreathingMethod: Cmd<string>;
+  receiveDeleteBreathingMethodResult: Sub<boolean>;
+  // 効果音
+  playSound: Cmd<string>;
 }
 
 // Elm App Interface

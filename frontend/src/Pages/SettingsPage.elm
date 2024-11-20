@@ -63,15 +63,29 @@ init _ =
 
 
 {-| メッセージ
+
+    type Msg
+        = NavigateToRoute Route
+        | GoToNotYetImplemented { title : String }
+        | GoBackToSettings
+        | GoBack
+        | NoOp
+
 -}
 type Msg
     = NavigateToRoute Route
     | GoToNotYetImplemented { title : String }
     | GoBackToSettings
+    | GoBack
     | NoOp
 
 
 {-| ステップ
+
+    type Step
+        = Settings
+        | NotYetImplemented { title : String }
+
 -}
 type Step
     = Settings
@@ -104,6 +118,9 @@ update key msg model =
 
         GoBackToSettings ->
             ( { model | step = Settings }, Cmd.none )
+
+        GoBack ->
+            ( model, Nav.back key 1 )
 
 
 {-| 設定項目のビュー
@@ -205,24 +222,24 @@ settingGroups =
 view : Model -> View Msg
 view model =
     { nav =
-        Just
-            (Nav.BackNav
-                { goBack =
-                    case model.step of
-                        Settings ->
-                            NavigateToRoute HomeRoute
+        Nav.initialConfig
+            |> Nav.withGoBack
+                (case model.step of
+                    Settings ->
+                        GoBack
 
-                        _ ->
-                            GoBackToSettings
-                , title =
-                    case model.step of
-                        Settings ->
-                            "設定"
+                    _ ->
+                        GoBackToSettings
+                )
+            |> Nav.withTitle
+                (case model.step of
+                    Settings ->
+                        "設定"
 
-                        NotYetImplemented { title } ->
-                            title
-                }
-            )
+                    NotYetImplemented { title } ->
+                        title
+                )
+            |> Just
     , footer = False
     , view =
         div

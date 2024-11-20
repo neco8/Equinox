@@ -37,6 +37,20 @@ import Uuid exposing (Uuid)
 
 RouteというSuffixをつけることで、Pageとの区別を明確にしている。
 
+    type Route
+        = HomeRoute
+        | PresetSessionPreparationRoute BreathingMethodId
+        | ManualSessionPreparationRoute
+        | PresetSessionRoute BreathingMethodId (Maybe Duration)
+        | ManualSessionRoute (Maybe Duration) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
+        | PresetSessionCompletionRoute BreathingMethodId (Maybe Duration)
+        | ManualSessionCompletionRoute (Maybe Duration) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
+        | StatisticsRoute
+        | SettingsRoute
+        | SourceSelectionRoute
+        | BreathingMethodEditRoute BreathingMethodId
+        | BreathingMethodAddRoute (Maybe Name) (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
+
 -}
 type Route
     = HomeRoute

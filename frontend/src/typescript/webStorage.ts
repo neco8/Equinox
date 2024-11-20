@@ -115,6 +115,12 @@ class WebTestStorage implements Storage {
         };
     }
   }
+
+  async delete(key: StorageKey, id: string): Promise<void> {
+    const data = this.getData(key);
+    delete data[id];
+    localStorage.setItem(key, JSON.stringify(data));
+  }
 }
 
 export { WebTestStorage };

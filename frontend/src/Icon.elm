@@ -17,6 +17,35 @@ import Html exposing (Html, div, text)
 
 
 {-| アイコンの種類を定義します。
+
+    type Icon
+        = Flame
+        | Settings
+        | Plus
+        | Home
+        | Play
+        | Statistics
+        | Timer
+        | Wind
+        | Pause
+        | Stop
+        | Medal
+        | Sparkles
+        | Pencil
+        | Globe
+        | Cloud
+        | Users
+        | Alert
+        | Refresh
+        | Check
+        | ChevronLeft
+        | ChevronRight
+        | Hamburger
+        | Trash
+        | Sets
+        | Calendar
+        | Close
+
 -}
 type Icon
     = Flame
@@ -40,6 +69,11 @@ type Icon
     | Check
     | ChevronLeft
     | ChevronRight
+    | Hamburger
+    | Trash
+    | Sets
+    | Calendar
+    | Close
 
 
 {-| ビュー
@@ -151,3 +185,28 @@ view icon =
             div
                 []
                 [ text "→" ]
+
+        Hamburger ->
+            div
+                []
+                [ text "☰" ]
+
+        Trash ->
+            div
+                []
+                [ text "🗑️" ]
+
+        Sets ->
+            div
+                []
+                [ text "📚" ]
+
+        Calendar ->
+            div
+                []
+                [ text "📅" ]
+
+        Close ->
+            div
+                []
+                [ text "x" ]

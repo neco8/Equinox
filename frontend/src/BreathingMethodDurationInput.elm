@@ -12,11 +12,10 @@ ManualSessionPreparationPageとBreathingMethodAddPageの間で共通化を図り
 -}
 
 import Html exposing (Html, div, input, span, text)
-import Html.Attributes exposing (attribute, class, value)
+import Html.Attributes exposing (attribute, class, placeholder, value)
 import Html.Events exposing (onInput)
 import Icon
 import Types.BreathingMethod exposing (PhaseType(..))
-import Html.Attributes exposing (placeholder)
 
 
 {-| BreathingMethodDurationInputを使用する際に必要な設定を定義します。
@@ -152,7 +151,7 @@ view config model =
                         [ toAriaLabel phaseType
                         , onInput (toOnInput phaseType)
                         , value (toValue phaseType)
-                        , class "text-center rounded-lg border bg-transparent focus:ring-4 text-2xl font-semibold w-full"
+                        , class "text-center rounded-lg border bg-transparent focus:ring-4 text-2xl font-semibold w-full placeholder-gray-500/10"
                         , (toColorClass phaseType).textColorClass
                         , (toColorClass phaseType).borderColorClass
                         , (toColorClass phaseType).ringColorClass

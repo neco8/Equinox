@@ -34,6 +34,10 @@ type alias CategoryId =
 
 
 {-| カテゴリのタイトル。
+
+    type Title
+        = Title String
+
 -}
 type Title
     = Title String

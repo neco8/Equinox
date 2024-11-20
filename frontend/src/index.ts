@@ -15,6 +15,7 @@ import {
 import { applyUuid } from "./typescript/uuid";
 import "./typescript/breathing-animation";
 import "./typescript/streak-animation";
+import "./typescript/lock-screen";
 
 // ストレージインスタンスの初期化
 const storage = new WebTestStorage();
@@ -155,5 +156,19 @@ if (elem) {
       storageKey: "EQUINOX_sessions",
       conditions: [],
     });
+  });
+
+  app.ports.deleteBreathingMethod.subscribe(async (id: string) => {
+    try {
+      await storage.delete("EQUINOX_breathing-methods", id);
+    } catch (error) {
+      app.ports.receiveDeleteBreathingMethodResult.send(false);
+    }
+    app.ports.receiveDeleteBreathingMethodResult.send(true);
+  });
+
+  app.ports.playSound.subscribe((fileName) => {
+    const audio = new Audio(`${fileName}`);
+    audio.play();
   });
 }

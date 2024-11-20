@@ -1,7 +1,7 @@
 module Types.Statistics exposing
     ( Statistics
     , recentDaysThreshold
-    , calculateFromSessions, calculateRecentFromSessions
+    , calculateFromSessions, calculateRecentFromSessions, calculateStreak
     )
 
 {-|
@@ -32,7 +32,7 @@ module Types.Statistics exposing
 
 ### 関数
 
-@docs calculateFromSessions, calculateRecentFromSessions
+@docs calculateFromSessions, calculateRecentFromSessions, calculateStreak
 
 
 ### TODO
@@ -41,7 +41,7 @@ module Types.Statistics exposing
 
 -}
 
-import Date exposing (format)
+import Date exposing (Interval(..), Unit(..), format)
 import List.Extra
 import Time exposing (posixToMillis)
 import Types.Session exposing (Session, fromDuration)
@@ -123,3 +123,32 @@ calculateRecentFromSessions nDays currentTime sessions =
             List.filter isRecent sessions
     in
     calculateFromSessions recentSessions
+
+
+{-| `calculateStreak` はセッションのリストから連続した日数を計算します。
+
+  - `calculateStreak` は、セッションのリストを受け取り、連続した日数を返します。
+  - 連続した日数は、セッションの作成日時を基に計算されます。
+
+-}
+calculateStreak : List Session -> Int
+calculateStreak =
+    List.map (.createdAt >> Date.fromPosix Time.utc >> Date.toRataDie)
+        >> List.Extra.unique
+        >> List.sort
+        >> List.reverse
+        >> List.Extra.groupWhile
+            (\a b ->
+                a - b <= 1
+            )
+        >> (<|) (List.head >> Maybe.map (curry (::) >> List.length) >> Maybe.withDefault 0)
+
+
+{-| `curry` 関数は、関数 `f` をカリー化します。
+
+  - `curry` は、関数 `f` とタプル `(a, b)` を受け取り、`f` をカリー化して `(a, b)` に適用します。
+
+-}
+curry : (a -> b -> c) -> ( a, b ) -> c
+curry f ( a, b ) =
+    f a b

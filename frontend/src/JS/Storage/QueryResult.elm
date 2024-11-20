@@ -36,6 +36,12 @@ import Types.Session exposing (Session)
 
 @deprecated
 
+    type QueryResult
+        = EntitySingleResult Entity
+        | CategoryListResult (List Category)
+        | BreathingMethodListResult (List BreathingMethod)
+        | SessionListResult (List Session)
+
 -}
 type QueryResult
     = EntitySingleResult Entity
@@ -48,6 +54,11 @@ type QueryResult
 `QueryResult` の単一エンティティ結果に含まれます。
 
 @deprecated
+
+    type Entity
+        = CategoryEntity Category
+        | BreathingMethodEntity BreathingMethod
+        | SessionEntity Session
 
 -}
 type Entity

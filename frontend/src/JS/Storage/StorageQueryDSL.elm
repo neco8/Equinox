@@ -40,9 +40,10 @@ import Uuid exposing (Uuid)
 
 {-| ストレージ内のエンティティを識別するためのキー。
 
-    - `BreathingMethodsKey`: 呼吸法データ
-    - `CategoriesKey`: カテゴリーデータ
-    - `SessionsKey`: セッションデータ
+    type StorageKey
+        = BreathingMethodsKey
+        | CategoriesKey
+        | SessionsKey
 
 -}
 type StorageKey
@@ -69,6 +70,20 @@ storageKeyToString key =
 {-| ストレージからデータを取得するための検索クエリ。
 
     各クエリは、特定のフィルター、範囲、またはフィールドに基づいてデータを検索します。
+
+
+    type Query
+        = GetAllBreathingMethods
+        | GetAllCategories
+        | GetAllSessions
+        | GetBreathingMethodById Uuid
+        | GetCategoryById Uuid
+        | GetSessionById Uuid
+        | GetSessionByTimeRange Time.Posix Time.Posix
+        | GetSessionRecentNDays Int Time.Posix
+        | GetBreathingMethodByFieldValue String String
+        | GetCategoryByFieldValue String String
+        | GetSessionByFieldValue String String
 
 -}
 type Query
@@ -123,9 +138,16 @@ type alias Condition =
     - `Gte`: 以上
     - `Lte`: 以下
 
+  - [ ] TODO: この型に変わる方策を考える
+
 @deprecated
 
-  - [ ] TODO: この型に変わる方策を考える
+    type Operator
+        = Eq
+        | Gt
+        | Lt
+        | Gte
+        | Lte
 
 -}
 type Operator
@@ -143,9 +165,15 @@ type Operator
     - `BoolValue`: 真偽値
     - `TimestampValue`: タイムスタンプ
 
+  - [ ] TODO: この型に変わる方策を考える
+
 @deprecated 微妙な解決策。なぜ微妙かもまだわからない
 
-  - [ ] TODO: この型に変わる方策を考える
+    type Value
+        = StringValue String
+        | IntValue Int
+        | BoolValue Bool
+        | TimestampValue Time.Posix
 
 -}
 type Value

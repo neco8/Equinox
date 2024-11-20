@@ -44,11 +44,18 @@ import Route exposing (Route(..))
 import Task
 import Time
 import Types.BreathingMethod exposing (BreathingMethod, BreathingMethodId, ExhaleDuration, ExhaleHoldDuration, InhaleDuration, InhaleHoldDuration, PhaseType(..), fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName)
-import Types.Session exposing (Duration, fromDuration)
+import Types.Session exposing (Duration, Session, fromDuration)
+import Types.Statistics exposing (calculateStreak)
 import View exposing (View)
 
 
 {-| メッセージ
+
+    type Msg
+        = NavigateToRoute Route
+        | NextStep
+        | NoOp
+
 -}
 type Msg
     = NavigateToRoute Route
@@ -70,6 +77,10 @@ noOp =
 
 手動で設定したBreathingMethodかもしくは既存のBreathingMethodかを選択する
 
+    type PracticeStyle
+        = ManualPracticeStyle (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
+        | PresetPracticeStyle BreathingMethodId
+
 -}
 type PracticeStyle
     = ManualPracticeStyle (Maybe InhaleDuration) (Maybe InhaleHoldDuration) (Maybe ExhaleDuration) (Maybe ExhaleHoldDuration)
@@ -90,6 +101,11 @@ type alias ValidManualPracticeStyle =
 
 
 {-| 正常な練習スタイル
+
+    type ValidPracticeStyle
+        = Manual ValidManualPracticeStyle
+        | Preset BreathingMethod
+
 -}
 type ValidPracticeStyle
     = Manual ValidManualPracticeStyle
@@ -107,7 +123,7 @@ type ValidPracticeStyle
 
 -}
 type ValidatePracticeStyleResult
-    = Valid ValidPracticeStyle
+    = Valid ValidPracticeStyle (List Session)
     | Invalid
     | NotYetKnown
 
@@ -117,27 +133,38 @@ type ValidatePracticeStyleResult
 既存の呼吸法のリストに存在するかを検証する
 
 -}
-validatePracticeStyle : RemoteData e (List BreathingMethod) -> PracticeStyle -> ValidatePracticeStyleResult
+validatePracticeStyle : RemoteData e { breathingMethods : List BreathingMethod, sessions : List Session } -> PracticeStyle -> ValidatePracticeStyleResult
 validatePracticeStyle remote practiceStyle =
     case practiceStyle of
         ManualPracticeStyle minhale minhaleHold mexhale mexhaleHold ->
-            Just ValidManualPracticeStyle
-                |> Maybe.Extra.andMap minhale
-                |> Maybe.Extra.andMap minhaleHold
-                |> Maybe.Extra.andMap mexhale
-                |> Maybe.Extra.andMap mexhaleHold
-                |> Maybe.map (Manual >> Valid)
-                |> Maybe.withDefault Invalid
+            case remote of
+                Success data ->
+                    Just ValidManualPracticeStyle
+                        |> Maybe.Extra.andMap minhale
+                        |> Maybe.Extra.andMap minhaleHold
+                        |> Maybe.Extra.andMap mexhale
+                        |> Maybe.Extra.andMap mexhaleHold
+                        |> Maybe.map (Manual >> Valid >> (|>) data.sessions)
+                        |> Maybe.withDefault Invalid
+
+                Failure _ ->
+                    Invalid
+
+                NotAsked ->
+                    NotYetKnown
+
+                Loading ->
+                    NotYetKnown
 
         PresetPracticeStyle id ->
             case remote of
-                Success breathingMethods ->
+                Success data ->
                     case
-                        List.Extra.find (.id >> (==) id) breathingMethods
+                        List.Extra.find (.id >> (==) id) data.breathingMethods
                             |> Maybe.map Preset
                     of
                         Just valid ->
-                            Valid valid
+                            Valid valid data.sessions
 
                         Nothing ->
                             Invalid
@@ -156,6 +183,15 @@ validatePracticeStyle remote practiceStyle =
 
 
 {-| Model
+
+    type Model
+        = ModelInvalid PracticeStyle
+        | ModelLoading
+            { duration : Duration
+            , practiceStyle : PracticeStyle
+            }
+        | ModelValid InternalModel
+
 -}
 type Model
     = ModelInvalid PracticeStyle
@@ -172,6 +208,7 @@ type alias InternalModel =
     { duration : Duration
     , practiceStyle : ValidPracticeStyle
     , step : Step
+    , sessions : List Session
     }
 
 
@@ -189,17 +226,18 @@ type Step
 
 {-| 初期化
 -}
-init : RemoteData e (List BreathingMethod) -> Maybe Duration -> PracticeStyle -> ( Model, Cmd Msg )
+init : RemoteData e { breathingMethods : List BreathingMethod, sessions : List Session } -> Maybe Duration -> PracticeStyle -> ( Model, Cmd Msg )
 init remote mduration practiceStyle =
     case mduration of
         Just duration ->
             -- セッション秒数ページが存在していても、validationをする必要がある。
             case validatePracticeStyle remote practiceStyle of
-                Valid valid ->
+                Valid valid sessions ->
                     ( ModelValid
                         { duration = duration
                         , practiceStyle = valid
                         , step = Result
+                        , sessions = sessions
                         }
                     , Cmd.none
                     )
@@ -246,7 +284,7 @@ view model =
     , footer = False
     , view =
         case model of
-            ModelValid { duration, practiceStyle, step } ->
+            ModelValid { duration, practiceStyle, step, sessions } ->
                 div
                     [ attribute "role" "session-completion"
                     , class "flex flex-col items-center justify-center min-h-full bg-gradient-to-b from-blue-50 to-white p-4"
@@ -268,7 +306,7 @@ view model =
                                                 [ attribute "aria-label" "finish-duration"
                                                 , value (String.fromInt <| fromDuration duration)
                                                 ]
-                                                [ text <| String.fromInt <| floor <| (/) 60 <| toFloat <| fromDuration duration ]
+                                                [ text <| String.fromInt <| floor <| (\s -> s / 60) <| toFloat <| fromDuration duration ]
                                             , span [ class "text-4xl" ] [ text "分" ]
                                             ]
                                         ]
@@ -323,7 +361,10 @@ view model =
                                     ]
 
                                 Streak ->
-                                    [ node "streak-animation" [] []
+                                    [ node "streak-animation"
+                                        [ attribute "streak" <| String.fromInt <| calculateStreak sessions
+                                        ]
+                                        []
                                     , button
                                         [ attribute "aria-label" "finish"
                                         , onClick (NavigateToRoute StatisticsRoute)
@@ -342,7 +383,7 @@ view model =
 
 {-| アップデート
 -}
-update : RemoteData e (List BreathingMethod) -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
+update : RemoteData e { breathingMethods : List BreathingMethod, sessions : List Session } -> Nav.Key -> Msg -> Model -> ( Model, Cmd Msg )
 update remote key msg model =
     case model of
         ModelValid valid ->

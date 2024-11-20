@@ -1,13 +1,18 @@
 module DocumentationRule exposing (rule)
 
 {-|
+
+
 ## ドキュメンテーションルール
 
 Elm モジュールのドキュメント規則を強制します。
 
+
 ### 要件
-- モジュールドキュメント: 詳細な説明と適切な見出しレベル
-- 関数・型のドキュメント: 短くても良いが必須
+
+  - モジュールドキュメント: 詳細な説明と適切な見出しレベル
+  - 関数・型のドキュメント: 短くても良いが必須
+
 -}
 
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
@@ -105,7 +110,7 @@ declarationVisitor node =
                     [ Rule.error
                         { message = "Missing function documentation"
                         , details =
-                            [ "関数 `" ++ (Node.value (Node.value declaration).name) ++ "` にドキュメントが必要です。"
+                            [ "関数 `" ++ Node.value (Node.value declaration).name ++ "` にドキュメントが必要です。"
                             , "短い説明でも構いませんので、関数の目的を説明してください。"
                             , """例:
 {-| ユーザー名を検証する

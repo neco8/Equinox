@@ -51,6 +51,7 @@ import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Html.Keyed
 import Icon
 import JS.Ports as Ports
 import JS.Storage.StorageQueryDSL exposing (Query(..))
@@ -67,12 +68,32 @@ import View exposing (View)
 
 
 {-| タイマーを管理するための状態
+
+    type TimerState
+        = NotStarted
+        | Running
+            { startTime : Time.Posix
+            , totalPausedMilliseconds : Int
+            , lastClickedTime : Time.Posix
+            }
+        | Paused
+            { startTime : Time.Posix
+            , totalPausedMilliseconds : Int
+            , pauseStartTime : Time.Posix
+            }
+        | Completed
+            { startTime : Time.Posix
+            , totalPausedMilliseconds : Int
+            , endTime : Time.Posix
+            }
+
 -}
 type TimerState
     = NotStarted
     | Running
         { startTime : Time.Posix
         , totalPausedMilliseconds : Int
+        , lastClickedTime : Time.Posix -- これは、集中モードを発動するためのもととなる値
         }
     | Paused
         { startTime : Time.Posix
@@ -86,7 +107,47 @@ type TimerState
         }
 
 
+{-| タイマーの集中モード
+
+    type ConsentrationMode
+        = Consentration
+        | Control
+
+-}
+type ConsentrationMode
+    = Consentration
+    | Control
+
+
+{-| タイマーの集中モードに移行する秒数
+-}
+consentrationSeconds : Int
+consentrationSeconds =
+    10
+
+
+{-| 集中モードかどうかを判定する
+-}
+toConsentrationMode : Time.Posix -> TimerState -> ConsentrationMode
+toConsentrationMode now timerState =
+    case timerState of
+        Running { lastClickedTime } ->
+            if Time.posixToMillis now - Time.posixToMillis lastClickedTime > 1000 * consentrationSeconds then
+                Consentration
+
+            else
+                Control
+
+        _ ->
+            Control
+
+
 {-| モデル
+
+    type Model
+        = ModelLoading SelectedBreathingMethod
+        | ModelLoaded InternalModel
+
 -}
 type Model
     = ModelLoading SelectedBreathingMethod
@@ -180,6 +241,22 @@ instructionText phaseType =
 
 
 {-| メッセージ
+
+    type Msg
+        = Start Time.Posix
+        | ClickPauseButton
+        | Pause Time.Posix
+        | ClickResumeButton
+        | Resume Time.Posix
+        | ClickStopButton
+        | Stop Time.Posix
+        | TickDisplayTime Time.Posix
+        | NavigateToRoute Route
+        | GetSessionId (Uuid -> Session)
+        | GotSessionId (Uuid -> Session) Uuid
+        | ClickSomeWhere
+        | NoOp
+
 -}
 type Msg
     = Start Time.Posix
@@ -193,6 +270,7 @@ type Msg
     | NavigateToRoute Route
     | GetSessionId (Uuid -> Session)
     | GotSessionId (Uuid -> Session) Uuid
+    | ClickSomeWhere
     | NoOp
 
 
@@ -209,6 +287,15 @@ noOp =
 {-| ページを呼び出す際選択された呼吸法
 
 ただし、まだ指定された呼吸法などが正しいか否かが不明なため、後々ValidSelectedBreathingMethodに変換する必要がある。
+
+    type SelectedBreathingMethod
+        = PresetBreathingMethod BreathingMethodId
+        | CustomBreathingMethod
+            { inhaleDuration : Maybe InhaleDuration
+            , inhaleHoldDuration : Maybe InhaleHoldDuration
+            , exhaleDuration : Maybe ExhaleDuration
+            , exhaleHoldDuration : Maybe ExhaleHoldDuration
+            }
 
 -}
 type SelectedBreathingMethod
@@ -232,6 +319,11 @@ type alias CustomValidBreathingMethod =
 
 
 {-| 選択された呼吸法
+
+    type ValidSelectedBreathingMethod
+        = Existing BreathingMethod
+        | Custom CustomValidBreathingMethod
+
 -}
 type ValidSelectedBreathingMethod
     = Existing BreathingMethod
@@ -295,16 +387,25 @@ handleStart : Time.Posix -> InternalModel -> ( InternalModel, Cmd Msg )
 handleStart now model =
     ( { model
         | timerState =
-            Running { startTime = now, totalPausedMilliseconds = 0 }
+            Running { startTime = now, totalPausedMilliseconds = 0, lastClickedTime = now }
         , displayCurrentTime = now
       }
-    , Cmd.none
+    , let
+        after =
+            (calculatePhase
+                (getElapsedMilliseconds model.timerState now)
+                model.selectedBreathingMethod
+            ).phaseType
+      in
+      Cmd.batch
+        [ Ports.playSound <| phaseTypeToFileName after
+        ]
     )
 
 
 {-| 一時停止に関する処理
 -}
-handlePause : Time.Posix -> { startTime : Time.Posix, totalPausedMilliseconds : Int } -> InternalModel -> ( InternalModel, Cmd Msg )
+handlePause : Time.Posix -> { running | startTime : Time.Posix, totalPausedMilliseconds : Int } -> InternalModel -> ( InternalModel, Cmd Msg )
 handlePause now running model =
     ( { model
         | timerState =
@@ -332,6 +433,7 @@ handleResume now paused model =
             Running
                 { startTime = paused.startTime
                 , totalPausedMilliseconds = paused.totalPausedMilliseconds + pauseDuration
+                , lastClickedTime = now
                 }
       }
     , Cmd.none
@@ -413,6 +515,13 @@ handleCompletion duration model session =
 
 
 {-| ストレージの呼吸法がロード中なのか、それとも不正な状態なのかを表す型
+
+    type BreathingMethodState
+        = BreathingMethodLoading
+        | InvalidBreathingMethodId
+        | InvalidCustomBreathingMethodDuration
+        | Valid ValidSelectedBreathingMethod
+
 -}
 type BreathingMethodState
     = BreathingMethodLoading
@@ -709,7 +818,29 @@ updateInternal duration key msg model toMsg registry =
                 )
 
             else
-                ( { model | displayCurrentTime = posix }, Cmd.none, registry )
+                ( { model | displayCurrentTime = posix }
+                , Cmd.batch <|
+                    let
+                        before =
+                            (calculatePhase
+                                (getElapsedMilliseconds model.timerState model.displayCurrentTime)
+                                model.selectedBreathingMethod
+                            ).phaseType
+
+                        after =
+                            (calculatePhase
+                                (getElapsedMilliseconds model.timerState posix)
+                                model.selectedBreathingMethod
+                            ).phaseType
+                    in
+                    [ if before /= after then
+                        Ports.playSound <| phaseTypeToFileName after
+
+                      else
+                        Cmd.none
+                    ]
+                , registry
+                )
 
         ( NavigateToRoute route, _ ) ->
             ( model, Nav.pushUrl key <| Route.toString route, registry )
@@ -741,6 +872,36 @@ updateInternal duration key msg model toMsg registry =
             , registry
             )
 
+        ( ClickSomeWhere, Running running ) ->
+            ( { model | timerState = Running { running | lastClickedTime = model.displayCurrentTime } }
+            , Cmd.none
+            , registry
+            )
+
+        ( ClickSomeWhere, _ ) ->
+            ( model, Cmd.none, registry )
+
+
+{-| フェーズからファイル名を取得する
+-}
+phaseTypeToFileName : PhaseType -> String
+phaseTypeToFileName phaseType =
+    "/sounds/"
+        ++ (case phaseType of
+                Inhale ->
+                    "inhale"
+
+                InhaleHold ->
+                    "inhale-hold"
+
+                Exhale ->
+                    "exhale"
+
+                ExhaleHold ->
+                    "exhale-hold"
+           )
+        ++ ".mp3"
+
 
 {-| 経過時間をミリ秒で取得する
 -}
@@ -766,10 +927,25 @@ getElapsedMilliseconds timerState displayCurrentTime =
                 - state.totalPausedMilliseconds
 
 
+{-| 集中モードへの遷移
+-}
+consentrationAnimationClass : ConsentrationMode -> { durationClass : Attribute msg, opacityClass : Attribute msg }
+consentrationAnimationClass consentrationMode =
+    { durationClass = class "transition-opacity duration-1000 ease-in-out"
+    , opacityClass =
+        case consentrationMode of
+            Consentration ->
+                class "opacity-0 pointer-events-none"
+
+            Control ->
+                class "opacity-100"
+    }
+
+
 {-| ビュー
 -}
 view : Maybe Duration -> Model -> View Msg
-view _ model =
+view mduration model =
     { nav = Nothing
     , footer = False
     , view =
@@ -779,6 +955,9 @@ view _ model =
 
             ModelLoaded loaded ->
                 let
+                    consentrationMode =
+                        toConsentrationMode loaded.displayCurrentTime loaded.timerState
+
                     { inhaleDuration, inhaleHoldDuration, exhaleDuration, exhaleHoldDuration } =
                         case loaded.selectedBreathingMethod of
                             Existing m ->
@@ -797,10 +976,11 @@ view _ model =
                 in
                 div
                     [ attribute "role" "session"
-                    , class "relative flex flex-col items-center justify-center h-full bg-white text-gray-900 p-4 gap-60"
+                    , class "relative grid items-center justify-center place-content-center h-full bg-white text-gray-900 p-4 gap-60"
+                    , onClick ClickSomeWhere
                     ]
-                    [ viewTimer loaded
-                    , div [ class "absolute" ]
+                    [ viewTimer loaded consentrationMode
+                    , div [ class "absolute place-self-center" ]
                         [ div [ class "relative flex items-center justify-center mb-4 h-80" ]
                             [ node "breathing-animation"
                                 [ attribute "inhale" <|
@@ -818,22 +998,34 @@ view _ model =
 
                                         _ ->
                                             "false"
+                                , attribute "duration" <|
+                                    Maybe.withDefault "" <|
+                                        Maybe.map (String.fromInt << fromDuration) <|
+                                            mduration
                                 ]
                                 []
                             , viewInstruction loaded
                                 [ class "absolute text-2xl"
+                                , (consentrationAnimationClass consentrationMode).durationClass
+                                , (consentrationAnimationClass consentrationMode).opacityClass
                                 ]
                             ]
                         ]
-                    , viewControls loaded
+                    , viewControls loaded consentrationMode
+                    , case loaded.timerState of
+                        Running _ ->
+                            node "lock-screen" [ class "hidden" ] []
+
+                        _ ->
+                            text ""
                     ]
     }
 
 
 {-| タイマーのビュー
 -}
-viewTimer : InternalModel -> Html Msg
-viewTimer model =
+viewTimer : InternalModel -> ConsentrationMode -> Html Msg
+viewTimer model consentrationMode =
     let
         elapsedSeconds =
             getElapsedMilliseconds model.timerState model.displayCurrentTime // 1000
@@ -849,9 +1041,11 @@ viewTimer model =
     div
         [ attribute "role" "timer"
         , attribute "aria-label" "session-timer"
-        , class "text-6xl font-mono z-10 p-8 relative"
+        , class "text-6xl font-mono z-10 px-8 relative"
+        , (consentrationAnimationClass consentrationMode).durationClass
+        , (consentrationAnimationClass consentrationMode).opacityClass
         ]
-        [ div [ class "absolute -inset-6 bg-blue-100/20 blur-2xl" ] []
+        [ div [ class "absolute -inset-6 bg-white/60 blur-xl" ] []
         , span [ class "relative" ] [ text (minutes ++ ":" ++ seconds) ]
         ]
 
@@ -877,39 +1071,50 @@ viewInstruction model attr =
 
 {-| コントロールのビュー
 -}
-viewControls : InternalModel -> Html Msg
-viewControls model =
+viewControls : InternalModel -> ConsentrationMode -> Html Msg
+viewControls model consentrationMode =
     let
         buttonClass =
             class "p-4 bg-gray-50/70 hover:bg-gray-200/70 backdrop-blur-sm rounded-full transition-colors"
     in
-    div [ class "flex justify-center gap-8 z-10" ] <|
+    Html.Keyed.node "div"
+        [ class "flex justify-center gap-8 z-10"
+        , (consentrationAnimationClass consentrationMode).durationClass
+        , (consentrationAnimationClass consentrationMode).opacityClass
+        ]
+    <|
         case model.timerState of
             NotStarted ->
-                [ text "loading..." ]
+                [ ( "loading", text "loading..." ) ]
 
             Running _ ->
-                [ button
-                    [ attribute "aria-label" "pause"
-                    , onClick ClickPauseButton
-                    , buttonClass
-                    ]
-                    [ Icon.view Icon.Pause ]
+                [ ( "pause"
+                  , button
+                        [ attribute "aria-label" "pause"
+                        , onClick ClickPauseButton
+                        , buttonClass
+                        ]
+                        [ Icon.view Icon.Pause ]
+                  )
                 ]
 
             Paused _ ->
-                [ button
-                    [ attribute "aria-label" "resume"
-                    , onClick ClickResumeButton
-                    , buttonClass
-                    ]
-                    [ Icon.view Icon.Play ]
-                , button
-                    [ attribute "aria-label" "stop"
-                    , onClick ClickStopButton
-                    , buttonClass
-                    ]
-                    [ Icon.view Icon.Stop ]
+                [ ( "resume"
+                  , button
+                        [ attribute "aria-label" "resume"
+                        , onClick ClickResumeButton
+                        , buttonClass
+                        ]
+                        [ Icon.view Icon.Play ]
+                  )
+                , ( "stop"
+                  , button
+                        [ attribute "aria-label" "stop"
+                        , onClick ClickStopButton
+                        , buttonClass
+                        ]
+                        [ Icon.view Icon.Stop ]
+                  )
                 ]
 
             Completed _ ->

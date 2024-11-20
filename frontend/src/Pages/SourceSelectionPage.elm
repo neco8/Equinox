@@ -31,8 +31,9 @@ import Html exposing (Html, button, div, h1, h2, header, p, span, text, ul)
 import Html.Attributes exposing (attribute, class, disabled)
 import Html.Events exposing (onClick)
 import Icon
+import Nav
 import RemoteData exposing (RemoteData(..))
-import Route exposing (Route)
+import Route exposing (Route(..))
 import Task
 import Time
 import Types.BreathingMethod exposing (fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName)
@@ -41,6 +42,11 @@ import View exposing (View)
 
 
 {-| ソース選択の状態を表す型
+
+    type SourceSelection
+        = SourceSelection
+        | OnlineList (RemoteData API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
+
 -}
 type SourceSelection
     = SourceSelection
@@ -65,12 +71,24 @@ init _ =
 
 
 {-| メッセージ
+
+    type Msg
+        = OpenOnlineList
+        | OpenManualInput
+        | GotOnlineBreathingMethods (Result API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
+        | NavigateToRoute Route
+        | GoBack
+        | GoBackToSourceSelection
+        | NoOp
+
 -}
 type Msg
     = OpenOnlineList
     | OpenManualInput
     | GotOnlineBreathingMethods (Result API.OnlineBreathingMethod.Error (List OnlineBreathingMethod))
     | NavigateToRoute Route
+    | GoBack
+    | GoBackToSourceSelection
     | NoOp
 
 
@@ -121,6 +139,12 @@ update config key msg model =
 
         NavigateToRoute route ->
             ( model, Nav.pushUrl key (Route.toString route) )
+
+        GoBack ->
+            ( model, Nav.back key 1 )
+
+        GoBackToSourceSelection ->
+            ( { model | sourceSelection = SourceSelection }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -178,16 +202,9 @@ viewOnlineList : RemoteData API.OnlineBreathingMethod.Error (List OnlineBreathin
 viewOnlineList m =
     div
         [ attribute "role" "online-list"
-        , class "h-full flex flex-col"
+        , class "h-full flex flex-col mx-auto max-w-2xl"
         ]
     <|
-        --               <header className="mb-6">
-        --     <div className="flex items-center gap-2 mb-2">
-        --       <Globe className="h-5 w-5 text-blue-500" />
-        --       <h1 className="text-xl font-semibold">オンライン呼吸法ライブラリ</h1>
-        --     </div>
-        --     <p className="text-gray-600">世界中のユーザーが実践している呼吸法を探索できます</p>
-        --   </header>
         header [ class "mb-6" ]
             [ div [ class "flex items-center gap-2 mb-2" ]
                 [ Icon.view Icon.Globe
@@ -210,7 +227,7 @@ viewOnlineList m =
                     Loading ->
                         [ text "Loading..." ]
 
-                    Failure error ->
+                    Failure _ ->
                         [ div [ class "border border-red-100 bg-red-50 rounded-lg p-4 mb-6" ]
                             [ div [ class "flex gap-2 items-start" ]
                                 [ Icon.view Icon.Alert
@@ -256,7 +273,7 @@ viewSourceSelection =
         [ attribute "role" "source-selection"
         , class "h-full flex items-center justify-center"
         ]
-        [ div [ class "w-full max-w-md space-y-4 px-4" ]
+        [ div [ class "w-full max-w-2xl space-y-4 px-4" ]
             [ button
                 [ attribute "aria-label" "manual-source-selection-button"
                 , onClick OpenManualInput
@@ -283,7 +300,18 @@ viewSourceSelection =
 -}
 view : Model -> View Msg
 view model =
-    { nav = Nothing
+    { nav =
+        Nav.initialConfig
+            |> Nav.withGoBack
+                (case model.sourceSelection of
+                    OnlineList _ ->
+                        GoBackToSourceSelection
+
+                    SourceSelection ->
+                        GoBack
+                )
+            |> Nav.withTitle "ソース選択"
+            |> Just
     , footer = False
     , view =
         case model.sourceSelection of
