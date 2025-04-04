@@ -250,11 +250,7 @@ viewOnlineList m =
                     Loading ->
                         [ text "Loading..." ]
 
-                    Failure error ->
-                        let
-                            _ =
-                                Debug.log "error" error
-                        in
+                    Failure _ ->
                         [ div [ class "border border-red-100 bg-red-50 rounded-lg p-4 mb-6" ]
                             [ div [ class "flex gap-2 items-start" ]
                                 [ Icon.view { icon = Icon.Warning } []
