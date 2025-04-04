@@ -30,7 +30,7 @@ import JS.Ports as Ports
 import JS.Storage.QueryError exposing (QueryError)
 import JS.Storage.QueryResult as QueryResult exposing (QueryResult)
 import JS.Storage.StorageQueryDSL as Query
-import Json.Decode as D exposing (Decoder)
+import Json.Decode as D exposing (Decoder, string)
 import Json.Decode.Extra as DE
 import Maybe.Extra
 import Nav
@@ -107,6 +107,7 @@ type Page
 type alias Flags =
     { now : Time.Posix
     , environment : Config.Environment
+    , apiKey : String
     }
 
 
@@ -116,6 +117,7 @@ defaultFlags : Flags
 defaultFlags =
     { now = Time.millisToPosix 0
     , environment = Config.defaultEnvironment
+    , apiKey = ""
     }
 
 
@@ -126,6 +128,7 @@ flagsDecoder =
     D.succeed Flags
         |> DE.andMap (D.field "now" posixDecoder)
         |> DE.andMap (D.field "environment" Config.environmentDecoder)
+        |> DE.andMap (D.field "apiKey" string)
 
 
 {-| Modelを初期化する
@@ -141,7 +144,7 @@ init flagsValue url key =
         model =
             { key = key
             , now = flags.now
-            , config = Config.config flags.environment
+            , config = Config.config flags.environment flags.apiKey
             , currentPage = NotFoundPage
             , uuidRegistry = Uuid.initialRegistry
             , uuids = []
