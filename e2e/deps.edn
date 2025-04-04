@@ -1,14 +1,14 @@
 {:paths ["test"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/test.check {:mvn/version "1.1.1"}
-        lambdaisland/kaocha {:mvn/version "1.87.1366"}
-        etaoin/etaoin {:mvn/version "1.0.40"}
-        org.slf4j/slf4j-api {:mvn/version "1.7.36"}
-        org.slf4j/slf4j-simple {:mvn/version "1.7.36"}
+        lambdaisland/kaocha {:mvn/version "1.91.1392"}
+        etaoin/etaoin {:mvn/version "1.1.42"}
+        org.slf4j/slf4j-api {:mvn/version "2.0.17"}
+        org.slf4j/slf4j-simple {:mvn/version "2.0.17"}
         compojure/compojure {:mvn/version "1.7.1"}
         ring/ring {:mvn/version "1.13.0"}
         ring/ring-json {:mvn/version "0.5.1"}
-        ring/ring-jetty-adapter {:mvn/version "1.13.0"}
+        ring/ring-jetty-adapter {:mvn/version "1.14.1"}
         ring-cors/ring-cors {:mvn/version "0.1.13"}}
 
  :aliases
