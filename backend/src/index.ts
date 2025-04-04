@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 import z from "zod";
 import { drizzle } from "drizzle-orm/d1";
 import { breathingMethods, NewBreathingMethod } from "./db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 
 type Bindings = {
@@ -171,5 +171,39 @@ breathingMethodsApp.delete("/:id", async (c) => {
 
   return c.json({ success: true });
 });
+
+// 重複確認用スキーマ
+const breathingDuplicateSchema = z.object({
+  inhale: z.number().int().min(1).max(600),
+  inhaleHold: z.number().int().min(0).max(600),
+  exhale: z.number().int().min(1).max(600),
+  exhaleHold: z.number().int().min(0).max(600),
+});
+
+// 重複確認
+breathingMethodsApp.post(
+  "/check-duplicate",
+  zValidator("json", breathingDuplicateSchema),
+  async (c) => {
+    const { inhale, inhaleHold, exhale, exhaleHold } = c.req.valid("json");
+    const db = drizzle(c.env.DB);
+
+    const results = await db
+      .select()
+      .from(breathingMethods)
+      .where(
+        and(
+          eq(breathingMethods.inhale, inhale),
+          eq(breathingMethods.inhaleHold, inhaleHold),
+          eq(breathingMethods.exhale, exhale),
+          eq(breathingMethods.exhaleHold, exhaleHold)
+        )
+      );
+
+    const duplicate = results.length > 0;
+
+    return c.json({ duplicate });
+  }
+);
 
 export default app;
