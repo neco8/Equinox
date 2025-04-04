@@ -43,7 +43,6 @@ import Common.Combobox as Combobox
 import Html exposing (Html, button, div, h1, input, li, text)
 import Html.Attributes exposing (attribute, class, disabled, placeholder, value)
 import Html.Events exposing (onClick, onInput)
-import Icon exposing (Icon(..))
 import JS.Ports as Ports
 import List.Extra
 import Maybe.Extra
