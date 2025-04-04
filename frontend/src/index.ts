@@ -28,7 +28,8 @@ if (elem) {
       node: elem,
       flags: {
         now: Date.now(),
-        environment: "development",
+        environment: import.meta.env.MODE ?? "production",
+        apiKey: import.meta.env.VITE_API_KEY,
       },
     })
   );
