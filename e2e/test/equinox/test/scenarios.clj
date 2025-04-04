@@ -112,10 +112,11 @@
               (:screenshot "セッション完了"))))
 
        (testing "📊 統計を確認してみましょう"
-         (completion/proceed-complete-session driver)
          (let [finish-duration (completion/get-finish-duration driver)]
            (is (= finish-duration duration)
                (str "実施時間が想定と異なります。想定: " duration "秒, 実際: " finish-duration "秒")))
+         (completion/proceed-complete-session driver)
+         (e/wait-visible driver (completion/selectors :finish-button))
          (completion/finish-complete-session driver)
          (e/wait-visible driver {:role "statistics"})
          (is (core/current-url? driver :statistics) "統計ページへの移動に失敗しました")
@@ -214,10 +215,11 @@
               (:screenshot "カスタムセッション完了"))))
 
        (testing "📊 統計を確認してみましょう"
-         (completion/proceed-complete-session driver)
          (let [finish-duration (completion/get-finish-duration driver)]
            (is (= finish-duration duration)
                (str "実施時間が想定と異なります。想定: " duration "秒, 実際: " finish-duration "秒")))
+         (completion/proceed-complete-session driver)
+         (e/wait-visible driver (completion/selectors :finish-button))
          (completion/finish-complete-session driver)
          (e/wait-visible driver {:role "statistics"})
          (is (core/current-url? driver :statistics) "統計ページへの移動に失敗しました")
