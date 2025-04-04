@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "backend",
+  "name": "equinox-backend",
   "main": "src/index.ts",
   "compatibility_date": "2025-04-04",
   // "compatibility_flags": [
