@@ -27,13 +27,13 @@
       "database_name": "equinox",
       "database_id": "95cf1812-56d5-4da5-a188-395ca658e245"
     }
-  ]
+  ],
   // ],
   // "ai": {
   //   "binding": "AI"
   // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
 }

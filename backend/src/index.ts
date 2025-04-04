@@ -47,24 +47,24 @@ const breathingMethodSchema = z.object({
   exhaleHold: z.number().int().min(0).max(600),
 });
 
-// ルートパスのプレフィックス
-const breathingMethodsApp = app.basePath("/breathing-methods");
+// サブアプリを定義
+const breathingMethodsApp = new Hono<{ Bindings: Bindings }>();
 
 // 全ての呼吸法を取得
 breathingMethodsApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
-  const results = await db.select().from(breathingMethods);
+  const results = await db.select().from(breathingMethods).all();
 
-  return c.json(
-    results.map((record) => ({
+  return c.json({
+    "breathing-methods": results.map((record) => ({
       id: record.id,
       name: record.name,
       inhale: record.inhale,
       inhaleHold: record.inhaleHold,
       exhale: record.exhale,
       exhaleHold: record.exhaleHold,
-    }))
-  );
+    })),
+  });
 });
 
 // 特定のIDの呼吸法を取得
@@ -205,5 +205,8 @@ breathingMethodsApp.post(
     return c.json({ duplicate });
   }
 );
+
+// マウントする
+app.route("/breathing-methods", breathingMethodsApp);
 
 export default app;
