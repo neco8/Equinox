@@ -10,7 +10,7 @@
    :total-sets [{:tag "span" :aria-label "total-sets"}]
    :total-minutes [{:tag "span" :aria-label "total-minutes"}]
    :total-practice-days [{:tag "span" :aria-label "total-practice-days"}]
-   :home-tab [{:tag "button" :aria-label "home"}]
+   :home-tab [{:tag "button" :aria-label "home-tab"}]
    :start-button [{:tag "button" :aria-label "start-session-prepare"}]})
 
 (defn click-settings
