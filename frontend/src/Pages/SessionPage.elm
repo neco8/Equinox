@@ -1094,7 +1094,7 @@ viewControls model consentrationMode =
                         , onClick ClickPauseButton
                         , buttonClass
                         ]
-                        [ Icon.view Icon.Pause ]
+                        [ Icon.view { icon = Icon.Pause } [] ]
                   )
                 ]
 
@@ -1105,7 +1105,7 @@ viewControls model consentrationMode =
                         , onClick ClickResumeButton
                         , buttonClass
                         ]
-                        [ Icon.view Icon.Play ]
+                        [ Icon.view { icon = Icon.PlayArrow } [] ]
                   )
                 , ( "stop"
                   , button
@@ -1113,7 +1113,7 @@ viewControls model consentrationMode =
                         , onClick ClickStopButton
                         , buttonClass
                         ]
-                        [ Icon.view Icon.Stop ]
+                        [ Icon.view { icon = Icon.Stop } [] ]
                   )
                 ]
 

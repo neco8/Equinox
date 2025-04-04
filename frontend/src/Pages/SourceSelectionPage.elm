@@ -39,6 +39,7 @@ import Time
 import Types.BreathingMethod exposing (fromExhaleDuration, fromExhaleHoldDuration, fromInhaleDuration, fromInhaleHoldDuration, fromName)
 import Uuid
 import View exposing (View)
+import View.List
 
 
 {-| ソース選択の状態を表す型
@@ -167,20 +168,20 @@ viewOnlineBreathingMethod showUsers { name, id, inhale, inhaleHold, exhale, exha
         [ div [ class "flex items-start justify-between mb-2" ]
             [ h2 [ class "font-medium text-lg group-hover:text-blue-700 transition-colors" ] [ text <| fromName name ]
             , span [ class "opacity-0 hover:opacity-100 transition-opacity" ]
-                [ Icon.view Icon.Cloud
+                [ Icon.view { icon = Icon.FilterDrama } []
                 ]
             ]
         , div [ class "flex items-center gap-4 text-sm text-gray-600" ]
             [ if showUsers then
                 div [ class "flex items-center gap-1" ]
-                    [ Icon.view Icon.Users
+                    [ Icon.view { icon = Icon.Groups } []
                     , span [] [ text <| String.fromInt users ++ "人が実践中" ]
                     ]
 
               else
                 text ""
             , div [ class "flex items-center gap-1" ]
-                [ Icon.view Icon.Timer
+                [ Icon.view { icon = Icon.Timer } []
                 , span []
                     [ text <|
                         (String.fromInt <| fromInhaleDuration inhale)
@@ -200,6 +201,16 @@ viewOnlineBreathingMethod showUsers { name, id, inhale, inhaleHold, exhale, exha
 -}
 viewOnlineList : RemoteData API.OnlineBreathingMethod.Error (List OnlineBreathingMethod) -> Html Msg
 viewOnlineList m =
+    let
+        manualInputButton =
+            button
+                [ class "w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+                , onClick (NavigateToRoute (Route.BreathingMethodAddRoute Nothing Nothing Nothing Nothing Nothing))
+                ]
+                [ Icon.view { icon = Icon.Edit } []
+                , span [] [ text "手入力" ]
+                ]
+    in
     div
         [ attribute "role" "online-list"
         , class "h-full flex flex-col mx-auto max-w-2xl"
@@ -207,18 +218,30 @@ viewOnlineList m =
     <|
         header [ class "mb-6" ]
             [ div [ class "flex items-center gap-2 mb-2" ]
-                [ Icon.view Icon.Globe
+                [ Icon.view { icon = Icon.Public } []
                 , h1 [ class "text-xl font-semibold" ] [ text "オンライン呼吸法ライブラリ" ]
                 ]
             , p [ class "text-gray-600" ] [ text "みんなが実践している呼吸法を探索してみましょう" ]
             ]
             :: (case m of
                     Success onlineBreathingMethods ->
-                        [ ul
-                            [ attribute "aria-label" "online-list"
-                            , class "space-y-3"
-                            ]
-                            (List.map (viewOnlineBreathingMethod False) onlineBreathingMethods)
+                        [ View.List.viewList
+                            { emptyState =
+                                div [ class "flex flex-col items-center justify-center h-64 text-gray-500" ]
+                                    [ Icon.view { icon = Icon.TravelExplore } [ class "text-4xl mb-4 opacity-60" ]
+                                    , p [ class "text-lg mb-4" ] [ text "オンライン呼吸法はまだありません。" ]
+                                    , manualInputButton
+                                    ]
+                            , container =
+                                \items ->
+                                    ul
+                                        [ attribute "aria-label" "online-list"
+                                        , class "space-y-3"
+                                        ]
+                                        items
+                            , item = viewOnlineBreathingMethod False
+                            }
+                            onlineBreathingMethods
                         ]
 
                     NotAsked ->
@@ -227,10 +250,14 @@ viewOnlineList m =
                     Loading ->
                         [ text "Loading..." ]
 
-                    Failure _ ->
+                    Failure error ->
+                        let
+                            _ =
+                                Debug.log "error" error
+                        in
                         [ div [ class "border border-red-100 bg-red-50 rounded-lg p-4 mb-6" ]
                             [ div [ class "flex gap-2 items-start" ]
-                                [ Icon.view Icon.Alert
+                                [ Icon.view { icon = Icon.Warning } []
                                 , div []
                                     [ h2 [ class "font-medium text-red-900 mb-1" ]
                                         [ text "オンラインソースへ接続できません"
@@ -242,23 +269,17 @@ viewOnlineList m =
                                 ]
                             ]
                         , div [ class "bg-white rounded-lg border-2 border-dashed border-gray-200 p-8 flex flex-col items-center justify-center text-center" ]
-                            [ div [ class "p-4 rounded-full bg-gray-100 mb-4" ] [ Icon.view Icon.Globe ]
+                            [ div [ class "p-4 rounded-full bg-gray-100 mb-4" ] [ Icon.view { icon = Icon.Public } [] ]
                             , p [ class "text-gray-600 mb-6" ] [ text "オンラインライブラリを利用できません" ]
                             , div [ class "space-y-3 w-64" ]
                                 [ button
                                     [ class "w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-30"
                                     , disabled True
                                     ]
-                                    [ Icon.view Icon.Refresh
+                                    [ Icon.view { icon = Icon.Cached } []
                                     , span [] [ text "再試行" ]
                                     ]
-                                , button
-                                    [ class "w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
-                                    , onClick (NavigateToRoute (Route.BreathingMethodAddRoute Nothing Nothing Nothing Nothing Nothing))
-                                    ]
-                                    [ Icon.view Icon.Pencil
-                                    , span [] [ text "手入力" ]
-                                    ]
+                                , manualInputButton
                                 ]
                             ]
                         ]
@@ -279,7 +300,7 @@ viewSourceSelection =
                 , onClick OpenManualInput
                 , class "w-full flex items-center justify-center gap-3 p-3 rounded-lg border border-gray-400 bg-white hover:bg-gray-50 transition-colors"
                 ]
-                [ Icon.view Icon.Pencil
+                [ Icon.view { icon = Icon.Edit } []
                 , span [ class "text-lg" ] [ text "手入力" ]
                 ]
             , button
@@ -287,7 +308,7 @@ viewSourceSelection =
                 , onClick OpenOnlineList
                 , class "w-full flex items-center justify-center gap-3 p-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors text-white shadow-lg"
                 ]
-                [ Icon.view Icon.Globe
+                [ Icon.view { icon = Icon.Public } []
                 , span [ class "text-lg" ]
                     [ text "オンラインソースへ"
                     ]

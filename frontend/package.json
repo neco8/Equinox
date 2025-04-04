@@ -4,10 +4,11 @@
   "description": "呼吸法を通じて心身をニュートラルな状態に戻すためのモバイルアプリ",
   "main": "index.js",
   "scripts": {
-    "start": "vite --port 3000",
+    "start": "vite --port 3000 --mode development",
     "test": "elm-test",
     "review": "elm-review",
-    "build": "vite build"
+    "build": "vite build --mode production",
+    "test:e2e": "bash -c 'vite --port 3000 --mode test & VITE_PID=$!; trap \"kill $VITE_PID\" EXIT; cd ../e2e && clj -M:test'"
   },
   "keywords": [],
   "author": "neco8",

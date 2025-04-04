@@ -11,6 +11,7 @@ Settingsと明確に違うことを注意したい。Configは、コンパイル
 
 -}
 
+import Const
 import Json.Decode
 
 
@@ -67,25 +68,29 @@ environmentDecoder =
 type alias Config =
     { environment : Environment
     , apiEndPoint : String
+    , apiKey : String
     }
 
 
 {-| 環境によって設定値を出し分ける
 -}
-config : Environment -> Config
-config environment =
+config : Environment -> String -> Config
+config environment apiKey =
     case environment of
         Development ->
             { environment = environment
-            , apiEndPoint = "http://localhost:3001/api/v1"
+            , apiEndPoint = Const.apiPath
+            , apiKey = apiKey
             }
 
         Production ->
             { environment = environment
-            , apiEndPoint = "未定"
+            , apiEndPoint = Const.apiPath
+            , apiKey = apiKey
             }
 
         Test ->
             { environment = environment
-            , apiEndPoint = "未定"
+            , apiEndPoint = "http://localhost:3001/api/v1"
+            , apiKey = apiKey
             }

@@ -161,7 +161,10 @@ getOnlineBreathingMethods : Config -> (Result Error (List OnlineBreathingMethod)
 getOnlineBreathingMethods config toMsg =
     Http.request
         { method = "GET"
-        , headers = [ Http.header "Accept" "application/json" ]
+        , headers =
+            [ Http.header "Accept" "application/json"
+            , Http.header "X-API-Key" config.apiKey
+            ]
         , url = config.apiEndPoint ++ "/breathing-methods"
         , body = Http.emptyBody
         , expect = expectJson toMsg onlineBreathingMethodsDecoder
@@ -176,7 +179,10 @@ checkDuplicate : Config -> BreathingMethod -> (Result Error Bool -> msg) -> Cmd 
 checkDuplicate config method toMsg =
     Http.request
         { method = "POST"
-        , headers = [ Http.header "Content-Type" "application/json" ]
+        , headers =
+            [ Http.header "Content-Type" "application/json"
+            , Http.header "X-API-Key" config.apiKey
+            ]
         , url = config.apiEndPoint ++ "/breathing-methods/check-duplicate"
         , body = Http.jsonBody (encodeBreathingMethod method)
         , expect = expectJson toMsg duplicateDecoder

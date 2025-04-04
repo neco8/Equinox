@@ -13,200 +13,157 @@ module Icon exposing (Icon(..), view)
 
 -}
 
-import Html exposing (Html, div, text)
+import Html exposing (Attribute, Html, div, span, text)
+import Html.Attributes exposing (class)
 
 
 {-| アイコンの種類を定義します。
 
     type Icon
-        = Flame
+        = LocalFireDepartment
         | Settings
-        | Plus
-        | Home
-        | Play
-        | Statistics
+        | Add
+        | Cottage
+        | PlayArrow
+        | Monitoring
         | Timer
-        | Wind
+        | Air
         | Pause
         | Stop
-        | Medal
-        | Sparkles
-        | Pencil
-        | Globe
-        | Cloud
-        | Users
-        | Alert
-        | Refresh
+        | MilitaryTech
+        | Stars2
+        | Edit
+        | Public
+        | FilterDrama
+        | Groups
+        | Warning
+        | Cached
         | Check
         | ChevronLeft
         | ChevronRight
-        | Hamburger
-        | Trash
-        | Sets
-        | Calendar
+        | Menu
+        | Delete
+        | Category
+        | CalendarToday
         | Close
+        | TravelExplore
 
 -}
 type Icon
-    = Flame
+    = LocalFireDepartment
     | Settings
-    | Plus
-    | Home
-    | Play
-    | Statistics
+    | Add
+    | Cottage
+    | PlayArrow
+    | Monitoring
     | Timer
-    | Wind
+    | Air
     | Pause
     | Stop
-    | Medal
-    | Sparkles
-    | Pencil
-    | Globe
-    | Cloud
-    | Users
-    | Alert
-    | Refresh
+    | MilitaryTech
+    | Stars2
+    | Edit
+    | Public
+    | FilterDrama
+    | Groups
+    | Warning
+    | Cached
     | Check
     | ChevronLeft
     | ChevronRight
-    | Hamburger
-    | Trash
-    | Sets
-    | Calendar
+    | Menu
+    | Delete
+    | Category
+    | CalendarToday
     | Close
+    | TravelExplore
 
 
 {-| ビュー
 -}
-view : Icon -> Html msg
-view icon =
-    case icon of
-        Flame ->
-            div
-                []
-                [ text "🔥" ]
+view : { config | icon : Icon } -> List (Attribute msg) -> Html msg
+view { icon } attrs =
+    span (class "material-symbols-rounded" :: attrs) <|
+        List.singleton <|
+            text <|
+                case icon of
+                    LocalFireDepartment ->
+                        "local_fire_department"
 
-        Settings ->
-            div
-                []
-                [ text "⚙️" ]
+                    Settings ->
+                        "settings"
 
-        Plus ->
-            div
-                []
-                [ text "➕" ]
+                    Add ->
+                        "add"
 
-        Home ->
-            div
-                []
-                [ text "🏠" ]
+                    Cottage ->
+                        "cottage"
 
-        Play ->
-            div
-                []
-                [ text "▶️" ]
+                    PlayArrow ->
+                        "play_arrow"
 
-        Statistics ->
-            div
-                []
-                [ text "📊" ]
+                    Monitoring ->
+                        "monitoring"
 
-        Timer ->
-            div
-                []
-                [ text "⏱" ]
+                    Timer ->
+                        "timer"
 
-        Wind ->
-            div
-                []
-                [ text "💨" ]
+                    Air ->
+                        "air"
 
-        Pause ->
-            div
-                []
-                [ text "⏸" ]
+                    Pause ->
+                        "pause"
 
-        Stop ->
-            div
-                []
-                [ text "⏹" ]
+                    Stop ->
+                        "stop"
 
-        Medal ->
-            div
-                []
-                [ text "🏅" ]
+                    MilitaryTech ->
+                        "military_tech"
 
-        Sparkles ->
-            div
-                []
-                [ text "✨" ]
+                    Stars2 ->
+                        "stars_2"
 
-        Pencil ->
-            div
-                []
-                [ text "✏️" ]
+                    Edit ->
+                        "edit"
 
-        Globe ->
-            div
-                []
-                [ text "🌍" ]
+                    Public ->
+                        "public"
 
-        Cloud ->
-            div
-                []
-                [ text "☁️" ]
+                    FilterDrama ->
+                        "filter_drama"
 
-        Users ->
-            div
-                []
-                [ text "👥" ]
+                    Groups ->
+                        "groups"
 
-        Alert ->
-            div
-                []
-                [ text "⚠️" ]
+                    Warning ->
+                        "warning"
 
-        Refresh ->
-            div
-                []
-                [ text "🔄" ]
+                    Cached ->
+                        "cached"
 
-        Check ->
-            div
-                []
-                [ text "✓" ]
+                    Check ->
+                        "check"
 
-        ChevronLeft ->
-            div
-                []
-                [ text "←" ]
+                    ChevronLeft ->
+                        "chevron_left"
 
-        ChevronRight ->
-            div
-                []
-                [ text "→" ]
+                    ChevronRight ->
+                        "chevron_right"
 
-        Hamburger ->
-            div
-                []
-                [ text "☰" ]
+                    Menu ->
+                        "menu"
 
-        Trash ->
-            div
-                []
-                [ text "🗑️" ]
+                    Delete ->
+                        "delete"
 
-        Sets ->
-            div
-                []
-                [ text "📚" ]
+                    Category ->
+                        "category"
 
-        Calendar ->
-            div
-                []
-                [ text "📅" ]
+                    CalendarToday ->
+                        "calendar_today"
 
-        Close ->
-            div
-                []
-                [ text "x" ]
+                    Close ->
+                        "close"
+
+                    TravelExplore ->
+                        "travel_explore"

@@ -190,7 +190,7 @@ viewOption { selectedOption, config } opt =
             ]
         , if selectedOption == Just opt then
             span [ class "text-xs" ]
-                [ Icon.view Icon.Check
+                [ Icon.view { icon = Icon.Check } []
                 ]
 
           else

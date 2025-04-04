@@ -76,6 +76,7 @@ export type SaveResult =
 type Flags = {
   now: number;
   environment: "development" | "production" | "test";
+  apiKey: string;
 };
 
 // Command and Subscription Types

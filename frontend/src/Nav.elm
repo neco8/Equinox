@@ -113,7 +113,7 @@ view { goBackMsg, title, rightTop } =
                                 [ class "mr-4 p-2 h-10 hover:bg-gray-100 rounded-full aspect-square transition-colors duration-200"
                                 , onClick m
                                 ]
-                                [ Icon.view Icon.ChevronLeft
+                                [ Icon.view { icon = Icon.ChevronLeft } []
                                 ]
                         )
                  , title
@@ -139,7 +139,7 @@ type alias StreakModel =
 viewStreak : StreakModel -> Html msg
 viewStreak streak =
     div [ class "flex items-center space-x-2" ]
-        [ Icon.view Icon.Flame
+        [ Icon.view { icon = Icon.LocalFireDepartment } []
         , span
             [ class "font-medium text-xs"
             ]
@@ -161,7 +161,7 @@ viewSettings config =
                     , class "aspect-square h-10 p-2 hover:bg-gray-200 rounded-full"
                     , onClick config.goToSettings
                     ]
-                    [ Icon.view Icon.Settings ]
+                    [ Icon.view { icon = Icon.Settings } [] ]
             ]
     ]
 
@@ -174,4 +174,4 @@ viewHamburger clickHamburger =
         [ class "aspect-square h-10 p-2 hover:bg-gray-200 rounded-full grid items-center"
         , onClick clickHamburger
         ]
-        [ Icon.view Icon.Hamburger ]
+        [ Icon.view { icon = Icon.Menu } [] ]
