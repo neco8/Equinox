@@ -469,16 +469,16 @@ view model =
                     toIcon phaseType =
                         case phaseType of
                             Inhale ->
-                                Icon.view Icon.Wind
+                                Icon.view { icon = Icon.Air } []
 
                             InhaleHold ->
-                                Icon.view Icon.Pause
+                                Icon.view { icon = Icon.Pause } []
 
                             Exhale ->
-                                div [ class "transform-rotate-180" ] [ Icon.view Icon.Wind ]
+                                Icon.view { icon = Icon.Air } [ class "transform-rotate-180" ]
 
                             ExhaleHold ->
-                                Icon.view Icon.Pause
+                                Icon.view { icon = Icon.Pause } []
 
                     toAriaLabel phaseType =
                         attribute "aria-label" <| phaseTypeToString phaseType
@@ -510,7 +510,7 @@ view model =
                     , breathingMethodControls
                     , div [ class "space-y-8 mt-4" ]
                         [ div [ class "flex items-center space-x-3 bg-gray-50 p-4 rounded-lg" ]
-                            [ Icon.view Icon.Timer
+                            [ Icon.view { icon = Icon.Timer } []
                             , input
                                 [ attribute "aria-label" "session-duration-input"
                                 , onInput InputSessionDuration
@@ -540,7 +540,7 @@ view model =
                                            )
                                    )
                             )
-                            [ Icon.view Icon.Play
+                            [ Icon.view { icon = Icon.PlayArrow } []
                             , text "セッションを始める"
                             ]
                         ]

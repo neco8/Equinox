@@ -295,11 +295,11 @@ view model =
                             case step of
                                 Result ->
                                     [ div [ class "relative flex items-center justify-center w-24 h-24 rounded-full bg-green-100 text-4xl" ]
-                                        [ Icon.view Icon.Medal
+                                        [ Icon.view { icon = Icon.MilitaryTech } []
                                         ]
                                     , div [ class "flex items-center justify-center space-x-2 text-8xl font-bold text-gray-900" ]
                                         [ div [ class "text-5xl mr-4" ]
-                                            [ Icon.view Icon.Timer
+                                            [ Icon.view { icon = Icon.Timer } []
                                             ]
                                         , div [ class "align-baseline" ]
                                             [ span

@@ -142,7 +142,7 @@ viewSettingItem { goToItem, isDanger, label } =
             [ text label
             ]
         , div [ class "flex items-center" ]
-            [ Icon.view Icon.ChevronRight
+            [ Icon.view { icon = Icon.ChevronRight } []
             ]
         ]
 

@@ -91,7 +91,7 @@ view config =
                         [ onClick config.onClose
                         , class "text-gray-500 hover:text-gray-700 transition-colors"
                         ]
-                        [ Icon.view Icon.Close ]
+                        [ Icon.view { icon = Icon.Close } [] ]
                     ]
                 , div [ class "overflow-y-auto" ] [ config.content ]
                 ]

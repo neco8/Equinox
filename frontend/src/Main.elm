@@ -943,7 +943,7 @@ viewFooter =
                 , onClick (NavigateToRoute HomeRoute)
                 , tabClass
                 ]
-                [ Icon.view Icon.Home
+                [ Icon.view { icon = Icon.Cottage } []
                 , span [ class "text-sm" ] [ text "ホーム" ]
                 ]
             , button
@@ -951,7 +951,7 @@ viewFooter =
                 , onClick (NavigateToRoute ManualSessionPreparationRoute)
                 , tabClass
                 ]
-                [ Icon.view Icon.Play
+                [ Icon.view { icon = Icon.PlayArrow } []
                 , span [ class "text-sm" ] [ text "セッション開始" ]
                 ]
             , button
@@ -959,7 +959,7 @@ viewFooter =
                 , onClick (NavigateToRoute StatisticsRoute)
                 , tabClass
                 ]
-                [ Icon.view Icon.Statistics
+                [ Icon.view { icon = Icon.Monitoring } []
                 , span [ class "text-sm" ] [ text "統計" ]
                 ]
             ]
@@ -1047,7 +1047,7 @@ viewHome model =
                         , onClick (NavigateToRoute SourceSelectionRoute)
                         , class "w-full py-3 px-4 bg-blue-500 text-white rounded-lg flex items-center justify-center space-x-2 hover:bg-blue-600 transition-colors"
                         ]
-                        [ Icon.view Icon.Plus
+                        [ Icon.view { icon = Icon.Add } []
                         , text "新しい呼吸法を追加"
                         ]
                     ]
@@ -1091,7 +1091,7 @@ viewStatistics model =
                     [ h2 [ class "text-lg font-semibold mb-4" ] [ text "過去7日間" ]
                     , div [ class "grid grid-cols-2 gap-4" ]
                         [ div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ Icon.view Icon.Sets ]
+                            [ span [ class "text-2xl" ] [ Icon.view { icon = Icon.Category } [] ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "recent-sets"
@@ -1102,7 +1102,7 @@ viewStatistics model =
                                 ]
                             ]
                         , div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ Icon.view Icon.Timer ]
+                            [ span [ class "text-2xl" ] [ Icon.view { icon = Icon.Timer } [] ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "recent-minutes"
@@ -1121,7 +1121,7 @@ viewStatistics model =
                     [ h2 [ class "text-lg font-semibold mb-4" ] [ text "累計" ]
                     , div [ class "grid grid-cols-2 gap-4" ]
                         [ div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ Icon.view Icon.Sets ]
+                            [ span [ class "text-2xl" ] [ Icon.view { icon = Icon.Category } [] ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "total-sets"
@@ -1132,7 +1132,7 @@ viewStatistics model =
                                 ]
                             ]
                         , div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ Icon.view Icon.Timer ]
+                            [ span [ class "text-2xl" ] [ Icon.view { icon = Icon.Timer } [] ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "total-minutes"
@@ -1151,7 +1151,7 @@ viewStatistics model =
                     [ h2 [ class "text-lg font-semibold mb-4" ] [ text "練習記録" ]
                     , div [ class "grid grid-cols-2 gap-4" ]
                         [ div [ class "flex items-center gap-3" ]
-                            [ span [ class "text-2xl" ] [ Icon.view Icon.Calendar ]
+                            [ span [ class "text-2xl" ] [ Icon.view { icon = Icon.CalendarToday } [] ]
                             , div [ class "grid grid-flow-col gap-1 items-baseline" ]
                                 [ span
                                     [ attribute "aria-label" "total-practice-days"
@@ -1217,7 +1217,7 @@ viewNotFound =
                 [ class "inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200"
                 , onClick (NavigateToRoute HomeRoute)
                 ]
-                [ Icon.view Icon.Home
+                [ Icon.view { icon = Icon.Cottage } []
                 , span []
                     [ text "ホームに戻る"
                     ]

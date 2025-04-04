@@ -108,16 +108,16 @@ view config model =
         toIcon phaseType =
             case phaseType of
                 Inhale ->
-                    Icon.view Icon.Wind
+                    Icon.view { icon = Icon.Air } []
 
                 InhaleHold ->
-                    Icon.view Icon.Pause
+                    Icon.view { icon = Icon.Pause } []
 
                 Exhale ->
-                    div [ class "transform-rotate-180" ] [ Icon.view Icon.Wind ]
+                    Icon.view { icon = Icon.Air } [ class "transform-rotate-180" ]
 
                 ExhaleHold ->
-                    Icon.view Icon.Pause
+                    Icon.view { icon = Icon.Pause } []
 
         toAriaLabel phaseType =
             attribute "aria-label" <| (phaseTypeToString phaseType ++ "-duration-input")
