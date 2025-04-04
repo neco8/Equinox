@@ -8,6 +8,13 @@
       "when": 1743767678383,
       "tag": "0000_solid_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1743793936910,
+      "tag": "0001_tricky_paibok",
+      "breakpoints": true
     }
   ]
 }

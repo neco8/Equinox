@@ -209,4 +209,10 @@ breathingMethodsApp.post(
 // マウントする
 app.route("/breathing-methods", breathingMethodsApp);
 
+// サブアプリを定義
+const usersApp = new Hono<{ Bindings: Bindings }>();
+
+// マウントする
+app.route("/users", usersApp);
+
 export default app;

@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 
 export const breathingMethods = sqliteTable("breathing_methods", {
   // UUID形式の識別子
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey().unique(),
 
   // 1〜20文字の呼吸法名
   name: text("name").notNull(),
@@ -30,26 +30,10 @@ export const breathingMethods = sqliteTable("breathing_methods", {
 export type BreathingMethod = typeof breathingMethods.$inferSelect;
 export type NewBreathingMethod = typeof breathingMethods.$inferInsert;
 
-// データ取得・変換用の関数
-export function mapToOnlineBreathingMethod(
-  dbRecord: BreathingMethod
-): OnlineBreathingMethod {
-  return {
-    id: dbRecord.id,
-    name: dbRecord.name,
-    inhale: dbRecord.inhale,
-    inhaleHold: dbRecord.inhaleHold,
-    exhale: dbRecord.exhale,
-    exhaleHold: dbRecord.exhaleHold,
-  };
-}
+export const users = sqliteTable("users", {
+  // UUID形式の識別子
+  id: text("id").primaryKey().unique(),
+});
 
-// Elmの型定義に合わせた型
-export type OnlineBreathingMethod = {
-  id: string;
-  name: string;
-  inhale: number;
-  inhaleHold: number;
-  exhale: number;
-  exhaleHold: number;
-};
+// 型定義
+export type User = typeof users.$inferSelect;
