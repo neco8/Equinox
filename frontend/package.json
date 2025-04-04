@@ -7,7 +7,8 @@
     "start": "vite --port 3000",
     "test": "elm-test",
     "review": "elm-review",
-    "build": "vite build"
+    "build": "vite build",
+    "test:e2e": "bash -c 'vite --port 3000 --mode test & VITE_PID=$!; trap \"kill $VITE_PID\" EXIT; cd ../e2e && clj -M:test'"
   },
   "keywords": [],
   "author": "neco8",
